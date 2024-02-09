@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from helperfunctions import (collate_pairwise_fn)
+from HelperFunctions import (collate_pairwise_fn)
 from TreeNetwork import LeroNet
 from TreeModel import LeroModel
 

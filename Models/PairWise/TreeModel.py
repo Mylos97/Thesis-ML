@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from TreeNetwork import LeroNet
-from helperfunctions import (_nn_path, _feature_generator_path, 
+from HelperFunctions import (_nn_path, _feature_generator_path, 
                              _input_feature_dim_path, collate_fn)
 
 class LeroModel():

@@ -2,7 +2,7 @@ import torch.nn as nn
 from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
                                   TreeActivation, TreeLayerNorm)
 from TreeConvolution.util import prepare_trees
-from helperfunctions import (transformer, left_child, right_child)
+from HelperFunctions import (transformer, left_child, right_child)
 
 
 class LeroNet(nn.Module):
