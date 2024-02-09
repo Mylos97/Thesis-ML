@@ -1,0 +1,4 @@
+- Not sure we need the left/right child because we will input a tree directly :)
+- Will try to run the Lero model and see how it works 
+- Split the model into three different files
+-
