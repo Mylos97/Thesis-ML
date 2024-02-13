@@ -2,12 +2,12 @@ import torch.nn as nn
 from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
                                   TreeActivation, TreeLayerNorm)
 from TreeConvolution.util import prepare_trees
-from HelperFunctions import (transformer, left_child, right_child)
+from Models.PairWise.helper import (transformer, left_child, right_child)
 
 
-class LeroNet(nn.Module):
+class TreeConvolution256(nn.Module):
     def __init__(self, input_feature_dim) -> None:
-        super(LeroNet, self).__init__()
+        super(TreeConvolution256, self).__init__()
         self.input_feature_dim = input_feature_dim
         self._cuda = False
         self.device = None

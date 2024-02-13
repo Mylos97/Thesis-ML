@@ -2,4 +2,6 @@
 - Will try to run the Lero model and see how it works 
 - Split the model into three different files
 - Refactor the models so the training is in a seperate files
-- Remove the use of the LeroModel so we only use LeroNet and Pairwise since we dont need a pointwise model
+- Remove the use of the LeroModel so we only use LeroNet and Pairwise since we dont need a pointwise model (Should be done just needs testing)
+- If we get the correct input we should easily be able to use the code LERO made 
+- Still need to implement the listwise

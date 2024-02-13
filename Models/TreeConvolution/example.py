@@ -10,9 +10,9 @@ import tcnn
 #   (0, 1) (-1, 0)  (2, 3) (1, 2)
 
 tree1 = (
-    (0, 1),
-    ((1, 2), ((0, 1),), ((-1, 0),)),
-    ((-3, 0), ((2, 3),), ((1, 2),))
+    (0, 1,2),
+    ((1, 2,4), ((0, 1,4),), ((-1, 0,4),)),
+    ((-3, 0,4), ((2, 3,4),), ((1, 2,4),))
 )
 
 # Second tree:
@@ -21,11 +21,10 @@ tree1 = (
 #   (5, 3)  (2, 6)
 
 tree2 = (
-    (16, 3),
-    ((0, 1), ((5, 3),), ((2, 6),)),
-    ((2, 9),)
+    (16, 3,2),
+    ((0, 1,4), ((5, 3,5),), ((2, 6,4),)),
+    ((2, 9,6),)
 )
-
 
 trees = [tree1, tree2]
 
@@ -61,7 +60,7 @@ prepared_trees = prepare_trees(trees, transformer, left_child, right_child)
 # Finally, we apply "dynamic pooling", which returns a flattened vector.
 
 net = nn.Sequential(
-    tcnn.BinaryTreeConv(2, 16),
+    tcnn.BinaryTreeConv(3, 16),
     tcnn.TreeLayerNorm(),
     tcnn.TreeActivation(nn.ReLU()),
     tcnn.BinaryTreeConv(16, 8),
