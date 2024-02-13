@@ -9,7 +9,7 @@ class TreeConvolution256(nn.Module):
     def __init__(self, input_feature_dim) -> None:
         super(TreeConvolution256, self).__init__()
         self.input_feature_dim = input_feature_dim
-        self._cuda = False
+        self.cuda = False
         self.device = None
 
         self.tree_conv = nn.Sequential(
@@ -31,9 +31,4 @@ class TreeConvolution256(nn.Module):
         return self.tree_conv(trees)
 
     def build_trees(self, feature):
-        return prepare_trees(feature, transformer, left_child, right_child, cuda=self._cuda, device=self.device)
-
-    def cuda(self, device):
-        self._cuda = True
-        self.device = device
-        return super().cuda()
+        return prepare_trees(feature, transformer, left_child, right_child, cuda=self.cuda, device=self.device)
