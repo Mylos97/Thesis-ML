@@ -1,4 +1,5 @@
 import numpy as np
+from torch.utils.data import DataLoader
 
 def collate_pairwise_fn(x):
     trees1 = []
@@ -25,3 +26,24 @@ def right_child(x):
 
 def transformer(x):
     return np.array(x[0])
+
+def make_dataloader(x, batch_size):
+    dataset = DataLoader(x,
+                batch_size=batch_size,
+                shuffle=True,
+                collate_fn=collate_pairwise_fn)
+    return dataset
+
+def make_pairs(X1,X2,Y1,Y2) ->  list[(tuple, tuple, tuple)]:
+    assert len(X1) == len(X2) and len(Y1) == len(Y2) and len(X1) == len(Y1)
+    if isinstance(Y1, list):
+        Y1 = np.array(Y1)
+        Y1 = Y1.reshape(-1, 1)
+    if isinstance(Y2, list):
+        Y2 = np.array(Y2)
+        Y2 = Y2.reshape(-1, 1)
+
+    pairs = []
+    for i in range(len(X1)):
+        pairs.append((X1[i], X2[i], 1.0 if Y1[i] >= Y2[i] else 0.0))
+    return pairs
