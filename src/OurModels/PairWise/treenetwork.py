@@ -2,7 +2,6 @@ import torch.nn as nn
 from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
                                   TreeActivation, TreeLayerNorm)
 from TreeConvolution.util import prepare_trees
-from Models.PairWise.helper import (transformer, left_child, right_child)
 
 
 class TreeConvolution256(nn.Module):
@@ -29,6 +28,3 @@ class TreeConvolution256(nn.Module):
 
     def forward(self, trees):
         return self.tree_conv(trees)
-
-    def build_trees(self, feature):
-        return prepare_trees(feature, transformer, left_child, right_child, cuda=self.cuda, device=self.device)

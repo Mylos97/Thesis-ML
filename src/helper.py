@@ -1,5 +1,6 @@
 import numpy as np
 from torch.utils.data import DataLoader
+from TreeConvolution.util import prepare_trees
 
 def collate_pairwise_fn(x):
     trees1 = []
@@ -33,6 +34,9 @@ def make_dataloader(x, batch_size):
                 shuffle=True,
                 collate_fn=collate_pairwise_fn)
     return dataset
+
+def build_trees(feature):
+    return prepare_trees(feature, transformer, left_child, right_child)
 
 def make_pairs(X1,X2,Y1,Y2) ->  list[(tuple, tuple, tuple)]:
     assert len(X1) == len(X2) and len(Y1) == len(Y2) and len(X1) == len(Y1)
