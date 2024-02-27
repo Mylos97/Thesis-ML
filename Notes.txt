@@ -1,2 +1,0 @@
-- We need some test data for checking if our implementations are correct
-- Need to make training loops
