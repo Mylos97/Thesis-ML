@@ -11,15 +11,17 @@ class TreeDecoder(nn.Module):
             nn.Linear(16, 32),
             nn.LeakyReLU(),
             nn.Linear(32, 64),
+            nn.LeakyReLU(),
             BinaryTreeConv(64, 128),
-            TreeActivation(nn.LeakyReLU()),
             TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
             BinaryTreeConv(128, 256),
-            TreeActivation(nn.LeakyReLU()),
             TreeLayerNorm(),
-            BinaryTreeConv(256, self.output_dim)
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(256, self.output_dim), # this prolly does not work atm
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU())
         )
         
-
     def forward(self, trees):
         return self.tree_conv(trees)

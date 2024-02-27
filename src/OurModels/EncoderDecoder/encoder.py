@@ -6,7 +6,6 @@ class TreeEncoder(nn.Module):
     def __init__(self, input_dim) -> None:
         super(TreeEncoder, self).__init__()
         self.input_feature_dim = input_dim
-
         self.tree_conv = nn.Sequential (
             BinaryTreeConv(self.input_feature_dim, 256),
             TreeLayerNorm(),

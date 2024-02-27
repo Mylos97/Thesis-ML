@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from Models.PairWise.treenetwork import TreeConvolution256
-from Models.PairWise.helper import make_dataloader, make_pairs
-from Exporter.exporter import export_model
+from PairWise.treenetwork import TreeConvolution256
+from helper import make_dataloader, make_pairs
+from exporter import export_model
 
 def fit(X1, X2, Y1, Y2):
     pairs = make_pairs(X1,X2,Y1,Y2)

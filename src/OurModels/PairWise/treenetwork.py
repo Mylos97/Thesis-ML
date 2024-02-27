@@ -1,8 +1,6 @@
 import torch.nn as nn
 from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
                                   TreeActivation, TreeLayerNorm)
-from TreeConvolution.util import prepare_trees
-
 
 class TreeConvolution256(nn.Module):
     def __init__(self, input_feature_dim) -> None:
