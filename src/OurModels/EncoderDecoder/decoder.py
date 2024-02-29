@@ -5,8 +5,6 @@ from TreeConvolution.tcnn import (BinaryTreeConv,
 class TreeDecoder(nn.Module):
     def __init__(self, output_dim) -> None:
         super(TreeDecoder, self).__init__()
-        self.output_dim = output_dim
-
         self.tree_conv = nn.Sequential(
             nn.Linear(16, 32),
             nn.LeakyReLU(),
@@ -18,7 +16,7 @@ class TreeDecoder(nn.Module):
             BinaryTreeConv(128, 256),
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU()),
-            BinaryTreeConv(256, self.output_dim), # this prolly does not work atm
+            BinaryTreeConv(256, output_dim), # this prolly does not work atm
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU())
         )
