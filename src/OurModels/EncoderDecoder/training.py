@@ -14,7 +14,8 @@ train_dataloader = make_dataloader(train_dataset, batch_size, device)
 val_dataloader = make_dataloader(val_dataset, batch_size, device)
 test_dataloader = make_dataloader(test_dataset, batch_size, device)
 
-model = TreeAutoEncoder().to(device=device)
+dim = None # need to find
+model = TreeAutoEncoder(dim).to(device=device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 bce_loss_fn = torch.nn.BCELoss() # We need to find loss function.
 
