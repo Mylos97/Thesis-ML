@@ -1,30 +1,36 @@
+import sys
+sys.path.append("..")  # Add parent directory to the sys.path
+sys.path.append("../../")  # Add parent directory to the sys.path
 import unittest
 import numpy as np
 from torch import nn
-
 from util import prepare_trees
+from exporter import export_model
 import tcnn
 
 class TestTreeConvolution(unittest.TestCase):
 
     def test_example(self):
-        # simple smoke test from the example file
+        import ast
+        (0,0,0,0,0,0,0,0,0,1)
+        string = "((1, 2), ((1, 2), ((1, 2),((1, 2), ((1, 2),((1, 2),),(0,0),),(0,0),),(0,0),),(0,0),),(0,0))"
+        swag = ((1, 2), ((1, 2), ((1, 2),((1, 2), ((1, 2),((1, 2),),((0,0))),(0,0),),(0,0),),(0,0),),(0,0))
+        swag = ((1, 2), 
+                ((0,0),),
+                ((0,0),))
         tree1 = (
             (0, 1),
             ((1, 2), ((0, 1),), ((-1, 0),)),
             ((-3, 0), ((2, 3),), ((1, 2),))
         )
         
-        tree2 = (
-            (16, 3),
-            ((0, 1), ((5, 3),), ((2, 6),)),
-            ((2, 9),)
-        )
-
-        trees = [tree1, tree2]
+        tree2 = ((16, 3), ((0, 1), ((5, 3),), ((2, 6),)) , ((2, 9),))
+        tree2 = ast.literal_eval(string)
+        trees = [swag]
         
         # function to extract the left child of a node
         def left_child(x):
+            print("left " , len(x), x)
             assert isinstance(x, tuple)
             if len(x) == 1:
                 # leaf.
@@ -33,8 +39,9 @@ class TestTreeConvolution(unittest.TestCase):
 
         # function to extract the right child of node
         def right_child(x):
+            print("right " , len(x), x)
             assert isinstance(x, tuple)
-            if len(x) == 1:
+            if len(x) == 1 or len(x) == 2:
                 # leaf.
                 return None
             return x[2]
@@ -59,7 +66,6 @@ class TestTreeConvolution(unittest.TestCase):
             tcnn.DynamicPooling()
         )
 
-        # output: torch.Size([2, 4])
         shape = tuple(net(prepared_trees).shape)
         self.assertEqual(shape, (2, 4))
 

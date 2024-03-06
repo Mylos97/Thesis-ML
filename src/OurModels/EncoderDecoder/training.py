@@ -1,4 +1,5 @@
 import torch
+import os
 from helper import make_dataloader
 from exporter import export_model
 from dataloader import load_data
@@ -17,7 +18,7 @@ test_dataloader = make_dataloader(test_dataset, batch_size, device)
 dim = None # need to find
 model = TreeAutoEncoder(dim).to(device=device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-bce_loss_fn = torch.nn.BCELoss() # We need to find loss function.
+bce_loss_fn = torch.nn.BCELoss() 
 
 losses = []
 
@@ -48,3 +49,4 @@ for epoch in range(epochs):
     print("Epoch", epoch, "training loss:", loss_accum, "test loss:", test_loss)
     
 export_model(model, tree)
+torch.save(model.state_dict(), f'{os.path.dirname(__file__)}_saved_weights.pth')

@@ -63,4 +63,4 @@ def fit(X1, X2, Y1, Y2):
 
         print("Epoch", epoch, "training loss:", loss_accum, "test loss:", test_loss)
         
-    export_model(model, x1)
+    export_model(model, (x1, x2))
