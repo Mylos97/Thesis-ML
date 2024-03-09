@@ -9,7 +9,7 @@
 # Usage
 
 **Model names:**
-- autoencoder
+- autoencoder (default value)
 - pairwise
 - treeconv
 
