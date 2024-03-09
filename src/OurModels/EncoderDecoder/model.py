@@ -1,6 +1,6 @@
 import torch.nn as nn
-from encoder import TreeEncoder
-from decoder import TreeDecoder
+from OurModels.EncoderDecoder.encoder import TreeEncoder
+from OurModels.EncoderDecoder.decoder import TreeDecoder
 
 class TreeAutoEncoder(nn.Module):
     def __init__(self, dim):

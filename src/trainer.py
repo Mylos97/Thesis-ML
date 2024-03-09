@@ -1,23 +1,25 @@
 import torch
-import os
 from helper import make_dataloader
+from itertools import product
 
 def train(model, loss_function, data):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
-    hyper_param = [{"lr": 0.0001, "gradient_norm":1.0, "epochs":100, "batch_size": 32}]
+    lrs = [0.0001, 0.001]
+    batch_sizes = [32, 64]
+    gradient_norms = [1.0, 3.0, 5.0]
     best_loss = 10000000
+    epochs = 100
     best_model = None
 
-    for p in hyper_param:
+    for lr, batch_size, gradient_norm in list(product(lrs, batch_sizes, gradient_norms)):
         val_loss = 0
-        optimizer = torch.optim.Adam(model.parameters(), lr=p["lr"])
-        train_dataloader = make_dataloader(train_dataset, p["batch_size"], device)
-        val_dataloader = make_dataloader(val_dataset, p["batch_size"], device)
-        test_dataloader = make_dataloader(test_dataset, p["batch_size"], device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        train_dataloader = make_dataloader(x=train_dataset, batch_size=batch_size, device=device)
+        val_dataloader = make_dataloader(x=val_dataset, batch_size=batch_size, device=device)
+        test_dataloader = make_dataloader(x=test_dataset, batch_size=batch_size, device=device)
 
-
-        model = train_model(model, loss_function, p["epochs"], optimizer, p["gradient_norm"], train_dataloader, test_dataloader)        
+        model = train_model(model, loss_function, epochs, optimizer, gradient_norm, train_dataloader, test_dataloader)        
 
         for tree, target in val_dataloader:
             prediction = model(tree)
