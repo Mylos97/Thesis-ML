@@ -24,7 +24,7 @@ def main(current_model):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("model")
+    parser.add_argument("--model",default="autoencoder")
 
     args = parser.parse_args()
     main(current_model=args.model)
