@@ -7,43 +7,36 @@ from torch import nn
 from util import prepare_trees
 from exporter import export_model
 import tcnn
+import ast
 
 class TestTreeConvolution(unittest.TestCase):
-
     def test_example(self):
-        import ast
-        (0,0,0,0,0,0,0,0,0,1)
-        string = "((1, 2), ((1, 2), ((1, 2),((1, 2), ((1, 2),((1, 2),),(0,0),),(0,0),),(0,0),),(0,0),),(0,0))"
-        swag = ((1, 2), ((1, 2), ((1, 2),((1, 2), ((1, 2),((1, 2),),((0,0))),(0,0),),(0,0),),(0,0),),(0,0))
-        swag = ((1, 2), 
-                ((0,0),),
-                ((0,0),))
-        tree1 = (
-            (0, 1),
-            ((1, 2), ((0, 1),), ((-1, 0),)),
-            ((-3, 0), ((2, 3),), ((1, 2),))
+        tree2 = (
+                (16, 3,1,1),
+                ((0, 1,1,1), ((5, 3,1,1),), ((2, 6,1,1),)),
+                ((2, 9,1,1),)
         )
         
-        tree2 = ((16, 3), ((0, 1), ((5, 3),), ((2, 6),)) , ((2, 9),))
-        tree2 = ast.literal_eval(string)
-        trees = [swag]
+        juri = "((0,1,2,3),((0,1,2,3), ((0,1,2,3),((0,1,3,2),((0,1,1,1),((0,3,1,1),((1,4,1,1),),((2,5,1,1),)),((0,1,1,1),)),((0,1,1,1),)),((0,19,1,1),)),((0,10,1,1),)),((0,11,1,1),))"
+        juri = ast.literal_eval(juri)
+        trees = [tree2, juri]
         
         # function to extract the left child of a node
         def left_child(x):
-            print("left " , len(x), x)
             assert isinstance(x, tuple)
             if len(x) == 1:
                 # leaf.
                 return None
+            print("left", x[1])
             return x[1]
 
         # function to extract the right child of node
         def right_child(x):
-            print("right " , len(x), x)
             assert isinstance(x, tuple)
-            if len(x) == 1 or len(x) == 2:
+            if len(x) == 1:
                 # leaf.
                 return None
+            print("right ", x[2])
             return x[2]
 
         # function to transform a node into a (feature) vector,

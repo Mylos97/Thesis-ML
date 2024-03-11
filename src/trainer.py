@@ -8,7 +8,7 @@ def train(model, loss_function, data):
     lrs = [0.0001, 0.001]
     batch_sizes = [32, 64]
     gradient_norms = [1.0, 3.0, 5.0]
-    best_loss = 10000000
+    best_loss = float('inf')
     epochs = 100
     best_model = None
 
@@ -18,17 +18,19 @@ def train(model, loss_function, data):
         train_dataloader = make_dataloader(x=train_dataset, batch_size=batch_size, device=device)
         val_dataloader = make_dataloader(x=val_dataset, batch_size=batch_size, device=device)
         test_dataloader = make_dataloader(x=test_dataset, batch_size=batch_size, device=device)
-
         model = train_model(model, loss_function, epochs, optimizer, gradient_norm, train_dataloader, test_dataloader)        
 
+        model.eval()
         for tree, target in val_dataloader:
             prediction = model(tree)
             loss = loss_function(prediction, target)
             val_loss += loss.item()
 
-        if val_loss < best_loss:
-            best_loss = val_loss
-            best_model = model
+        with torch.no_grad():
+            if val_loss < best_loss:
+                print(f'Validation loss:{val_loss} lr:{lr} batch size:{batch_size} gradient norm:{gradient_norm} optimizer:{optimizer.__class__.__name__}')
+                best_loss = val_loss
+                best_model = model
 
     return best_model, tree
 
@@ -43,19 +45,17 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         model.train()
         for tree, target in train_dataloader:
             prediction = model(tree)
-
             loss = loss_function(prediction, target)
             loss_accum += loss.item()
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
-
         loss_accum /= len(train_dataloader)
+        
         model.eval()
         for tree, target in test_dataloader:
             prediction = model(tree)
-
             test_loss = loss_function(prediction, target)
             test_loss += loss.item()
 

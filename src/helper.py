@@ -53,7 +53,7 @@ def get_trees_and_labels(x, device):
     return build_trees(trees, device=device), torch.tensor(targets).to(device=device)
 
 def build_trees(feature, device):
-    return prepare_trees(feature, transformer, left_child, right_child,  device=device)
+    return prepare_trees(feature, transformer, left_child, right_child, device=device)
 
 def make_pairs(X1,X2,Y1,Y2) ->  list[(tuple, tuple, tuple)]:
     assert len(X1) == len(X2) and len(Y1) == len(Y2) and len(X1) == len(Y1)
