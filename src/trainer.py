@@ -3,7 +3,6 @@ from helper import make_dataloader
 from itertools import product
 
 def train(model, loss_function, data):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
     lrs = [0.0001, 0.001]
     batch_sizes = [32, 64]
@@ -15,9 +14,10 @@ def train(model, loss_function, data):
     for lr, batch_size, gradient_norm in list(product(lrs, batch_sizes, gradient_norms)):
         val_loss = 0
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        train_dataloader = make_dataloader(x=train_dataset, batch_size=batch_size, device=device)
-        val_dataloader = make_dataloader(x=val_dataset, batch_size=batch_size, device=device)
-        test_dataloader = make_dataloader(x=test_dataset, batch_size=batch_size, device=device)
+        train_dataloader = make_dataloader(x=train_dataset, batch_size=8)
+        val_dataloader = make_dataloader(x=val_dataset, batch_size=8)
+        test_dataloader = make_dataloader(x=test_dataset, batch_size=8)
+        print(f"Starting training model epochs:{epochs} lr:{lr} batch size:{batch_size} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm}")
         model = train_model(model, loss_function, epochs, optimizer, gradient_norm, train_dataloader, test_dataloader)        
 
         model.eval()
@@ -28,16 +28,15 @@ def train(model, loss_function, data):
 
         with torch.no_grad():
             if val_loss < best_loss:
-                print(f'Validation loss:{val_loss} lr:{lr} batch size:{batch_size} gradient norm:{gradient_norm} optimizer:{optimizer.__class__.__name__}')
+                print(f'New best model found with validation loss:{val_loss}')
                 best_loss = val_loss
                 best_model = model
 
     return best_model, tree
 
-
-
-
 def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_dataloader, test_dataloader):
+    best_model = None
+    best_loss = 10000
     for epoch in range(epochs):
         loss_accum = 0
         test_loss = 0
@@ -56,9 +55,12 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         model.eval()
         for tree, target in test_dataloader:
             prediction = model(tree)
-            test_loss = loss_function(prediction, target)
+            loss = loss_function(prediction, target)
             test_loss += loss.item()
-
+        test_loss /= len(train_dataloader)
+        if test_loss < best_loss:
+            best_model = model
+            best_loss = test_loss
         print("Epoch", epoch, "training loss:", loss_accum, "test loss:", test_loss)
         
-    return model
+    return best_model

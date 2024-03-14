@@ -1,6 +1,7 @@
-import numpy as np
+import ast
 import torch
-from torch.utils.data import DataLoader
+import numpy as np
+from torch.utils.data import DataLoader, Dataset
 from TreeConvolution.util import prepare_trees
 
 def collate_pairwise_fn(x):
@@ -36,21 +37,11 @@ def make_dataloader_pairwise(x, batch_size):
                 collate_fn=collate_pairwise_fn)
     return dataset
 
-def make_dataloader(x, batch_size, device): # We dont know the structure yet træ, cost
+def make_dataloader(x, batch_size): # We dont know the structure yet træ, cost
     dataset = DataLoader(x,
                 batch_size=batch_size,
-                shuffle=True,
-                transform=get_trees_and_labels(device))
+                shuffle=True)
     return dataset
-
-def get_trees_and_labels(x, device):
-    trees = []
-    targets = []
-    for tree, target in x:
-        trees.append(tree)
-        targets.append(target)
-    
-    return build_trees(trees, device=device), torch.tensor(targets).to(device=device)
 
 def build_trees(feature, device):
     return prepare_trees(feature, transformer, left_child, right_child, device=device)
@@ -68,3 +59,33 @@ def make_pairs(X1,X2,Y1,Y2) ->  list[(tuple, tuple, tuple)]:
     for i in range(len(X1)):
         pairs.append((X1[i], X2[i], 1.0 if Y1[i] >= Y2[i] else 0.0))
     return pairs
+
+def load_autoencoder_data(device):
+    trees = []
+    targets = []
+    with open('Data/autoencoder.txt', 'r') as f:
+        for l in f:
+            vector, cost = l.split(':')
+            vector, cost = vector.strip(), cost.strip()
+            vector, cost = ast.literal_eval(vector), ast.literal_eval(cost) 
+            trees.append(vector)
+            targets.append(cost)
+    assert len(trees) == len(targets)
+    x = []
+    in_trees = build_trees(trees, device=device)
+    target_trees = build_trees(targets, device=device)
+    for i, tree in enumerate(in_trees[0]):
+        x.append(((tree, in_trees[1][i]), target_trees[0][i]))
+        
+    return TreeVectorDataset(x)
+
+class TreeVectorDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+        
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        vector, cost = self.data[idx]
+        return vector, cost

@@ -27,7 +27,6 @@ class TestTreeConvolution(unittest.TestCase):
             if len(x) == 1:
                 # leaf.
                 return None
-            print("left", x[1])
             return x[1]
 
         # function to extract the right child of node
@@ -36,7 +35,6 @@ class TestTreeConvolution(unittest.TestCase):
             if len(x) == 1:
                 # leaf.
                 return None
-            print("right ", x[2])
             return x[2]
 
         # function to transform a node into a (feature) vector,
@@ -47,7 +45,7 @@ class TestTreeConvolution(unittest.TestCase):
 
         prepared_trees = prepare_trees(trees, transformer, left_child, right_child)
         net = nn.Sequential(
-            tcnn.BinaryTreeConv(2, 16),
+            tcnn.BinaryTreeConv(4, 16),
             tcnn.TreeLayerNorm(),
             tcnn.TreeActivation(nn.ReLU()),
             tcnn.BinaryTreeConv(16, 8),
@@ -58,7 +56,7 @@ class TestTreeConvolution(unittest.TestCase):
             tcnn.TreeActivation(nn.ReLU()),
             tcnn.DynamicPooling()
         )
-
+        print(prepared_trees)
         shape = tuple(net(prepared_trees).shape)
         self.assertEqual(shape, (2, 4))
 

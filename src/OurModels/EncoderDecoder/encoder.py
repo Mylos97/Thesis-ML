@@ -20,5 +20,22 @@ class TreeEncoder(nn.Module):
             nn.Linear(32, 16),
         )
 
+        self.binary_conv = nn.Sequential (
+            BinaryTreeConv(input_dim, 256),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(256, 128),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(128, 64),
+            TreeLayerNorm(),
+        )
+
+
     def forward(self, trees):
-        return self.tree_conv(trees)
+        x = self.tree_conv(trees)
+        y = self.binary_conv(trees)
+        #print("i am from ENCODEr", type(y[0]), type(y[1]))
+        #print("i am from ENCODEr", y[0], y[1])
+        
+        return x, y[1]
