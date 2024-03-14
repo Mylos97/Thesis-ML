@@ -12,7 +12,7 @@ class TreeDecoder(nn.Module):
             BinaryTreeConv(128, 256),
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU()),
-            BinaryTreeConv(256, output_dim), # this prolly does not work atm
+            BinaryTreeConv(256, output_dim),
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU())
         )

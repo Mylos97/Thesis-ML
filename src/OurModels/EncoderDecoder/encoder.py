@@ -35,7 +35,5 @@ class TreeEncoder(nn.Module):
     def forward(self, trees):
         x = self.tree_conv(trees)
         y = self.binary_conv(trees)
-        #print("i am from ENCODEr", type(y[0]), type(y[1]))
-        #print("i am from ENCODEr", y[0], y[1])
         
         return x, y[1]

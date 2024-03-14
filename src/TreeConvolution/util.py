@@ -153,7 +153,4 @@ def prepare_trees(trees, transformer, left_child, right_child, cuda=False, devic
     if cuda:
         indexes = indexes.cuda(device)
         # indexes = indexes.to(device)
-    print("from function ", len(flat_trees))
     return (flat_trees, indexes)
-                    
-

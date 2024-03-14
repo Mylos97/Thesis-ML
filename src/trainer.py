@@ -44,6 +44,8 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         model.train()
         for tree, target in train_dataloader:
             prediction = model(tree)
+            print(target)
+            print(prediction)
             loss = loss_function(prediction, target)
             loss_accum += loss.item()
             optimizer.zero_grad()
