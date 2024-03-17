@@ -30,7 +30,6 @@ def _flatten(root, transformer, left_child, right_child):
             + "tree node to its child, or None"
         )
 
-        
     accum = []
 
     def recurse(x):
@@ -41,11 +40,11 @@ def _flatten(root, transformer, left_child, right_child):
         accum.append(transformer(x))
         recurse(left_child(x))
         recurse(right_child(x))
-
+    
     recurse(root)
-
     try:
         accum = [np.zeros(accum[0].shape)] + accum
+
     except:
         raise TreeConvolutionError(
             "Output of transformer must have a .shape (e.g., numpy array)"
@@ -71,14 +70,11 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
         if isinstance(tree, tuple):
             return rightmost(tree[2])
         return tree
-    
     left_subtree = _preorder_indexes(left_child(root), left_child, right_child,
                                      idx=idx+1)
-    
     max_index_in_left = rightmost(left_subtree)
     right_subtree = _preorder_indexes(right_child(root), left_child, right_child,
                                       idx=max_index_in_left + 1)
-
     return (idx, left_subtree, right_subtree)
     
 def _tree_conv_indexes(root, left_child, right_child):
@@ -120,11 +116,9 @@ def _pad_and_combine(x):
                 "Transformer outputs could not be unified into an array. "
                 + "Are they all the same size?"
             )
-    
     second_dim = x[0].shape[1]
     for itm in x[1:]:
         assert itm.shape[1] == second_dim
-
     max_first_dim = max(arr.shape[0] for arr in x)
 
     vecs = []
@@ -139,13 +133,13 @@ def prepare_trees(trees, transformer, left_child, right_child, cuda=False, devic
     flat_trees = [_flatten(x, transformer, left_child, right_child) for x in trees]
     flat_trees = _pad_and_combine(flat_trees)
     flat_trees = torch.Tensor(flat_trees)
-
-    # flat trees is now batch x max tree nodes x channels
     flat_trees = flat_trees.transpose(1, 2)
+    
     if cuda:
         flat_trees = flat_trees.cuda(device)
         # flat_trees = flat_trees.to(device)
 
+    
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
     indexes = _pad_and_combine(indexes)
     indexes = torch.Tensor(indexes).long()

@@ -4,11 +4,11 @@ from itertools import product
 
 def train(model, loss_function, data):
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
-    lrs = [0.0001, 0.001]
-    batch_sizes = [32, 64]
-    gradient_norms = [1.0, 3.0, 5.0]
+    lrs = [0.0001]#[0.0001, 0.001]
+    batch_sizes = [32] #[32, 64]
+    gradient_norms = [1.0] #[1.0, 3.0, 5.0]
     best_loss = float('inf')
-    epochs = 100
+    epochs = 1
     best_model = None
 
     for lr, batch_size, gradient_norm in list(product(lrs, batch_sizes, gradient_norms)):
@@ -26,12 +26,12 @@ def train(model, loss_function, data):
             loss = loss_function(prediction, target)
             val_loss += loss.item()
 
-        with torch.no_grad():
-            if val_loss < best_loss:
-                print(f'New best model found with validation loss:{val_loss}')
-                best_loss = val_loss
-                best_model = model
-
+        if val_loss < best_loss:
+            print(f'New best model found with validation loss:{val_loss}')
+            best_loss = val_loss
+            best_model = model
+    print(tree)
+    print(type(tree))
     return best_model, tree
 
 def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_dataloader, test_dataloader):
@@ -44,8 +44,6 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         model.train()
         for tree, target in train_dataloader:
             prediction = model(tree)
-            print(target)
-            print(prediction)
             loss = loss_function(prediction, target)
             loss_accum += loss.item()
             optimizer.zero_grad()

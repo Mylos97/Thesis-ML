@@ -5,6 +5,7 @@ from TreeConvolution.tcnn import (BinaryTreeConv, TreeActivation, TreeLayerNorm)
 class TreeDecoder(nn.Module):
     def __init__(self, output_dim) -> None:
         super(TreeDecoder, self).__init__()
+
         self.tree_conv = nn.Sequential(
             BinaryTreeConv(64, 128),
             TreeLayerNorm(),
@@ -17,7 +18,7 @@ class TreeDecoder(nn.Module):
             TreeActivation(nn.LeakyReLU())
         )
 
-        self.linear_boi = nn.Sequential(
+        self.linear = nn.Sequential(
             nn.Linear(16, 32),
             nn.LeakyReLU(),
             nn.Linear(32, 64),
@@ -37,12 +38,6 @@ class TreeDecoder(nn.Module):
         )
         
     def forward(self, trees, indexes):
-        linear_boi = self.linear_boi(trees)
-        l = []
-
-        for vector in linear_boi:
-            sublists = [vector[i:i+64].tolist() for i in range(0, len(vector), 64)]
-            l.append(sublists)
-        
-        l = torch.tensor(l)
-        return self.tree_conv((l, indexes))
+        x = self.linear(trees)
+        x = x.view(x.shape[0], 64, 64)
+        return self.tree_conv((x, indexes))

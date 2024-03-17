@@ -11,15 +11,13 @@ import ast
 
 class TestTreeConvolution(unittest.TestCase):
     def test_example(self):
-        tree2 = (
-                (16, 3,1,1),
-                ((0, 1,1,1), ((5, 3,1,1),), ((2, 6,1,1),)),
-                ((2, 9,1,1),)
+        tree1 = (
+            (0, 1,2),
+            ((3, 4,5), ((6, 7,8),), ((9, 10,11),)),
+            ((12, 13,14), ((15, 16, 17),), ((18,19,20),))
         )
-        
-        juri = "((0,1,2,3),((0,1,2,3), ((0,1,2,3),((0,1,3,2),((0,1,1,1),((0,3,1,1),((1,4,1,1),),((2,5,1,1),)),((0,1,1,1),)),((0,1,1,1),)),((0,19,1,1),)),((0,10,1,1),)),((0,11,1,1),))"
-        juri = ast.literal_eval(juri)
-        trees = [tree2, juri]
+
+        trees = [tree1]
         
         # function to extract the left child of a node
         def left_child(x):
@@ -45,7 +43,7 @@ class TestTreeConvolution(unittest.TestCase):
 
         prepared_trees = prepare_trees(trees, transformer, left_child, right_child)
         net = nn.Sequential(
-            tcnn.BinaryTreeConv(4, 16),
+            tcnn.BinaryTreeConv(3, 16),
             tcnn.TreeLayerNorm(),
             tcnn.TreeActivation(nn.ReLU()),
             tcnn.BinaryTreeConv(16, 8),
