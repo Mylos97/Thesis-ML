@@ -22,7 +22,7 @@ def train(model, loss_function, data):
 
         model.eval()
         for tree, target in val_dataloader:
-            prediction = model(tree)
+            prediction = model(tree[0], tree[1])
             loss = loss_function(prediction, target)
             val_loss += loss.item()
 
@@ -30,9 +30,8 @@ def train(model, loss_function, data):
             print(f'New best model found with validation loss:{val_loss}')
             best_loss = val_loss
             best_model = model
-    print(tree)
-    print(type(tree))
-    return best_model, tree
+    input = [tree[0], tree[1]]
+    return best_model, input
 
 def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_dataloader, test_dataloader):
     best_model = None
@@ -43,7 +42,7 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         
         model.train()
         for tree, target in train_dataloader:
-            prediction = model(tree)
+            prediction = model(tree[0], tree[1])
             loss = loss_function(prediction, target)
             loss_accum += loss.item()
             optimizer.zero_grad()
@@ -54,7 +53,7 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         
         model.eval()
         for tree, target in test_dataloader:
-            prediction = model(tree)
+            prediction = model(tree[0], tree[1])
             loss = loss_function(prediction, target)
             test_loss += loss.item()
         test_loss /= len(train_dataloader)

@@ -19,7 +19,7 @@ def main(current_model):
 
     best_model, x = train(model=model, loss_function=loss_function, data=data)
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    export_model(model=best_model, x=(x[0],x[1],), model_name=f'Models/{current_model}:{current_time}')
+    export_model(model=best_model, x=x, model_name=f'Models/{current_model}:{current_time}', input_names=['input1, input2'])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

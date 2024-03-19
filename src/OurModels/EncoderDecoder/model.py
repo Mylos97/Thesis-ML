@@ -8,7 +8,9 @@ class TreeAutoEncoder(nn.Module):
         self.encoder = TreeEncoder(in_dim)
         self.decoder = TreeDecoder(out_dim)
 
-    def forward(self, x):
-        x, indexes = self.encoder(x)
-        x = self.decoder(x, indexes)
-        return x[0]
+    def forward(self, x, indexes):
+        x = (x, indexes)
+        xs, indexes = self.encoder(x)
+        xt = self.decoder(xs, indexes)
+
+        return xt[0]
