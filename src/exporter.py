@@ -1,7 +1,7 @@
 import numpy as np
 import torch.onnx
 
-def export_model(model, x, model_name="super_resolution.onnx", input_names = ['input']) -> None:
+def export_model(model, x, model_name="super_resolution.onnx") -> None:
     model.eval()
     torch_out = model(x)
     model_name = model_name if '.onnx' in model_name else model_name + '.onnx' 

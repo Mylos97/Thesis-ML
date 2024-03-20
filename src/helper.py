@@ -1,6 +1,7 @@
 import ast
 import torch
 import numpy as np
+from itertools import combinations
 from torch.utils.data import DataLoader, Dataset
 from TreeConvolution.util import prepare_trees
 
@@ -89,3 +90,23 @@ class TreeVectorDataset(Dataset):
     def __getitem__(self, idx):
         vector, cost = self.data[idx]
         return vector, cost
+    
+def load_pairwise():
+    def generate_unique_pairs(lst):
+        return list(combinations(lst, 2))
+
+
+    with open("Data/pairwise.txt") as f:
+        vectors = []
+        x = []
+        for l in f:
+            tree, cost = l.split(":")
+            vectors.append({"tree": tree, "cost":cost}) # need make into a string
+        
+        pairs_trees = generate_unique_pairs(vectors)
+
+        for tree1, tree2 in pairs_trees:
+            label = 0.0 if tree1.cost < tree2 else 1.0
+            x.append((tree1, tree2), label)
+        
+    return TreeVectorDataset(x)

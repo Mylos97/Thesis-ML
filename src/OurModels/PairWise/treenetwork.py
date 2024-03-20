@@ -1,16 +1,14 @@
 import torch.nn as nn
-from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
-                                  TreeActivation, TreeLayerNorm)
+from torch.nn import Sigmoid
+from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling, TreeActivation, TreeLayerNorm)
 
 class TreeConvolution256(nn.Module):
-    def __init__(self, input_feature_dim) -> None:
+    def __init__(self, in_dim) -> None:
         super(TreeConvolution256, self).__init__()
-        self.input_feature_dim = input_feature_dim
-        self.cuda = False
-        self.device = None
-
+        self.in_dim = in_dim
+        self.sigmoid = Sigmoid()
         self.tree_conv = nn.Sequential(
-            BinaryTreeConv(self.input_feature_dim, 256),
+            BinaryTreeConv(self.in_dim, 256),
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU()),
             BinaryTreeConv(256, 128),
@@ -25,4 +23,8 @@ class TreeConvolution256(nn.Module):
         )
 
     def forward(self, trees):
-        return self.tree_conv(trees)
+        y1 = self.tree_conv(trees[0])
+        y2 = self.tree_conv(trees[1])
+        diff = y1 - y2
+        prob_y = self.sigmoid(diff)
+        return prob_y
