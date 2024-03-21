@@ -18,20 +18,20 @@ class TreeDecoder(nn.Module):
             TreeActivation(nn.LeakyReLU())
         )
 
-        linear_layers = []
-        prev_dim = 16
-        num_layers = 8
-        hidden_dim = 32
-        for _ in range(num_layers):
-            linear_layers.append(nn.Linear(prev_dim, hidden_dim))
-            linear_layers.append(nn.LeakyReLU())
-            linear_layers.append(nn.Dropout(dropout_prob))
-            prev_dim = hidden_dim
-            hidden_dim *= 2
-
-
-        self.linear = nn.Sequential(*linear_layers)
-
+        self.linear = nn.Sequential(
+            nn.Linear(16, 64),
+            nn.LeakyReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(64, 256),
+            nn.LeakyReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(256, 1024),
+            nn.LeakyReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(1024, 4096),
+            nn.LeakyReLU(),
+            nn.Dropout(dropout_prob),
+        )
 
     def forward(self, trees, indexes):
         x = self.linear(trees)
