@@ -11,16 +11,11 @@ def get_relative_path(file_name, dir):
     file_path = os.path.join(script_dir, dir, file_name)
     return file_path
 
-def collate_pairwise_fn(x):
-    trees1 = []
-    trees2 = []
-    labels = []
-
-    for tree1, tree2, label in x:
-        trees1.append(tree1)
-        trees2.append(tree2)
-        labels.append(label)
-    return trees1, trees2, labels
+def to_device(vector, target, device):
+    if len(vector) == 2:
+        return [vector[0].to(device), vector[1].to(device)], target.to(device)
+    
+    return None
 
 def left_child(x):
     assert isinstance(x, tuple)
@@ -37,14 +32,7 @@ def right_child(x):
 def transformer(x):
     return np.array(x[0])
 
-def make_dataloader_pairwise(x, batch_size):
-    dataset = DataLoader(x,
-                batch_size=batch_size,
-                shuffle=True,
-                collate_fn=collate_pairwise_fn)
-    return dataset
-
-def make_dataloader(x, batch_size, num_workers): # We dont know the structure yet træ, cost
+def make_dataloader(x, batch_size, num_workers):
     dataset = DataLoader(x,
                 batch_size=batch_size,
                 shuffle=True,
@@ -87,17 +75,6 @@ def load_autoencoder_data(device):
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
         
     return TreeVectorDataset(x), in_dim, out_dim
-
-class TreeVectorDataset(Dataset):
-    def __init__(self, data):
-        self.data = data
-        
-    def __len__(self):
-        return len(self.data)
-    
-    def __getitem__(self, idx):
-        vector, cost = self.data[idx]
-        return vector, cost
     
 def load_pairwise():
     def generate_unique_pairs(lst):
@@ -117,3 +94,14 @@ def load_pairwise():
             x.append((tree1, tree2), label)
         
     return TreeVectorDataset(x)
+
+class TreeVectorDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+        
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        vector, cost = self.data[idx]
+        return vector, cost

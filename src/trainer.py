@@ -1,5 +1,5 @@
 import torch
-from helper import make_dataloader
+from helper import make_dataloader, to_device
 from itertools import product
 
 def train(model, loss_function, data, device):
@@ -23,6 +23,7 @@ def train(model, loss_function, data, device):
 
         model.eval()
         for tree, target in val_dataloader:
+            tree, target = to_device(tree, target, device)
             prediction = model(tree)
             loss = loss_function(prediction, target)
             val_loss += loss.item()
@@ -43,6 +44,7 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         
         model.train()
         for tree, target in train_dataloader:
+            tree, target = to_device(tree, target, device)
             prediction = model(tree)
             loss = loss_function(prediction, target)
             loss_accum += loss.item()
@@ -54,6 +56,7 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         
         model.eval()
         for tree, target in test_dataloader:
+            tree, target = to_device(tree, target, device)
             prediction = model(tree)
             loss = loss_function(prediction, target)
             test_loss += loss.item()
