@@ -1,10 +1,9 @@
 import numpy as np
 import torch.onnx
 
-def export_model(model, x, model_name="super_resolution.onnx") -> None:
+def export_model(model, x, model_name) -> None:
     model.eval()
     torch_out = model(x)
-    model_name = model_name if '.onnx' in model_name else model_name + '.onnx' 
     torch.onnx.export(model,               # model being run
                     args=(x),                         # model input (or a tuple for multiple inputs)
                     f=model_name,   # where to save the model (can be a file or file-like object)

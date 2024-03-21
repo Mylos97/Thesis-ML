@@ -91,7 +91,6 @@ def _tree_conv_indexes(root, left_child, right_child):
         )
     
     index_tree = _preorder_indexes(root, left_child, right_child)
-    print("INDEX TREE", index_tree)
     def recurse(root):
         if isinstance(root, tuple):
             my_id = root[0]
@@ -138,12 +137,12 @@ def prepare_trees(trees, transformer, left_child, right_child, cuda=False, devic
         flat_trees = flat_trees.cuda(device)
         # flat_trees = flat_trees.to(device)
 
-    print("FOR INDEXES")
+    #print("FOR INDEXES")
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
-    print("_tree_conv_indexes", indexes)
-    quit()
+    #print("_tree_conv_indexes", indexes)
+    #quit()
     indexes = _pad_and_combine(indexes)
-    print("_pad_and_combine", indexes)
+    #print("_pad_and_combine", indexes)
     indexes = torch.Tensor(indexes).long()
 
     if cuda:

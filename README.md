@@ -12,7 +12,7 @@
 - Implement Prepare trees in java :(
 - Binary cross entropy 
 - Soft max layer in decoder
-
+- Remember to look into batch size scheduling
 
 JAVA -> Encoding -> Onnx -> Result
 
