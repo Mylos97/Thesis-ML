@@ -76,7 +76,7 @@ def load_autoencoder_data(device):
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
     return TreeVectorDataset(x), in_dim, out_dim
     
-def load_pairwise():
+def load_pairwise_data():
     def generate_unique_pairs(lst):
         return list(combinations(lst, 2))
 
@@ -92,8 +92,13 @@ def load_pairwise():
         for tree1, tree2 in pairs_trees:
             label = 0.0 if tree1.cost < tree2 else 1.0
             x.append((tree1, tree2), label)
-        
-    return TreeVectorDataset(x)
+    in_dim = None
+    raise Exception("note implemented in_dim")
+    return TreeVectorDataset(x), in_dim
+
+def load_classifier_data():
+    raise Exception("IMplement classifier loader")
+    pass
 
 class TreeVectorDataset(Dataset):
     def __init__(self, data):

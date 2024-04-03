@@ -18,7 +18,7 @@ def train(model, loss_function, data, device, model_class):
         val_loss = 0
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         train_dataloader = make_dataloader(x=train_dataset, batch_size=8, num_workers=n_workers)
-        val_dataloader = make_dataloader(x=val_dataset, batch_size=1, num_workers=n_workers)
+        val_dataloader = make_dataloader(x=val_dataset, batch_size=8, num_workers=n_workers)
         test_dataloader = make_dataloader(x=test_dataset, batch_size=8, num_workers=n_workers)
         print(f"Starting training model epochs:{epochs} lr:{lr} batch size:{batch_size} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout}")
         model = train_model(model, loss_function, epochs, optimizer, gradient_norm, train_dataloader, test_dataloader, device)        
