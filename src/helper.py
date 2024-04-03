@@ -66,6 +66,7 @@ def load_autoencoder_data(device):
             vector, cost = ast.literal_eval(vector), ast.literal_eval(cost) 
             trees.append(vector)
             targets.append(cost)
+    
     assert len(trees) == len(targets)
     in_dim, out_dim = len(vector[0]), len(cost[0])
     x = []
@@ -73,7 +74,6 @@ def load_autoencoder_data(device):
     target_trees = build_trees(targets, device=device)
     for i, tree in enumerate(in_trees[0]):
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
-        
     return TreeVectorDataset(x), in_dim, out_dim
     
 def load_pairwise():

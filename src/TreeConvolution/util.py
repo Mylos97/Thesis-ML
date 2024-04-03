@@ -54,7 +54,6 @@ def _flatten(root, transformer, left_child, right_child):
 
 def _preorder_indexes(root, left_child, right_child, idx=1):
     """ transforms a tree into a tree of preorder indexes """
-    
     if not callable(left_child) or not callable(right_child):
         raise TreeConvolutionError(
             "left_child and right_child must be a function mapping a " +
@@ -96,14 +95,15 @@ def _tree_conv_indexes(root, left_child, right_child):
             my_id = root[0]
             left_id = root[1][0] if isinstance(root[1], tuple) else root[1]
             right_id = root[2][0] if isinstance(root[2], tuple) else root[2]
-            yield [my_id, left_id, right_id]
+            swag = [my_id, left_id, right_id]
+            yield swag
                                            
             yield from recurse(root[1])
             yield from recurse(root[2])
         else:
             yield [root, 0, 0]
-
-    return np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
+    out = np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
+    return out
 
 def _pad_and_combine(x):
     assert len(x) >= 1
@@ -135,17 +135,11 @@ def prepare_trees(trees, transformer, left_child, right_child, cuda=False, devic
     flat_trees = flat_trees.transpose(1, 2)
     if cuda:
         flat_trees = flat_trees.cuda(device)
-        # flat_trees = flat_trees.to(device)
 
-    #print("FOR INDEXES")
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
-    #print("_tree_conv_indexes", indexes)
-    #quit()
     indexes = _pad_and_combine(indexes)
-    #print("_pad_and_combine", indexes)
     indexes = torch.Tensor(indexes).long()
 
     if cuda:
         indexes = indexes.cuda(device)
-        # indexes = indexes.to(device)
     return (flat_trees, indexes)

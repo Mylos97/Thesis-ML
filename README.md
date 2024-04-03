@@ -1,6 +1,4 @@
 # Thesis-ML
-- We need some test data for checking if our implementations are correct
-- Need to make training loops
 - Maybe use Bayesian optimization for latent space
 - Thompson sampling used by LERO and BAO
 - Research multi armed problem for the operator specific model
