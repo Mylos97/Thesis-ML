@@ -17,4 +17,4 @@
 <br>
 --save True, False(default)
 <br>
-Example use model.py --model <name> --save <boolean>
+Example use model.py --model <model_name> --save <save_value>
