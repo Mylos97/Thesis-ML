@@ -25,7 +25,6 @@ def train(model, loss_function, data, device, model_class):
 
         model.eval()
         for tree, target in val_dataloader:
-            print(tree)
             tree, target = to_device(tree, target, device)
             prediction = model(tree)
             loss = loss_function(prediction, target)

@@ -5,9 +5,6 @@ import onnxruntime
 
 def export_model(model, x, model_name) -> None:
     model.eval()
-    first_parameter = next(model.parameters())
-    input_shape = first_parameter.size()
-    print(input_shape)
     torch_out = model(x)
     torch.onnx.export(model,               # model being run
                     args=(x),                         # model input (or a tuple for multiple inputs)
