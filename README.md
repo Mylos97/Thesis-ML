@@ -12,7 +12,9 @@
 # Usage
 
 **Parameters**
---model autoencoder (default), pairwise, treeconv
---save True, False(default)
 
-Example use model.py --model <model_name> --save <bool>
+--model autoencoder (default), pairwise, treeconv
+<br>
+--save True, False(default)
+<br>
+Example use model.py --model <name> --save <boolean>

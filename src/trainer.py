@@ -2,7 +2,7 @@ import torch
 from helper import make_dataloader, to_device
 from itertools import product
 
-def train(params, loss_function, data, device):
+def train(model_class, params, loss_function, data, device):
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
     lrs = [0.0001]#[0.0001, 0.001]
     batch_sizes = [32] #[32, 64]
@@ -14,7 +14,7 @@ def train(params, loss_function, data, device):
     best_model = None
 
     for lr, batch_size, gradient_norm, dropout in list(product(lrs, batch_sizes, gradient_norms, dropout_probs)):
-        model = params["class"](*params["params"], dropout)
+        model = model_class(*params, dropout)
         val_loss = 0
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         train_dataloader = make_dataloader(x=train_dataset, batch_size=8, num_workers=n_workers)
