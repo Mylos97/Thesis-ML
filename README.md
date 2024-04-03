@@ -7,7 +7,7 @@
 - Binary cross entropy 
 - Soft max layer in decoder
 - Remember to look into batch size scheduling
-- 
+- Fix the input model thingy
 
 # Usage
 

@@ -27,6 +27,7 @@ def export_model(model, x, model_name) -> None:
 
     def to_numpy(tensor):
         return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+    
     ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x[0]), ort_session.get_inputs()[1].name: to_numpy(x[1])}
     ort_outs = ort_session.run(None, ort_inputs)
     np.testing.assert_allclose(to_numpy(torch_out), ort_outs[0], rtol=1e-03, atol=1e-05)
