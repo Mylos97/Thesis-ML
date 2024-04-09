@@ -4,9 +4,9 @@ from itertools import product
 
 def train(model_class, params, loss_function, data, device):
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
-    lrs = [0.0001]#[0.0001, 0.001]
-    batch_sizes = [32] #[32, 64]
-    gradient_norms = [1.0] #[1.0, 3.0, 5.0]
+    lrs = [0.0001]
+    batch_sizes = [32]
+    gradient_norms = [1.0]
     dropout_probs = [0.1]
     best_loss = float('inf')
     epochs = 1

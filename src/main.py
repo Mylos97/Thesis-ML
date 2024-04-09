@@ -6,7 +6,9 @@ from datetime import datetime
 from OurModels.EncoderDecoder.model import TreeAutoEncoder 
 from OurModels.PairWise.model import Pairwise
 from OurModels.Classifier.model import TreeConvolution256
+from OurModels.EncoderDecoder.vae import VAE
 from helper import load_autoencoder_data, load_pairwise_data, load_classifier_data, get_relative_path
+import torch.onnx
 
 def main(args):
     model_class = None
@@ -14,12 +16,18 @@ def main(args):
     loss_function = None
     data = None
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
 
     if args.model == 'autoencoder':
         data, in_dim, out_dim = load_autoencoder_data(device=device)
         model_class, params = TreeAutoEncoder, [in_dim, out_dim]
         loss_function = torch.nn.CrossEntropyLoss()
     
+    if args.model == 'vae':
+        data, in_dim, out_dim = load_autoencoder_data(device=device)
+        model_class, params = VAE, [in_dim, out_dim]
+        loss_function = torch.nn.CrossEntropyLoss()
+
     if args.model == 'pairwise':
         data, in_dim = load_pairwise_data()
         model_class, params = Pairwise, [in_dim]
@@ -33,6 +41,10 @@ def main(args):
     best_model, x = train(model_class=model_class, params=params, loss_function=loss_function, data=data, device=device)
     current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S") if args.save else ""
     model_name = f'{args.model}{current_time}.onnx'
+    
+    if args.model == 'vae':
+        best_model.is_done = True
+    
     export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 
 if __name__ == '__main__':

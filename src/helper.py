@@ -42,20 +42,6 @@ def make_dataloader(x, batch_size, num_workers):
 def build_trees(feature, device):
     return prepare_trees(feature, transformer, left_child, right_child, device=device)
 
-def make_pairs(X1,X2,Y1,Y2) ->  list[(tuple, tuple, tuple)]:
-    assert len(X1) == len(X2) and len(Y1) == len(Y2) and len(X1) == len(Y1)
-    if isinstance(Y1, list):
-        Y1 = np.array(Y1)
-        Y1 = Y1.reshape(-1, 1)
-    if isinstance(Y2, list):
-        Y2 = np.array(Y2)
-        Y2 = Y2.reshape(-1, 1)
-
-    pairs = []
-    for i in range(len(X1)):
-        pairs.append((X1[i], X2[i], 1.0 if Y1[i] >= Y2[i] else 0.0))
-    return pairs
-
 def load_autoencoder_data(device):
     trees = []
     targets = []
@@ -90,10 +76,10 @@ def load_pairwise_data():
         pairs_trees = generate_unique_pairs(vectors)
 
         for tree1, tree2 in pairs_trees:
-            label = 0.0 if tree1.cost < tree2 else 1.0
+            label = 0.0 if tree1["cost"] < tree2["cost"] else 1.0
             x.append((tree1, tree2), label)
-    in_dim = None
-    raise Exception("note implemented in_dim")
+            
+    in_dim = len(tree1[0])
     return TreeVectorDataset(x), in_dim
 
 def load_classifier_data():
