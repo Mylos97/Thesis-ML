@@ -41,10 +41,6 @@ def main(args):
     best_model, x = train(model_class=model_class, params=params, loss_function=loss_function, data=data, device=device)
     current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S") if args.save else ""
     model_name = f'{args.model}{current_time}.onnx'
-    
-    if args.model == 'vae':
-        best_model.is_done = True
-    
     export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 
 if __name__ == '__main__':

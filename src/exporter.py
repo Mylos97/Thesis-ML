@@ -7,9 +7,8 @@ def export_model(model, x, model_name) -> None:
     torch.manual_seed(42)
     np.random.seed(42)
     onnxruntime.set_seed(42)
-
-    model.eval()
     torch_out = model(x)
+    model.eval()
     torch.onnx.export(model,               # model being run
                     args=(x),                         # model input (or a tuple for multiple inputs)
                     f=model_name,   # where to save the model (can be a file or file-like object)
@@ -24,6 +23,10 @@ def export_model(model, x, model_name) -> None:
                         "output": {0: "batch"},
                     },
     )
+
+    if 'vae' in model_name:
+        model.training = False
+        torch_out = model(x)
 
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
