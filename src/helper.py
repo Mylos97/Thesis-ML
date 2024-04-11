@@ -1,10 +1,12 @@
 import ast
-import torch
 import numpy as np
-from itertools import combinations
-from torch.utils.data import DataLoader, Dataset
-from TreeConvolution.util import prepare_trees
+import onnx
+import torch
 import os
+from TreeConvolution.util import prepare_trees
+from onnx import numpy_helper
+from torch.utils.data import DataLoader, Dataset
+from itertools import combinations
 
 def get_relative_path(file_name, dir):
     script_dir = os.path.dirname(__file__)
@@ -42,10 +44,10 @@ def make_dataloader(x, batch_size, num_workers):
 def build_trees(feature, device):
     return prepare_trees(feature, transformer, left_child, right_child, device=device)
 
-def load_autoencoder_data(device):
+def load_autoencoder_data(device, path):
     trees = []
     targets = []
-    with open(get_relative_path('autoencoder.txt','Data'), 'r') as f:
+    with open(path, 'r') as f:
         for l in f:
             vector, cost = l.split(':')
             vector, cost = vector.strip(), cost.strip()
@@ -85,6 +87,21 @@ def load_pairwise_data():
 def load_classifier_data():
     raise Exception("IMplement classifier loader")
     pass
+
+def get_weights_of_model(modelname):
+    onnx_model   = onnx.load(get_relative_path(f'{modelname}.onnx','Models'))
+    INTIALIZERS  = onnx_model.graph.initializer
+    onnx_weights = {}
+    for initializer in INTIALIZERS:
+        W = numpy_helper.to_array(initializer)
+        onnx_weights[initializer.name] = W
+    return onnx_weights
+
+def set_weights(weights, model):
+    for name, param in model.named_parameters():
+        if name in weights:
+            param.data = torch.tensor(weights[name].copy())
+    return model
 
 class TreeVectorDataset(Dataset):
     def __init__(self, data):
