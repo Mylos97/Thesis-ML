@@ -18,6 +18,7 @@ def main(args) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     if args.retrain:
+        print(f'Retraining model {args.model}' )
         weights = get_weights_of_model(args.model)
         path = args.retrain
     
