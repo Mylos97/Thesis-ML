@@ -8,7 +8,7 @@ from OurModels.EncoderDecoder.vae import VAE
 from helper import load_autoencoder_data, load_pairwise_data, load_classifier_data, get_relative_path, get_weights_of_model
 import torch.onnx
 
-def main(args):
+def main(args) -> None:
     model_class = None
     params = None
     loss_function = None

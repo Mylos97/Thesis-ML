@@ -16,7 +16,7 @@ def train(model_class, params, loss_function, data, device, weights):
     for lr, batch_size, gradient_norm, dropout in list(product(lrs, batch_sizes, gradient_norms, dropout_probs)):
         model = model_class(*params, dropout)
         if weights:
-            set_weights(weights, model)
+            model = set_weights(weights, model)
         val_loss = 0
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         train_dataloader = make_dataloader(x=train_dataset, batch_size=8, num_workers=n_workers)
