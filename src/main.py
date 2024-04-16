@@ -5,6 +5,7 @@ from exporter import export_model
 from OurModels.PairWise.model import Pairwise
 from OurModels.Classifier.model import TreeConvolution256
 from OurModels.EncoderDecoder.vae import VAE
+from BO import bayesian_optimization
 from helper import load_autoencoder_data, load_pairwise_data, load_classifier_data, get_relative_path, get_weights_of_model
 import torch.onnx
 
@@ -14,11 +15,11 @@ def main(args) -> None:
     loss_function = None
     data = None
     weights = None
-    path = get_relative_path(f'{args.model}.txt', 'Data')
+    path = get_relative_path(f'{args.model}_data.txt', 'Data')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     if args.retrain:
-        print(f'Retraining model {args.model}' )
+        print(f'Retraining model {args.model}')
         weights = get_weights_of_model(args.model)
         path = args.retrain
     
@@ -37,10 +38,12 @@ def main(args) -> None:
         model_class, params = TreeConvolution256, [in_dim, out_dim]
         loss_function = None
     
-
     best_model, x = train(model_class=model_class, params=params, loss_function=loss_function, data=data, device=device, weights=weights)
-    model_name = f'{args.model}.onnx'
-    export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
+    bayesian_optimization(best_model, device, x)
+    
+    
+    #model_name = f'{args.model}.onnx'
+    #export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
