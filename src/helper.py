@@ -3,6 +3,7 @@ import numpy as np
 import onnx
 import torch
 import os
+import json
 import torch.utils
 import torch.utils.data
 import torch.utils.data.dataset
@@ -117,3 +118,15 @@ def set_weights(weights:dict, model:torch.nn.Module) -> torch.nn.Module:
         if name in weights:
             param.data = torch.tensor(weights[name].copy())
     return model
+
+def convert_to_json(plans):
+    l = []
+    for plan in plans:
+        current_plan = {}
+        current_plan['values'] = plan[0].tolist()
+        current_plan['indexes'] = plan[1].tolist()
+        l.append(current_plan)
+    json_data = json.dumps(l)
+    relative_path = get_relative_path('encodedplans', "Data")
+    with open(f'{relative_path}.txt', "w") as file:
+        file.write(json_data)
