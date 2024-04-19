@@ -2,10 +2,11 @@ import torch
 from helper import make_dataloader, to_device, set_weights
 from itertools import product
 from torch.utils.data import DataLoader
+from torch import Tensor
 
 EPOCHS = 100
 
-def train(model_class, data_loader, in_dim, out_dim , loss_function, device, parameters) -> torch.nn.Module:
+def train(model_class, data_loader, in_dim, out_dim , loss_function, device, parameters) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get("lr", 0.001)
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
@@ -22,7 +23,6 @@ def train(model_class, data_loader, in_dim, out_dim , loss_function, device, par
         model.train()
         for tree, target in data_loader:
             tree, target = to_device(tree, target, device)
-            print(tree)
             prediction = model(tree)
             loss = loss_function(prediction, target)
             loss_accum += loss.item()
@@ -34,7 +34,7 @@ def train(model_class, data_loader, in_dim, out_dim , loss_function, device, par
 
         print("Epoch", epoch, "training loss:", loss_accum, "test loss:", test_loss)
     
-    return model
+    return model, tree
 
 
 def evaluate(model: torch.nn.Module, data_loader: DataLoader, loss_function, device: torch.device) -> float:

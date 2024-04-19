@@ -50,11 +50,10 @@ def right_child(x:tuple) -> tuple:
 def transformer(x:tuple) -> np.array:
     return np.array(x[0])
 
-def make_dataloader(x:Dataset, batch_size:int, num_workers:int) -> DataLoader:
+def make_dataloader(x:Dataset, batch_size:int) -> DataLoader:
     dataset = DataLoader(x,
                 batch_size=batch_size,
-                shuffle=True,
-                num_workers=num_workers)
+                shuffle=True)
     return dataset
 
 def build_trees(feature:list[tuple[torch.Tensor, torch.Tensor]], device:str) -> tuple[torch.Tensor, torch.Tensor]:
