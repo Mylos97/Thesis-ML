@@ -35,15 +35,15 @@ def to_device(vector: torch.Tensor, target: torch.Tensor, device:str) -> tuple[l
     
     return None
 
-def left_child(x:tuple) -> tuple :
+def left_child(x:tuple) -> tuple:
     assert isinstance(x, tuple)
-    if len(x) == 1:
+    if len(x) == 1: 
         return None
     return x[1]
 
 def right_child(x:tuple) -> tuple:
     assert isinstance(x, tuple)
-    if len(x) == 1:
+    if len(x) == 1: 
         return None
     return x[2]
 
@@ -64,17 +64,19 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     targets = []
     with open(path, 'r') as f:
         for l in f:
-            vector, cost = l.split(':')
-            vector, cost = vector.strip(), cost.strip()
-            vector, cost = ast.literal_eval(vector), ast.literal_eval(cost) 
-            trees.append(vector)
-            targets.append(cost)
-    
+            tree, optimal_tree, _ = l.split(':')
+            tree, optimal_tree = tree.strip(), optimal_tree.strip()
+            tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree) 
+            print(optimal_tree)
+            trees.append(tree)
+            targets.append(optimal_tree)
+
     assert len(trees) == len(targets)
-    in_dim, out_dim = len(vector[0]), len(cost[0])
+    in_dim, out_dim = len(trees[0]), len(targets[0])
     x = []
     in_trees = build_trees(trees, device=device)
     target_trees = build_trees(targets, device=device)
+    print(in_trees[0])
     for i, tree in enumerate(in_trees[0]):
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
     return TreeVectorDataset(x), in_dim, out_dim
@@ -126,6 +128,6 @@ def convert_to_json(plans) -> None:
         current_plan['indexes'] = plan[1].tolist()
         l.append(current_plan)
     json_data = json.dumps(l)
-    relative_path = get_relative_path('encodedplans', "Data")
+    relative_path = get_relative_path('json_plans', "Data")
     with open(f'{relative_path}.txt', "w") as file:
         file.write(json_data)

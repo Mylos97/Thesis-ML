@@ -1,22 +1,20 @@
 import torch
 import argparse
 import torch.onnx
-from trainer import train
 from exporter import export_model
 from OurModels.PairWise.model import Pairwise
 from OurModels.Classifier.model import TreeConvolution256
-from OurModels.EncoderDecoder.vae import VAE
-from BO import bayesian_optimization
+from OurModels.EncoderDecoder.model import VAE
 from helper import load_autoencoder_data, load_pairwise_data, load_classifier_data, get_relative_path, get_weights_of_model
 from HyperParameterBO import hyperparameterBO
+from BO import latent_space_BO
 
 def main(args) -> None:
     model_class = None
-    params = None
     loss_function = None
     data = None
     weights = None
-    path = get_relative_path(f'{args.model}_data.txt', 'Data')
+    path = get_relative_path(f'data.txt', 'Data')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_default_dtype(torch.float64)
     
@@ -41,14 +39,13 @@ def main(args) -> None:
         loss_function = None
     
     best_model, x = hyperparameterBO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device)
-    bayesian_optimization(best_model, device, x)
+    #latent_space_BO(best_model, device, x)
     model_name = f'{args.model}.onnx'
     export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="vae")
-    parser.add_argument("--save", type=bool, default=False)
     parser.add_argument("--retrain", type=str, default="")
     args = parser.parse_args()
     main(args)

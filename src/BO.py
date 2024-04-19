@@ -10,7 +10,7 @@ from botorch.acquisition.monte_carlo import qExpectedImprovement
 from botorch.optim import optimize_acqf
 from helper import convert_to_json
 
-def bayesian_optimization(ML_model, device, plan):
+def latent_space_BO(ML_model, device, plan):
     print("Running BO")
     dtype = torch.float64
     encoded_plan = ML_model.encoder(plan)
@@ -24,8 +24,6 @@ def bayesian_optimization(ML_model, device, plan):
     bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype) 
 
     def get_latencies(plans) -> list[torch.Tensor]:
-        print(plans[0])
-        quit()
         results = []
         for plan in plans:
             results.append(plan[0].sum().item())

@@ -4,7 +4,7 @@ from itertools import product
 from torch.utils.data import DataLoader
 from torch import Tensor
 
-EPOCHS = 100
+EPOCHS = 2
 
 def train(model_class, data_loader, in_dim, out_dim , loss_function, device, parameters) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get("lr", 0.001)

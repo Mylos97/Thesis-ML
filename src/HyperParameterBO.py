@@ -51,7 +51,7 @@ def hyperparameterBO(model_class: nn.Module,  data, in_dim:int, out_dim:int , lo
     baseline_parameters = ax_client.get_trial_parameters(trial_index=0)
     ax_client.complete_trial(trial_index=0, raw_data=train_evaluate(baseline_parameters))
 
-    for _ in range(25):
+    for _ in range(2):
         parameters, trial_index = ax_client.get_next_trial()
         ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
     
@@ -73,9 +73,10 @@ def hyperparameterBO(model_class: nn.Module,  data, in_dim:int, out_dim:int , lo
         shuffle=True,
     )
     df = ax_client.get_trials_data_frame()
-    best_arm_idx = df.trial_index[df["accuracy"] == df["accuracy"].max()].values[0]
+    best_arm_idx = df.trial_index[df["loss"] == df["loss"].max()].values[0]
     best_arm = ax_client.get_trial_parameters(best_arm_idx)
     best_model, tree = train(model_class=model_class, data_loader=combined_train_valid_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_arm)
     test_accuracy = evaluate(best_model, data_loader=test_loader, loss_function=loss_function, device=device)
 
-    print(f"Classification Accuracy (test set): {round(test_accuracy*100, 2)}%")
+    print(f"Loss (test set): {test_accuracy}")
+    return best_model, tree
