@@ -1,11 +1,14 @@
 import torch
 from helper import make_dataloader, to_device, set_weights
 from itertools import product
+from torch.utils.data import DataLoader
+
+
 
 def train(model_class, params, loss_function, data, device, weights):
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
     lrs = [0.0001]
-    batch_sizes = [32]
+    batch_sizes = [8]
     gradient_norms = [1.0]
     dropout_probs = [0.1]
     best_loss = float('inf')
@@ -49,6 +52,7 @@ def train_model(model, loss_function, epochs, optimizer, gradient_norm, train_da
         model.train()
         for tree, target in train_dataloader:
             tree, target = to_device(tree, target, device)
+            print(tree)
             prediction = model(tree)
             loss = loss_function(prediction, target)
             loss_accum += loss.item()

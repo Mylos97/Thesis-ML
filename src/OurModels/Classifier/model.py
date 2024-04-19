@@ -3,7 +3,7 @@ from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
                                   TreeActivation, TreeLayerNorm)
 
 class TreeConvolution256(nn.Module):
-    def __init__(self, in_dim, out_dim) -> None:
+    def __init__(self, in_dim, out_dim, drop_out) -> None:
         super(TreeConvolution256, self).__init__()
         self.tree_conv = nn.Sequential (
             BinaryTreeConv(in_dim, 256),

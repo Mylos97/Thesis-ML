@@ -11,10 +11,8 @@ from botorch.optim import optimize_acqf
 from helper import convert_to_json
 
 def bayesian_optimization(ML_model, device, plan):
-    warnings.filterwarnings("ignore")
-
     print("Running BO")
-    dtype = torch.float
+    dtype = torch.float64
     encoded_plan = ML_model.encoder(plan)
     latent_vector = encoded_plan[0]
     indexes = encoded_plan[1]
@@ -26,6 +24,8 @@ def bayesian_optimization(ML_model, device, plan):
     bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype) 
 
     def get_latencies(plans) -> list[torch.Tensor]:
+        print(plans[0])
+        quit()
         results = []
         for plan in plans:
             results.append(plan[0].sum().item())
@@ -39,7 +39,7 @@ def bayesian_optimization(ML_model, device, plan):
             model_results.append(ML_model.decoder(v, indexes))
         results = get_latencies(model_results)
 
-        return torch.tensor(results).float()
+        return torch.tensor(results).double()
 
     def gen_initial_data():
         train_x = unnormalize(

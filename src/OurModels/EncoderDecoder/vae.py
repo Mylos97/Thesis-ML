@@ -7,9 +7,6 @@ class VAE(nn.Module):
     def __init__(self, in_dim, out_dim, dropout_prob, is_done=True):
         super().__init__()            
         self.num_hidden = 16
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.dropout_prob = dropout_prob
         self.mu = nn.Linear(self.num_hidden, self.num_hidden)
         self.log_var = nn.Linear(self.num_hidden, self.num_hidden)
         self.encoder = TreeEncoder(in_dim, dropout_prob)

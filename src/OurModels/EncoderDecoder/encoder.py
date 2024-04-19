@@ -19,6 +19,7 @@ class TreeEncoder(nn.Module):
 
         self.linear = nn.Sequential(
             DynamicPooling(),
+            nn.BatchNorm1d(64),
             nn.Linear(64, 32),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),

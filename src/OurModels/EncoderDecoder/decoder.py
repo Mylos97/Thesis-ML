@@ -19,6 +19,7 @@ class TreeDecoder(nn.Module):
         )
 
         self.linear = nn.Sequential(
+            nn.BatchNorm1d(16),
             nn.Linear(16, 64),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),

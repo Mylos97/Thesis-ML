@@ -17,6 +17,7 @@ def main(args) -> None:
     weights = None
     path = get_relative_path(f'{args.model}_data.txt', 'Data')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.set_default_dtype(torch.float64)
     
     if args.retrain:
         print(f'Retraining model {args.model}')
@@ -40,10 +41,8 @@ def main(args) -> None:
     
     best_model, x = train(model_class=model_class, params=params, loss_function=loss_function, data=data, device=device, weights=weights)
     bayesian_optimization(best_model, device, x)
-    
-    
-    #model_name = f'{args.model}.onnx'
-    #export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
+    model_name = f'{args.model}.onnx'
+    export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

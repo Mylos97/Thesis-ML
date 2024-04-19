@@ -3,7 +3,7 @@ from torch.nn import Sigmoid
 from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling, TreeActivation, TreeLayerNorm)
 
 class Pairwise(nn.Module):
-    def __init__(self, in_dim, dropout_prob) -> None:
+    def __init__(self, in_dim, out_dim, dropout_prob) -> None:
         super(Pairwise, self).__init__()
         self.in_dim = in_dim
         self.sigmoid = Sigmoid()

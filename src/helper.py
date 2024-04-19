@@ -119,7 +119,7 @@ def set_weights(weights:dict, model:torch.nn.Module) -> torch.nn.Module:
             param.data = torch.tensor(weights[name].copy())
     return model
 
-def convert_to_json(plans):
+def convert_to_json(plans) -> None:
     l = []
     for plan in plans:
         current_plan = {}
