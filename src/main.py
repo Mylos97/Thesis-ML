@@ -6,15 +6,15 @@ from OurModels.PairWise.model import Pairwise
 from OurModels.Classifier.model import TreeConvolution256
 from OurModels.EncoderDecoder.model import VAE
 from helper import load_autoencoder_data, load_pairwise_data, load_classifier_data, get_relative_path, get_weights_of_model
-from HyperParameterBO import hyperparameterBO
-from BO import latent_space_BO
+from hyperparameterBO import do_hyperparameter_BO
+from latentspaceBO import latent_space_BO
 
 def main(args) -> None:
     model_class = None
     loss_function = None
     data = None
     weights = None
-    path = get_relative_path(f'data.txt', 'Data')
+    path = get_relative_path('data.txt', 'Data')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_default_dtype(torch.float64)
     
@@ -38,10 +38,10 @@ def main(args) -> None:
         model_class, params = TreeConvolution256, [in_dim, out_dim]
         loss_function = None
     
-    best_model, x = hyperparameterBO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device)
-    #latent_space_BO(best_model, device, x)
+    best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device)
+    latent_space_BO(best_model, device, x)
     model_name = f'{args.model}.onnx'
-    export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
+    #export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

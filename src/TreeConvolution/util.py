@@ -43,13 +43,12 @@ def _flatten(root, transformer, left_child, right_child):
     
     recurse(root)
     try:
-        accum = [np.zeros(accum[0].shape)] + accum
+        accum = [np.zeros(accum[0].shape, dtype=int)] + accum
 
     except:
         raise TreeConvolutionError(
             "Output of transformer must have a .shape (e.g., numpy array)"
         )
-    
     return np.array(accum)
 
 def _preorder_indexes(root, left_child, right_child, idx=1):
