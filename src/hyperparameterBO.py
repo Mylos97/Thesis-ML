@@ -17,7 +17,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         loss = evaluate(model=model, data_loader=val_loader, loss_function=loss_function, device=device)
         return loss
     
-    ax_client = AxClient()
+    ax_client = AxClient(verbose_logging=False)
     parameters = [
             {
                 "name": "lr",  

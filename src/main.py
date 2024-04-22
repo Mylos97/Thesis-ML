@@ -14,9 +14,9 @@ def main(args) -> None:
     loss_function = None
     data = None
     weights = None
-    path = get_relative_path('data.txt', 'Data')
+    path = get_relative_path('encodings-new.txt', 'Data')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    torch.set_default_dtype(torch.float64)
+    #torch.set_default_dtype(torch.float64)
     
     if args.retrain:
         print(f'Retraining model {args.model}')
@@ -41,7 +41,7 @@ def main(args) -> None:
     best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device)
     latent_space_BO(best_model, device, x)
     model_name = f'{args.model}.onnx'
-    #export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
+    export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

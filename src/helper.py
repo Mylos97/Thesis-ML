@@ -67,12 +67,13 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
             s = l.split(':')
             tree, optimal_tree = s[0], s[1] 
             tree, optimal_tree = tree.strip(), optimal_tree.strip()
-            tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree) 
+            tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
             trees.append(tree)
             targets.append(optimal_tree)
 
     assert len(trees) == len(targets)
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
+    print("in_dim ", in_dim, " out_dim ", out_dim)
     x = []
     in_trees = build_trees(trees, device=device)
     target_trees = build_trees(targets, device=device)

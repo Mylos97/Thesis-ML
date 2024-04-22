@@ -24,6 +24,8 @@ def train(model_class, data_loader, in_dim, out_dim , loss_function, device, par
         for tree, target in data_loader:
             tree, target = to_device(tree, target, device)
             prediction = model(tree)
+            print(prediction.shape)
+            print(target.shape)
             loss = loss_function(prediction, target)
             loss_accum += loss.item()
             optimizer.zero_grad()

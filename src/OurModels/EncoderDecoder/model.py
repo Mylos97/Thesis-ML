@@ -28,5 +28,5 @@ class VAE(nn.Module):
         epsilon = torch.randn(batch, dim)
         z = mean + torch.exp(0.5 * log_var) * epsilon
         decoded = self.decoder(z, indexes)
-
+        print("in model ", decoded[0].shape)
         return decoded[0]

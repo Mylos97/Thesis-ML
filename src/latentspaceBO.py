@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import warnings
 from botorch.models import SingleTaskGP
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 from botorch.utils.transforms import normalize, unnormalize
@@ -34,10 +33,10 @@ def latent_space_BO(ML_model, device, plan):
         v_hat = [latent_vector + v for v in X]
         model_results = []
         for v in v_hat:
-            model_results.append(ML_model.decoder(v, indexes))
+            model_results.append(ML_model.decoder(v.float(), indexes)) # Cast to float() because of warning from BoTorch
         results = get_latencies(model_results)
 
-        return torch.tensor(results).double()
+        return torch.tensor(results)
 
     def gen_initial_data():
         train_x = unnormalize(
@@ -94,7 +93,7 @@ def latent_space_BO(ML_model, device, plan):
         # fit the model
         model = get_fitted_model(
             train_x=train_x,
-            train_obj=train_obj,
+            train_obj=train_obj.double(),
             state_dict=state_dict,
         )
 
