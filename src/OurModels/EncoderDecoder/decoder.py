@@ -36,9 +36,6 @@ class TreeDecoder(nn.Module):
 
     def forward(self, trees, indexes):
         x = self.linear(trees)
-        print("in decoder ", x.shape)
         x = x.view(x.shape[0], 64, 64)
-        print("swag decoder ", x.shape)
         r = self.tree_conv((x, indexes))
-        print("result ", r[0].shape)
         return r

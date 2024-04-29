@@ -29,6 +29,11 @@ def get_relative_path(file_name:str, dir:str) -> str:
     file_path = os.path.join(script_dir, dir, file_name)
     return file_path
 
+def get_prediction(x:torch.Tensor | tuple):
+    if isinstance(x, tuple):
+        return x[0]
+    return x
+
 def to_device(vector: torch.Tensor, target: torch.Tensor, device:str) -> tuple[list[torch.Tensor], torch.Tensor]:
     if len(vector) == 2:
         return [vector[0].to(device), vector[1].to(device)], target.to(device)
@@ -81,25 +86,39 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
     return TreeVectorDataset(x), in_dim, out_dim
     
-def load_pairwise_data() -> tuple[TreeVectorDataset, int]:
+def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int]:
     def generate_unique_pairs(lst):
         return list(combinations(lst, 2))
 
-    with open(get_relative_path('pairwise.txt', 'Data'), 'r') as f:
-        vectors = []
+    with open(get_relative_path('data.txt', 'Data'), 'r') as f:
+        trees = []
+        costs = []
         x = []
         for l in f:
-            tree, cost = l.split(":")
-            vectors.append({"tree": tree, "cost":cost}) # need make into a string
-        
-        pairs_trees = generate_unique_pairs(vectors)
+            s = l.split(":")
+            tree, cost = s[1], s[2]
+            tree, cost = tree.strip(), int(cost.strip())
+            tree = ast.literal_eval(tree)
+            trees.append(tree)
+            costs.append(cost)
+
+        in_dim = len(tree[0])
+        in_trees = build_trees(trees, device=device)
+
+        for i, tree in enumerate(in_trees[0]):
+            x.append(((tree, in_trees[1][i]), costs[i]))
+
+        pairs_trees = generate_unique_pairs(x)
+
+        pairs = []
 
         for tree1, tree2 in pairs_trees:
-            label = 0.0 if tree1["cost"] < tree2["cost"] else 1.0
-            x.append((tree1, tree2), label)
-            
-    in_dim = len(tree1[0])
-    return TreeVectorDataset(x), in_dim
+            tree1, cost1 = tree1
+            tree2, cost2 = tree2
+            label = 0.0 if cost1 < cost2 else 1.0
+            pairs.append(((tree1, tree2), label))
+
+    return TreeVectorDataset(pairs), in_dim, None
 
 def load_classifier_data():
     raise Exception("IMplement classifier loader")

@@ -1,5 +1,6 @@
 import torch.nn as nn
 from torch.nn import Sigmoid
+import torch
 from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling, TreeActivation, TreeLayerNorm)
 
 class Pairwise(nn.Module):
@@ -29,4 +30,5 @@ class Pairwise(nn.Module):
         y2 = self.tree_conv(tree2)
         diff = y1 - y2
         prob_y = self.sigmoid(diff)
+        prob_y = torch.squeeze(prob_y, dim=1)
         return prob_y

@@ -5,7 +5,7 @@ from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
 class TreeConvolution256(nn.Module):
     def __init__(self, in_dim, out_dim, drop_out) -> None:
         super(TreeConvolution256, self).__init__()
-        self.tree_conv = nn.Sequential (
+        self.tree_conv = nn.Sequential(
             BinaryTreeConv(in_dim, 256),
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU()),

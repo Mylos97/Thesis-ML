@@ -4,8 +4,22 @@ import onnx
 import onnxruntime
 
 def export_model(model, x, model_name) -> None:
+    inputs = ['input1', 'input2']
+    axes = {"input1": {0: "batch"}, "input2": {0: "batch"}, "output": {0: "batch"}}
+
     if 'vae' in model_name:
         model.training = False
+    if 'pair' in model_name:
+        print('in pair')
+        inputs = ['input1', 'input2', 'input3', 'input4']
+        axes = {
+            "input1": {0: "batch"},
+            "input2": {0: "batch"},
+            "input3": {0: "batch"},
+            "input4": {0: "batch"},
+            "output": {0: "batch"}
+        }
+    
     model.eval()
     torch.onnx.export(
         model,                     # model being run
@@ -14,13 +28,9 @@ def export_model(model, x, model_name) -> None:
         export_params=True,        # store the trained parameter weights inside the model file
         opset_version=10,          # the ONNX version to export the model to
         do_constant_folding=True,  # whether to execute constant folding for optimization
-        input_names = ['input1', 'input2'],   # the model's input names
+        input_names = inputs,   # the model's input names
         output_names = ['output'], # the model's output names
-        dynamic_axes={
-            "input1": {0: "batch"},
-            "input2": {0: "batch"},
-            "output": {0: "batch"},
-        },
+        dynamic_axes = axes
     )
     
     torch_out = model(x)

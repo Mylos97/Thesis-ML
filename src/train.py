@@ -1,6 +1,5 @@
 import torch
-from helper import make_dataloader, to_device, set_weights
-from itertools import product
+from helper import get_prediction
 from torch.utils.data import DataLoader
 from torch import Tensor
 
@@ -22,11 +21,9 @@ def train(model_class, data_loader, in_dim, out_dim , loss_function, device, par
         
         model.train()
         for tree, target in data_loader:
-            tree, target = to_device(tree, target, device)
+
             prediction = model(tree)
-            print(prediction.shape)
-            print(target.shape)
-            loss = loss_function(prediction, target)
+            loss = loss_function(get_prediction(prediction), target.float())
             loss_accum += loss.item()
             optimizer.zero_grad()
             loss.backward()
@@ -45,9 +42,8 @@ def evaluate(model: torch.nn.Module, data_loader: DataLoader, loss_function, dev
 
     with torch.no_grad():
         for tree, target  in data_loader:
-            tree, target = to_device(tree, target, device)
             prediction = model(tree)
-            loss = loss_function(prediction, target)
+            loss = loss_function(get_prediction(prediction), target.float())
             val_loss += loss.item()
 
     return val_loss
