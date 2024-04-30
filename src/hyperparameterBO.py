@@ -6,43 +6,44 @@ from train import train, evaluate
 
 def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.MSELoss | nn.BCELoss, device: torch.device):
     BATCH_SIZE = 64
+    EPOCHS = 10
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
     train_loader = make_dataloader(x=train_dataset, batch_size=BATCH_SIZE)
     val_loader = make_dataloader(x=val_dataset, batch_size=BATCH_SIZE)
     test_loader = make_dataloader(x=test_dataset, batch_size=BATCH_SIZE)
 
     def train_evaluate(params):
-        model, _ = train(model_class=model_class, data_loader=train_loader, 
+        model, _ = train(model_class=model_class, data_loader=train_loader,
                       in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=params)
         loss = evaluate(model=model, data_loader=val_loader, loss_function=loss_function, device=device)
         return loss
-    
+
     ax_client = AxClient(verbose_logging=False)
     parameters = [
             {
-                "name": "lr",  
-                "type": "range",  
-                "bounds": [1e-6, 0.1],  
-                "value_type": "float"  
+                "name": "lr",
+                "type": "range",
+                "bounds": [1e-6, 0.1],
+                "value_type": "float"
             },
             {
-                "name": "dropout",  
-                "type": "range",  
+                "name": "dropout",
+                "type": "range",
                 "bounds": [0.0, 0.5],
-                "value_type": "float"  
+                "value_type": "float"
             },
             {
-                "name": "gradient_norm",  
-                "type": "range",  
+                "name": "gradient_norm",
+                "type": "range",
                 "bounds": [0.5, 2.5],
-                "value_type": "float"  
+                "value_type": "float"
             },
-            
+
     ]
     ax_client.create_experiment(
-        name="tune_model",  
+        name="tune_model",
         parameters=parameters,
-        objectives={"loss": ObjectiveProperties(minimize=True)}, 
+        objectives={"loss": ObjectiveProperties(minimize=True)},
     )
     ax_client.attach_trial(
         parameters={"lr": 0.00001, "dropout": 0.1, "gradient_norm": 1.0}
@@ -51,13 +52,13 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
     baseline_parameters = ax_client.get_trial_parameters(trial_index=0)
     ax_client.complete_trial(trial_index=0, raw_data=train_evaluate(baseline_parameters))
 
-    for _ in range(2):
+    for _ in range(EPOCHS):
         parameters, trial_index = ax_client.get_next_trial()
         ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
-    
+
     ax_client.get_max_parallelism()
     ax_client.get_trials_data_frame()
-    
+
     best_parameters, values = ax_client.get_best_parameters()
     mean, covariance = values
     print("Best parameters", best_parameters)
