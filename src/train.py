@@ -3,22 +3,22 @@ from helper import get_prediction
 from torch.utils.data import DataLoader
 from torch import Tensor
 
-EPOCHS = 2
+EPOCHS = 10
 
 def train(model_class, data_loader, in_dim, out_dim , loss_function, device, parameters) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get("lr", 0.001)
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
-    model = model_class(in_dim = in_dim, 
-                        out_dim = out_dim, 
+    model = model_class(in_dim = in_dim,
+                        out_dim = out_dim,
                         dropout_prob = dropout)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    
-    print(f"Starting training model epochs:{EPOCHS} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout}")    
+
+    print(f"Starting training model epochs:{EPOCHS} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout}")
     for epoch in range(EPOCHS):
         loss_accum = 0
         test_loss = 0
-        
+
         model.train()
         for tree, target in data_loader:
 
@@ -32,7 +32,7 @@ def train(model_class, data_loader, in_dim, out_dim , loss_function, device, par
         loss_accum /= len(data_loader)
 
         print("Epoch", epoch, "training loss:", loss_accum, "test loss:", test_loss)
-    
+
     return model, tree
 
 

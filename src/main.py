@@ -14,14 +14,14 @@ def main(args) -> None:
     loss_function = None
     data = None
     weights = None
-    path = get_relative_path('data.txt', 'Data')
+    path = get_relative_path('encodings-new.txt', 'Data')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
     if args.retrain:
         print(f'Retraining model {args.model}')
         weights = get_weights_of_model(args.model)
         path = args.retrain
-    
+
     if args.model == 'vae':
         data, in_dim, out_dim = load_autoencoder_data(device=device, path=path)
         model_class = VAE
@@ -36,7 +36,7 @@ def main(args) -> None:
         data, in_dim, out_dim = load_classifier_data()
         model_class = TreeConvolution256
         loss_function = None
-    
+
     best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device)
     if args.model == 'vae':
         latent_space_BO(best_model, device, x)

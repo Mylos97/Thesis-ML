@@ -6,4 +6,3 @@ numpy>=1.21.5,<1.25.0
 onnx==1.15.0
 onnxruntime==1.17.3
 torch==2.0.1
-setuptools==69.5.1
