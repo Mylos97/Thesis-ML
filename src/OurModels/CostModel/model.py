@@ -1,10 +1,11 @@
+import torch
 import torch.nn as nn
 from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
                                   TreeActivation, TreeLayerNorm)
 
-class TreeConvolution256(nn.Module):
-    def __init__(self, in_dim, out_dim, drop_out) -> None:
-        super(TreeConvolution256, self).__init__()
+class CostModel(nn.Module):
+    def __init__(self, in_dim, **args) -> None:
+        super(CostModel, self).__init__()
         self.tree_conv = nn.Sequential(
             BinaryTreeConv(in_dim, 256),
             TreeLayerNorm(),
@@ -19,9 +20,10 @@ class TreeConvolution256(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(32, 16),
             nn.LeakyReLU(),
-            nn.Linear(16, out_dim),
-            nn.Softmax(dim=1)
+            nn.Linear(16, 1),
         )
 
     def forward(self, trees):
-        return self.tree_conv(trees)
+        x = self.tree_conv(trees)
+        x = torch.squeeze(x, dim=1)
+        return x

@@ -3,9 +3,9 @@ import argparse
 import torch.onnx
 from exporter import export_model
 from OurModels.PairWise.model import Pairwise
-from OurModels.Classifier.model import TreeConvolution256
+from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
-from helper import load_autoencoder_data, load_pairwise_data, load_classifier_data, get_relative_path, get_weights_of_model
+from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model
 from hyperparameterBO import do_hyperparameter_BO
 from latentspaceBO import latent_space_BO
 
@@ -23,19 +23,19 @@ def main(args) -> None:
         path = args.retrain
 
     if args.model == 'vae':
-        data, in_dim, out_dim = load_autoencoder_data(device=device, path=path)
+        data, in_dim, out_dim = load_autoencoder_data(path=path, device=device)
         model_class = VAE
         loss_function = torch.nn.CrossEntropyLoss()
 
     if args.model == 'pairwise':
-        data, in_dim, out_dim = load_pairwise_data(device=device, path=path)
+        data, in_dim, out_dim = load_pairwise_data(path=path, device=device)
         model_class = Pairwise
         loss_function = torch.nn.BCELoss()
 
-    if args.model == 'treeconv':
-        data, in_dim, out_dim = load_classifier_data()
-        model_class = TreeConvolution256
-        loss_function = None
+    if args.model == 'costmodel':
+        data, in_dim, out_dim = load_costmodel_data(path=path, device=device)
+        model_class = CostModel
+        loss_function = torch.nn.MSELoss()
 
     best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device)
     

@@ -115,9 +115,27 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int]:
 
     return TreeVectorDataset(pairs), in_dim, None
 
-def load_classifier_data():
-    raise Exception("IMplement classifier loader")
-    pass
+def load_costmodel_data(path, device):
+    trees = []
+    costs = []
+
+    with open(path, 'r') as f:
+        for l in f:
+            s = l.split(':')
+            tree, cost = s[0].strip(), int(s[2].strip()) 
+            tree = ast.literal_eval(tree)
+            trees.append(tree)
+            costs.append(cost)
+
+    in_dim, out_dim = len(tree[0]), None
+    print("in_dim ", in_dim)
+    x = []
+    in_trees = build_trees(trees, device=device)
+
+    for i, tree in enumerate(in_trees[0]):
+        x.append(((tree, in_trees[1][i]), costs[i]))
+
+    return TreeVectorDataset(x), in_dim, out_dim
 
 def get_weights_of_model(modelname:str) -> dict:
     onnx_model   = onnx.load(get_relative_path(f'{modelname}.onnx','Models'))
