@@ -28,4 +28,4 @@ class VAE(nn.Module):
         epsilon = torch.randn(batch, dim)
         z = mean + torch.exp(0.5 * log_var) * epsilon
         decoded = self.decoder(z, indexes)
-        return decoded
+        return decoded[0]

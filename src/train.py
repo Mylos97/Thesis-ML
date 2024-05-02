@@ -1,9 +1,8 @@
 import torch
-from helper import get_prediction
 from torch.utils.data import DataLoader
 from torch import Tensor
 
-EPOCHS = 10
+EPOCHS = 100
 
 def train(model_class, data_loader, in_dim, out_dim , loss_function, device, parameters) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get("lr", 0.001)
@@ -23,7 +22,7 @@ def train(model_class, data_loader, in_dim, out_dim , loss_function, device, par
         for tree, target in data_loader:
 
             prediction = model(tree)
-            loss = loss_function(get_prediction(prediction), target.float())
+            loss = loss_function(prediction, target.float())
             loss_accum += loss.item()
             optimizer.zero_grad()
             loss.backward()
@@ -43,7 +42,7 @@ def evaluate(model: torch.nn.Module, data_loader: DataLoader, loss_function, dev
     with torch.no_grad():
         for tree, target  in data_loader:
             prediction = model(tree)
-            loss = loss_function(get_prediction(prediction), target.float())
+            loss = loss_function(prediction, target.float())
             val_loss += loss.item()
 
     return val_loss

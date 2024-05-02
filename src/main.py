@@ -30,7 +30,7 @@ def main(args) -> None:
     if args.model == 'pairwise':
         data, in_dim, out_dim = load_pairwise_data(device=device, path=path)
         model_class = Pairwise
-        loss_function = torch.nn.MSELoss()
+        loss_function = torch.nn.BCELoss()
 
     if args.model == 'treeconv':
         data, in_dim, out_dim = load_classifier_data()
@@ -38,8 +38,10 @@ def main(args) -> None:
         loss_function = None
 
     best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device)
+    
     if args.model == 'vae':
         latent_space_BO(best_model, device, x)
+    
     model_name = f'{args.model}.onnx'
     export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 

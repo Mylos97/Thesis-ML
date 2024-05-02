@@ -29,11 +29,6 @@ def get_relative_path(file_name:str, dir:str) -> str:
     file_path = os.path.join(script_dir, dir, file_name)
     return file_path
 
-def get_prediction(x:torch.Tensor | tuple):
-    if isinstance(x, tuple):
-        return x[0]
-    return x
-
 def to_device(vector: torch.Tensor, target: torch.Tensor, device:str) -> tuple[list[torch.Tensor], torch.Tensor]:
     if len(vector) == 2:
         return [vector[0].to(device), vector[1].to(device)], target.to(device)
@@ -90,7 +85,7 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int]:
     def generate_unique_pairs(lst):
         return list(combinations(lst, 2))
 
-    with open(get_relative_path('data.txt', 'Data'), 'r') as f:
+    with open(get_relative_path('encodings-new.txt', 'Data'), 'r') as f:
         trees = []
         costs = []
         x = []
