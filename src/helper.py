@@ -16,10 +16,10 @@ from itertools import combinations
 class TreeVectorDataset(Dataset):
     def __init__(self, data):
         self.data = data
-        
+
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
         vector, cost = self.data[idx]
         return vector, cost
@@ -32,18 +32,18 @@ def get_relative_path(file_name:str, dir:str) -> str:
 def to_device(vector: torch.Tensor, target: torch.Tensor, device:str) -> tuple[list[torch.Tensor], torch.Tensor]:
     if len(vector) == 2:
         return [vector[0].to(device), vector[1].to(device)], target.to(device)
-    
+
     return None
 
 def left_child(x:tuple) -> tuple:
     assert isinstance(x, tuple)
-    if len(x) == 1: 
+    if len(x) == 1:
         return None
     return x[1]
 
 def right_child(x:tuple) -> tuple:
     assert isinstance(x, tuple)
-    if len(x) == 1: 
+    if len(x) == 1:
         return None
     return x[2]
 
@@ -65,7 +65,7 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     with open(path, 'r') as f:
         for l in f:
             s = l.split(':')
-            tree, optimal_tree = s[0], s[1] 
+            tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = tree.strip(), optimal_tree.strip()
             tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
             trees.append(tree)
@@ -80,38 +80,48 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     for i, tree in enumerate(in_trees[0]):
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
     return TreeVectorDataset(x), in_dim, out_dim
-    
-def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int]:
-    def generate_unique_pairs(lst):
-        return list(combinations(lst, 2))
 
-    with open(get_relative_path('encodings-new.txt', 'Data'), 'r') as f:
+def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int]:
+    def generate_unique_pairs(best_plan, lst):
+        return [(best_plan, x) for x in lst]
+
+    with open(get_relative_path('pairwise-encodings.txt', 'Data'), 'r') as f:
+        wayangPlans = {}
         trees = []
-        costs = []
         x = []
+        pairs_trees = {}
         for l in f:
             s = l.split(":")
-            tree, cost = s[1], s[2]
-            tree, cost = tree.strip(), int(cost.strip())
-            tree = ast.literal_eval(tree)
-            trees.append(tree)
-            costs.append(cost)
+            wayangPlan, executionPlan, cost = s[0].strip(), s[1].strip(), int(s[2].strip())
+            executionPlan = ast.literal_eval(executionPlan)
+            trees.append(executionPlan)
+            wayangPlans.setdefault(wayangPlan, []).append((len(trees) - 1, cost))
 
-        in_dim = len(tree[0])
+        print(f"Read {len(wayangPlans)} different WayangPlans")
+        in_dim = len(executionPlan[0])
         in_trees = build_trees(trees, device=device)
 
-        for i, tree in enumerate(in_trees[0]):
-            x.append(((tree, in_trees[1][i]), costs[i]))
+        for wayangPlan, exTuple in wayangPlans.items():
+            # find best plan by lowest cost
+            # pair all other ones with the best plan
+            best_plan = min(exTuple, key=lambda x: x[1])
 
-        pairs_trees = generate_unique_pairs(x)
+            for i, cost in exTuple:
+                if i != best_plan[0]:
+                    x.append(((in_trees[0][i], in_trees[1][i]), cost))
+
+            best_plan_tuple = ((in_trees[0][best_plan[0]], in_trees[1][best_plan[0]]), best_plan[1])
+            print(best_plan_tuple)
+            pairs_trees[wayangPlan] = generate_unique_pairs(best_plan_tuple, x)
 
         pairs = []
 
-        for tree1, tree2 in pairs_trees:
-            tree1, cost1 = tree1
-            tree2, cost2 = tree2
-            label = 0.0 if cost1 < cost2 else 1.0
-            pairs.append(((tree1, tree2), label))
+        for wayangPlan, pair in pairs_trees.items():
+            for tree1, tree2 in pair:
+                tree1, cost1 = tree1
+                tree2, cost2 = tree2
+                label = 0.0 if cost1 < cost2 else 1.0
+                pairs.append(((tree1, tree2), label))
 
     return TreeVectorDataset(pairs), in_dim, None
 
@@ -122,7 +132,7 @@ def load_costmodel_data(path, device):
     with open(path, 'r') as f:
         for l in f:
             s = l.split(':')
-            tree, cost = s[0].strip(), int(s[2].strip()) 
+            tree, cost = s[0].strip(), int(s[2].strip())
             tree = ast.literal_eval(tree)
             trees.append(tree)
             costs.append(cost)
@@ -163,3 +173,4 @@ def convert_to_json(plans) -> None:
     relative_path = get_relative_path('json_plans', "Data")
     with open(f'{relative_path}.txt', "w") as file:
         file.write(json_data)
+
