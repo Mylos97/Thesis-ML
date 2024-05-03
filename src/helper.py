@@ -81,7 +81,7 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
     return TreeVectorDataset(x), in_dim, out_dim
 
-def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int]:
+def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, None]:
     def generate_unique_pairs(best_plan, lst):
         return [(best_plan, x) for x in lst]
 
@@ -102,8 +102,6 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int]:
         in_trees = build_trees(trees, device=device)
 
         for wayangPlan, exTuple in wayangPlans.items():
-            # find best plan by lowest cost
-            # pair all other ones with the best plan
             best_plan = min(exTuple, key=lambda x: x[1])
 
             for i, cost in exTuple:
@@ -125,20 +123,19 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int]:
 
     return TreeVectorDataset(pairs), in_dim, None
 
-def load_costmodel_data(path, device):
+def load_costmodel_data(path, device:str):
     trees = []
     costs = []
 
-    with open(path, 'r') as f:
+    with open(get_relative_path('pairwise-encodings.txt', 'Data'), 'r') as f:
         for l in f:
             s = l.split(':')
-            tree, cost = s[0].strip(), int(s[2].strip())
-            tree = ast.literal_eval(tree)
-            trees.append(tree)
+            executionPlan, cost = s[1].strip(), int(s[2].strip())
+            executionPlan = ast.literal_eval(executionPlan)
+            trees.append(executionPlan)
             costs.append(cost)
 
-    in_dim, out_dim = len(tree[0]), None
-    print("in_dim ", in_dim)
+    in_dim, out_dim = len(executionPlan[0]), None
     x = []
     in_trees = build_trees(trees, device=device)
 
@@ -170,7 +167,7 @@ def convert_to_json(plans) -> None:
         current_plan['indexes'] = plan[1].tolist()
         l.append(current_plan)
     json_data = json.dumps(l)
-    relative_path = get_relative_path('json_plans', "Data")
+    relative_path = get_relative_path('json-plans', "Data")
     with open(f'{relative_path}.txt', "w") as file:
         file.write(json_data)
 

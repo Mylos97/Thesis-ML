@@ -14,7 +14,7 @@ def main(args) -> None:
     loss_function = None
     data = None
     weights = None
-    path = get_relative_path('encodings-new.txt', 'Data')
+    path = get_relative_path('test-data.txt', 'Data')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if args.retrain:
@@ -32,7 +32,7 @@ def main(args) -> None:
         model_class = Pairwise
         loss_function = torch.nn.BCELoss()
 
-    if args.model == 'costmodel':
+    if args.model == 'cost':
         data, in_dim, out_dim = load_costmodel_data(path=path, device=device)
         model_class = CostModel
         loss_function = torch.nn.MSELoss()

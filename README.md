@@ -2,7 +2,7 @@
 
 **Parameters**
 
---model vae (default), pairwise, treeconv
+--model vae (default), pairwise, cost
 <br>
 --retrain "path/to/data", (default) ""
 <br>

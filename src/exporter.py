@@ -37,8 +37,9 @@ def export_model(model, x, model_name) -> None:
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
     ort_session = onnxruntime.InferenceSession(model_name, providers=['CPUExecutionProvider'])
-
-    return
+    
+    if not 'vae' in model_name:
+        return
 
     def to_numpy(tensor):
         return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
