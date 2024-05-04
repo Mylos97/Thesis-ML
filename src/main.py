@@ -15,7 +15,7 @@ def main(args) -> None:
     data = None
     weights = None
     path = get_relative_path('no-co-encodings.txt', 'Data')
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     if args.retrain:
         print(f'Retraining model {args.model}')
@@ -42,12 +42,13 @@ def main(args) -> None:
     if args.model == 'vae':
         latent_space_BO(best_model, device, x)
     
-    model_name = f'{args.model}.onnx'
+    model_name = f'{args.model}.onnx' if not args.name else args.name 
     export_model(model=best_model, x=x, model_name=get_relative_path(model_name, 'Models'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="vae")
-    parser.add_argument("--retrain", type=str, default="")
+    parser.add_argument('--model', default='vae')
+    parser.add_argument('--retrain', type=str, default='')
+    parser.add_argument('--name', type=str, default='')
     args = parser.parse_args()
     main(args)
