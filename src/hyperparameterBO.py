@@ -6,7 +6,7 @@ from train import train, evaluate
 
 def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.MSELoss | nn.BCELoss, device: torch.device):
     BATCH_SIZE = 64
-    TRIALS = 10
+    TRIALS = 1
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
     train_loader = make_dataloader(x=train_dataset, batch_size=BATCH_SIZE)
     val_loader = make_dataloader(x=val_dataset, batch_size=BATCH_SIZE)

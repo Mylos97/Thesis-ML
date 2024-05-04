@@ -94,7 +94,8 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
         trees = []
         x = []
         pairs_trees = {}
-        for l in f:
+        for _ in range(128):
+            l = f.readline()
             s = l.split(":")
             wayangPlan, executionPlan, cost = s[0].strip(), s[1].strip(), int(s[2].strip())
             executionPlan = ast.literal_eval(executionPlan)

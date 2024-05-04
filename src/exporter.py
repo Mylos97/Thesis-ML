@@ -4,32 +4,27 @@ import onnx
 import onnxruntime
 
 def export_model(model, x, model_name) -> None:
-    inputs = ['input1', 'input2']
-    axes = {"input1": {0: "batch"}, "input2": {0: "batch"}, "output": {0: "batch"}}
+    ort_input = x
+    if type(x[0]) == list:
+        ort_input = sum(x, [])
+    amount_inputs = len(ort_input)
+    inputs = [f'input{i+1}' for i in range(amount_inputs)]
+    axes = {f'input{i+1}':{0: "batch"} for i in range(amount_inputs)}
 
     if 'vae' in model_name:
         model.training = False
-    if 'pair' in model_name:
-        print('in pair')
-        inputs = ['input1', 'input2', 'input3', 'input4']
-        axes = {
-            "input1": {0: "batch"},
-            "input2": {0: "batch"},
-            "input3": {0: "batch"},
-            "input4": {0: "batch"},
-            "output": {0: "batch"}
-        }
 
+    print(f"Now exporting {model_name}")
     model.eval()
     torch.onnx.export(
-        model,                     # model being run
-        args=(x),                  # model input (or a tuple for multiple inputs)
-        f=model_name,              # where to save the model (can be a file or file-like object)
-        export_params=True,        # store the trained parameter weights inside the model file
-        opset_version=10,          # the ONNX version to export the model to
-        do_constant_folding=True,  # whether to execute constant folding for optimization
-        input_names = inputs,   # the model's input names
-        output_names = ['output'], # the model's output names
+        model,
+        args=(x),
+        f=model_name,
+        export_params=True,
+        opset_version=11,
+        do_constant_folding=True,
+        input_names = inputs,
+        output_names = ['output'],
         dynamic_axes = axes
     )
 
@@ -38,12 +33,13 @@ def export_model(model, x, model_name) -> None:
     onnx.checker.check_model(onnx_model)
     ort_session = onnxruntime.InferenceSession(model_name, providers=['CPUExecutionProvider'])
     
-    if not 'vae' in model_name:
-        return
-
     def to_numpy(tensor):
         return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
-    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(x[0]), ort_session.get_inputs()[1].name: to_numpy(x[1])}
+    ort_inputs = {}
+
+    for i, input in enumerate(ort_session.get_inputs()):
+        ort_inputs[input.name] = to_numpy(ort_input[i])
+
     ort_outs = ort_session.run(None, ort_inputs)
     np.testing.assert_allclose(to_numpy(torch_out), ort_outs[0], rtol=1e-03, atol=1e-05)

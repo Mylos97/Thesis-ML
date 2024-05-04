@@ -25,7 +25,7 @@ def main(args) -> None:
     if args.model == 'vae':
         data, in_dim, out_dim = load_autoencoder_data(path=path, device=device)
         model_class = VAE
-        loss_function = torch.nn.CrossEntropyLoss()
+        loss_function = torch.nn.HuberLoss()
 
     if args.model == 'pairwise':
         data, in_dim, out_dim = load_pairwise_data(path=path, device=device)
