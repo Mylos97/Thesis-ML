@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch import Tensor
 
-EPOCHS = 100
+EPOCHS = 1
 
 def train(model_class, data_loader, in_dim, out_dim , loss_function, device, parameters) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get("lr", 0.001)
@@ -45,4 +45,7 @@ def evaluate(model: torch.nn.Module, data_loader: DataLoader, loss_function, dev
             loss = loss_function(prediction, target.float())
             val_loss += loss.item()
 
+    val_loss /= len(data_loader)
+    print(f"Validation loss {val_loss}")
+    
     return val_loss

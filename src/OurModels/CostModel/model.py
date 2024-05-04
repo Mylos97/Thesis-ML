@@ -16,6 +16,7 @@ class CostModel(nn.Module):
             BinaryTreeConv(128, 64),
             TreeLayerNorm(),
             DynamicPooling(),
+            nn.BatchNorm1d(64),
             nn.Linear(64, 32),
             nn.LeakyReLU(),
             nn.Linear(32, 16),

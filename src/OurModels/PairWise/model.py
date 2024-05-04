@@ -18,6 +18,7 @@ class Pairwise(nn.Module):
             BinaryTreeConv(128, 64),
             TreeLayerNorm(),
             DynamicPooling(),
+            nn.BatchNorm1d(64),
             nn.Linear(64, 32),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),

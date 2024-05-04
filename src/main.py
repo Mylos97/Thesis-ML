@@ -14,7 +14,7 @@ def main(args) -> None:
     loss_function = None
     data = None
     weights = None
-    path = get_relative_path('test-data.txt', 'Data')
+    path = get_relative_path('no-co-encodings.txt', 'Data')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if args.retrain:

@@ -53,6 +53,7 @@ def transformer(x:tuple) -> np.array:
 def make_dataloader(x:Dataset, batch_size:int) -> DataLoader:
     dataset = DataLoader(x,
                 batch_size=batch_size,
+                drop_last=True,
                 shuffle=True)
     return dataset
 
@@ -109,7 +110,6 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
                     x.append(((in_trees[0][i], in_trees[1][i]), cost))
 
             best_plan_tuple = ((in_trees[0][best_plan[0]], in_trees[1][best_plan[0]]), best_plan[1])
-            print(best_plan_tuple)
             pairs_trees[wayangPlan] = generate_unique_pairs(best_plan_tuple, x)
 
         pairs = []
