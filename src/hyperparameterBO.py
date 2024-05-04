@@ -11,6 +11,8 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
     train_loader = make_dataloader(x=train_dataset, batch_size=BATCH_SIZE)
     val_loader = make_dataloader(x=val_dataset, batch_size=BATCH_SIZE)
     test_loader = make_dataloader(x=test_dataset, batch_size=BATCH_SIZE)
+    print(f"Training dataset size: {len(train_dataset)} Test dataset size: {len(test_dataset)} Validation dataset size: {len(val_dataset)}")
+    print(f"Training batches: {len(train_loader)} Test batches: {len(test_loader)} Validation batches: {len(val_loader)} \n")
 
     def train_evaluate(params):
         model, _ = train(model_class=model_class, data_loader=train_loader,

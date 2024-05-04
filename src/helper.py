@@ -51,11 +51,11 @@ def transformer(x:tuple) -> np.array:
     return np.array(x[0])
 
 def make_dataloader(x:Dataset, batch_size:int) -> DataLoader:
-    dataset = DataLoader(x,
+    dataloader = DataLoader(x,
                 batch_size=batch_size,
                 drop_last=True,
                 shuffle=True)
-    return dataset
+    return dataloader
 
 def build_trees(feature:list[tuple[torch.Tensor, torch.Tensor]], device:str) -> tuple[torch.Tensor, torch.Tensor]:
     return prepare_trees(feature, transformer, left_child, right_child, device=device)
@@ -64,7 +64,8 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     trees = []
     targets = []
     with open(path, 'r') as f:
-        for l in f:
+        for _ in range(1024):
+            l = f.readline()
             s = l.split(':')
             tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = tree.strip(), optimal_tree.strip()
@@ -80,6 +81,8 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     target_trees = build_trees(targets, device=device)
     for i, tree in enumerate(in_trees[0]):
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
+    
+    print(f"Succesfully loaded {len(x)} plans")
     return TreeVectorDataset(x), in_dim, out_dim
 
 def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, None]:

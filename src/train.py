@@ -13,7 +13,7 @@ def train(model_class, data_loader, in_dim, out_dim , loss_function, device, par
                         dropout_prob = dropout)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    print(f"Starting training model epochs:{EPOCHS} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout}")
+    print(f"Starting training model epochs:{EPOCHS} samples: {len(data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout}")
     for epoch in range(EPOCHS):
         loss_accum = 0
         test_loss = 0
@@ -38,9 +38,8 @@ def train(model_class, data_loader, in_dim, out_dim , loss_function, device, par
 def evaluate(model: torch.nn.Module, data_loader: DataLoader, loss_function, device: torch.device) -> float:
     model.eval()
     val_loss = 0
-
     with torch.no_grad():
-        for tree, target  in data_loader:
+        for tree, target in data_loader:
             prediction = model(tree)
             loss = loss_function(prediction, target.float())
             val_loss += loss.item()
