@@ -9,12 +9,12 @@ def export_model(model, x, model_name) -> None:
         ort_input = sum(x, [])
     amount_inputs = len(ort_input)
     inputs = [f'input{i+1}' for i in range(amount_inputs)]
-    axes = {f'input{i+1}':{0: "batch"} for i in range(amount_inputs)}
+    axes = {f'input{i+1}':{0: 'batch'} for i in range(amount_inputs)}
 
     if 'vae' in model_name:
         model.training = False
 
-    print(f"Now exporting {model_name}")
+    print(f'Now exporting {model_name}')
     model.eval()
     torch.onnx.export(
         model,

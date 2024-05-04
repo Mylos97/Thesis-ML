@@ -15,4 +15,4 @@ python main.py --model pairwise --retrain src/Data/pairwise-encodings.txt --name
 ```
 
 ---
-Thanks a lot for the implementation of ["Tree Convolution"](https://github.com/RyanMarcus/TreeConvolution) used in the script.
+Thanks to Ryan Marcus for the implementation of ["Tree Convolution"](https://github.com/RyanMarcus/TreeConvolution) that was used in the training script.
