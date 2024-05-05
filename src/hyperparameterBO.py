@@ -4,9 +4,9 @@ from ax.service.ax_client import AxClient, ObjectiveProperties
 from helper import make_dataloader
 from train import train, evaluate
 
-def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device):
+def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, weights:dict=None):
     BATCH_SIZE = 64
-    TRIALS = 10
+    TRIALS = 1
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
     train_loader = make_dataloader(x=train_dataset, batch_size=BATCH_SIZE)
     val_loader = make_dataloader(x=val_dataset, batch_size=BATCH_SIZE)
@@ -16,7 +16,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
 
     def train_evaluate(params):
         model, _ = train(model_class=model_class, training_data_loader=train_loader, val_data_loader=val_loader,
-                      in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=params)
+                      in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=params, weights=weights)
         loss = evaluate(model=model, val_data_loader=val_loader, loss_function=loss_function, device=device)
         print(f'Validation loss for the model after training {loss}')
 
@@ -63,10 +63,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
     ax_client.get_max_parallelism()
     ax_client.get_trials_data_frame()
 
-    best_parameters, values = ax_client.get_best_parameters()
-    mean, _ = values
-    print('Best parameters', best_parameters)
-    print('With mean', mean)
+    best_parameters, _ = ax_client.get_best_parameters()
 
     combined_train_valid_set = torch.utils.data.ConcatDataset([
         train_loader.dataset.dataset,
@@ -80,8 +77,9 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
     df = ax_client.get_trials_data_frame()
     best_arm_idx = df.trial_index[df['loss'] == df['loss'].max()].values[0]
     best_arm = ax_client.get_trial_parameters(best_arm_idx)
-    best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_arm)
+    print(f'\n Training best model with parameters: {best_parameters}')
+    best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_arm, weights=weights)
     test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=loss_function, device=device)
 
-    print(f'Loss (test set): {test_accuracy}')
+    print(f'Best model loss test set: {test_accuracy}')
     return best_model, tree

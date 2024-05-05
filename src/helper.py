@@ -64,8 +64,7 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     trees = []
     targets = []
     with open(path, 'r') as f:
-        for _ in range(1024):
-            l = f.readline()
+        for l in f:
             s = l.split(':')
             tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = tree.strip(), optimal_tree.strip()
@@ -94,8 +93,7 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
         trees = []
         x = []
         pairs_trees = {}
-        for _ in range(128):
-            l = f.readline()
+        for l in f:
             s = l.split(':')
             wayangPlan, executionPlan, cost = s[0].strip(), s[1].strip(), int(s[2].strip())
             executionPlan = ast.literal_eval(executionPlan)

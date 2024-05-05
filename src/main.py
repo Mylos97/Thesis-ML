@@ -38,7 +38,7 @@ def main(args) -> None:
         model_class = CostModel
         loss_function = torch.nn.MSELoss()
 
-    best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device)
+    best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, weights=weights)
     
     if args.model == 'vae':
         latent_space_BO(best_model, device, x)
