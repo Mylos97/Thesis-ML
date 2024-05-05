@@ -77,7 +77,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
     df = ax_client.get_trials_data_frame()
     best_arm_idx = df.trial_index[df['loss'] == df['loss'].max()].values[0]
     best_arm = ax_client.get_trial_parameters(best_arm_idx)
-    print(f'\n Training best model with parameters: {best_parameters}')
+    print(f'\nTraining best model with parameters: {best_parameters}')
     best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_arm, weights=weights)
     test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=loss_function, device=device)
 
