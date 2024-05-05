@@ -85,13 +85,9 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     return TreeVectorDataset(x), in_dim, out_dim
 
 def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, None]:
-    def generate_unique_pairs(best_plan, lst):
-        return [(best_plan, x) for x in lst]
-
     with open(get_relative_path('pairwise-encodings.txt', 'Data'), 'r') as f:
         wayangPlans = {}
         trees = []
-        x = []
         pairs_trees = {}
         for l in f:
             s = l.split(':')
@@ -105,14 +101,17 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
         in_trees = build_trees(trees, device=device)
 
         for wayangPlan, exTuple in wayangPlans.items():
-            best_plan = min(exTuple, key=lambda x: x[1])
+            best_plan_index, best_cost  = min(exTuple, key=lambda x: x[1])
+            best_tree = ((in_trees[0][best_plan_index], in_trees[1][best_plan_index]), best_cost)
+            tuples = []
 
             for i, cost in exTuple:
-                if i != best_plan[0]:
-                    x.append(((in_trees[0][i], in_trees[1][i]), cost))
+                if i == best_plan_index:
+                    continue
+                current_tree = ((in_trees[0][i], in_trees[1][i]), cost)
+                tuples.append((best_tree, current_tree))
 
-            best_plan_tuple = ((in_trees[0][best_plan[0]], in_trees[1][best_plan[0]]), best_plan[1])
-            pairs_trees[wayangPlan] = generate_unique_pairs(best_plan_tuple, x)
+            pairs_trees[wayangPlan] = tuples
 
         pairs = []
 
