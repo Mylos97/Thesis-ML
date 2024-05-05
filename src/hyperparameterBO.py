@@ -61,13 +61,10 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
 
     baseline_parameters = ax_client.get_trial_parameters(trial_index=0)
     ax_client.complete_trial(trial_index=0, raw_data=train_evaluate(baseline_parameters))
-
-    print("hello")
-    print("trials: ", TRIALS)
+    
     for _ in range(TRIALS):
         parameters, trial_index = ax_client.get_next_trial()
         ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
-        print("params: ", parameters)
 
     ax_client.get_max_parallelism()
     ax_client.get_trials_data_frame()
