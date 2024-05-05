@@ -1,7 +1,6 @@
 import torch
 import argparse
 import torch.onnx
-import sys
 from exporter import export_model
 from OurModels.PairWise.model import Pairwise
 from OurModels.CostModel.model import CostModel

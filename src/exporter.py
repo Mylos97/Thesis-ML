@@ -14,7 +14,7 @@ def export_model(model, x, model_name) -> None:
     if 'vae' in model_name:
         model.training = False
 
-    print(f'Now exporting {model_name}')
+    print(f'Now exporting {model_name}', flush=True)
     model.eval()
     torch.onnx.export(
         model,

@@ -10,7 +10,7 @@ from botorch.optim import optimize_acqf
 from helper import convert_to_json
 
 def latent_space_BO(ML_model, device, plan):
-    print('Running latent space Bayesian Optimization')
+    print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
     encoded_plan = ML_model.encoder(plan)
     latent_vector = encoded_plan[0]
@@ -113,4 +113,4 @@ def latent_space_BO(ML_model, device, plan):
 
         state_dict = model.state_dict()
     
-    print('Finish Bayesian Optimization for latent space')
+    print('Finish Bayesian Optimization for latent space', flush=True)

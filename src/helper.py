@@ -74,14 +74,14 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
 
     assert len(trees) == len(targets)
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
-    print('in_dim ', in_dim, ' out_dim ', out_dim)
+    print('in_dim ', in_dim, ' out_dim ', out_dim, flush=True)
     x = []
     in_trees = build_trees(trees, device=device)
     target_trees = build_trees(targets, device=device)
     for i, tree in enumerate(in_trees[0]):
         x.append(((tree, in_trees[1][i]), target_trees[0][i]))
     
-    print(f'Succesfully loaded {len(x)} plans')
+    print(f'Succesfully loaded {len(x)} plans', flush=True)
     return TreeVectorDataset(x), in_dim, out_dim
 
 def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, None]:
@@ -100,7 +100,7 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
             trees.append(executionPlan)
             wayangPlans.setdefault(wayangPlan, []).append((len(trees) - 1, cost))
 
-        print(f'Read {len(wayangPlans)} different WayangPlans')
+        print(f'Read {len(wayangPlans)} different WayangPlans', flush=True)
         in_dim = len(executionPlan[0])
         in_trees = build_trees(trees, device=device)
 

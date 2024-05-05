@@ -20,7 +20,7 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
     counter = 0
     patience = 10
 
-    print(f'Starting training model epochs:{EPOCHS} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout}')
+    print(f'Starting training model epochs:{EPOCHS} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout}', flush=True)
     for epoch in range(EPOCHS):
         loss_accum = 0
         model.train()
@@ -36,17 +36,17 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
             optimizer.step()
         loss_accum /= len(training_data_loader)
 
-        print(f'Epoch  {epoch} training loss: {loss_accum}')
+        print(f'Epoch  {epoch} training loss: {loss_accum}', flush=True)
         val_loss = evaluate(model=model, val_data_loader=val_data_loader, loss_function=loss_function, device=device)
 
         counter += 1
         if val_loss < best_val_loss:
-            print(f'Got better validation loss {val_loss} than {best_val_loss}')
+            print(f'Got better validation loss {val_loss} than {best_val_loss}', flush=True)
             best_val_loss = val_loss
             counter = 0
 
         if counter > patience:
-            print(f'Early stopping on Epoch {epoch} training loss: {loss} validation loss: {val_loss} model has not improved for {patience} epochs')
+            print(f'Early stopping on Epoch {epoch} training loss: {loss} validation loss: {val_loss} model has not improved for {patience} epochs', flush=True)
             break
 
     return model, tree
