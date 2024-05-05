@@ -1,6 +1,7 @@
 import torch
 import argparse
 import torch.onnx
+import sys
 from exporter import export_model
 from OurModels.PairWise.model import Pairwise
 from OurModels.CostModel.model import CostModel
@@ -17,7 +18,7 @@ def main(args) -> None:
     path = get_relative_path('no-co-encodings.txt', 'Data')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     args_name = args.name if '.onnx' in args.name else f'{args.name}.onnx'
-    print(f'Started training model {args.model}')
+    print(f'Started training model {args.model}', flush=True)
 
     if args.retrain:
         print(f'Retraining model {args.model}')
