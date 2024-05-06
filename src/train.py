@@ -34,6 +34,7 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
+
         loss_accum /= len(training_data_loader)
 
         print(f'Epoch  {epoch} training loss: {loss_accum}', flush=True)

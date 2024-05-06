@@ -10,8 +10,6 @@ import torch.utils.data.dataset
 from TreeConvolution.util import prepare_trees
 from onnx import numpy_helper
 from torch.utils.data import DataLoader, Dataset
-from itertools import combinations
-
 
 class TreeVectorDataset(Dataset):
     def __init__(self, data):
@@ -76,10 +74,13 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
     print('in_dim ', in_dim, ' out_dim ', out_dim, flush=True)
     x = []
-    in_trees = build_trees(trees, device=device)
-    target_trees = build_trees(targets, device=device)
-    for i, tree in enumerate(in_trees[0]):
-        x.append(((tree, in_trees[1][i]), target_trees[0][i]))
+    trees, indexes = build_trees(trees, device=device)
+    target_trees, _ = build_trees(targets, device=device)
+    trees = torch.where((trees > 1) | (trees < 0), 0, trees)
+    target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
+
+    for i, tree in enumerate(trees):
+        x.append(((tree, indexes[i]), target_trees[i]))
     
     print(f'Succesfully loaded {len(x)} plans', flush=True)
     return TreeVectorDataset(x), in_dim, out_dim
@@ -98,17 +99,18 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
 
         print(f'Read {len(wayangPlans)} different WayangPlans', flush=True)
         in_dim = len(executionPlan[0])
-        in_trees = build_trees(trees, device=device)
+        trees, indexes = build_trees(trees, device=device)
+        print('in_dim ', in_dim, flush=True)
 
         for wayangPlan, exTuple in wayangPlans.items():
             best_plan_index, best_cost  = min(exTuple, key=lambda x: x[1])
-            best_tree = ((in_trees[0][best_plan_index], in_trees[1][best_plan_index]), best_cost)
+            best_tree = ((trees[best_plan_index], indexes[best_plan_index]), best_cost)
             tuples = []
 
             for i, cost in exTuple:
                 if i == best_plan_index:
                     continue
-                current_tree = ((in_trees[0][i], in_trees[1][i]), cost)
+                current_tree = ((trees[i], indexes[i]), cost)
                 tuples.append((best_tree, current_tree))
 
             pairs_trees[wayangPlan] = tuples
@@ -137,6 +139,7 @@ def load_costmodel_data(path, device:str):
             costs.append(cost)
 
     in_dim, out_dim = len(executionPlan[0]), None
+    print('in_dim ', in_dim, ' out_dim ', out_dim, flush=True)
     x = []
     in_trees = build_trees(trees, device=device)
 
