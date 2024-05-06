@@ -1,20 +1,18 @@
 import torch
 import torch.nn as nn
 from ax.service.ax_client import AxClient, ObjectiveProperties
-from helper import make_dataloader
+from helper import get_data_loaders
 from train import train, evaluate
 
+
 def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, weights:dict=None):
-    BATCH_SIZE = 64
-    TRIALS = 10
-    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
-    train_loader = make_dataloader(x=train_dataset, batch_size=BATCH_SIZE)
-    val_loader = make_dataloader(x=val_dataset, batch_size=BATCH_SIZE)
-    test_loader = make_dataloader(x=test_dataset, batch_size=BATCH_SIZE)
-    print(f'Training dataset size: {len(train_dataset)} Test dataset size: {len(test_dataset)} Validation dataset size: {len(val_dataset)}', flush=True)
-    print(f'Training batches: {len(train_loader)} Test batches: {len(test_loader)} Validation batches: {len(val_loader)} \n', flush=True)
+    TRIALS = 25
 
     def train_evaluate(params):
+        batch_size = params.get('batch_size', 32)
+        train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
+        print(f'Batch size: {batch_size}')
+        print(f'Training batches: {len(train_loader)} Test batches: {len(test_loader)} Validation batches: {len(val_loader)} \n', flush=True)
         model, _ = train(model_class=model_class, training_data_loader=train_loader, val_data_loader=val_loader,
                       in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=params, weights=weights)
         loss = evaluate(model=model, val_data_loader=val_loader, loss_function=loss_function, device=device)
@@ -48,6 +46,12 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
             'bounds': [1, 50],
             'value_type': 'int'
         },
+        {
+            'name': 'batch_size',
+            'type': 'range',
+            'bounds': [32, 256],
+            'value_type': 'int'
+        },
     ]
 
     ax_client.create_experiment(
@@ -56,7 +60,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         objectives={'loss': ObjectiveProperties(minimize=True)},
     )
     ax_client.attach_trial(
-        parameters={'lr': 0.00001, 'dropout': 0.1, 'gradient_norm': 1.0, 'patience': 1}
+        parameters={'lr': 0.00001, 'dropout': 0.1, 'gradient_norm': 1.0, 'patience': 1, 'batch_size':32}
     )
 
     baseline_parameters = ax_client.get_trial_parameters(trial_index=0)
@@ -70,6 +74,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
     ax_client.get_trials_data_frame()
 
     best_parameters, _ = ax_client.get_best_parameters()
+    train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=best_parameters.get('batch_size', 32))
 
     combined_train_valid_set = torch.utils.data.ConcatDataset([
         train_loader.dataset.dataset,
@@ -77,13 +82,13 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
     ])
     combined_train_valid_loader = torch.utils.data.DataLoader(
         combined_train_valid_set,
-        batch_size=BATCH_SIZE,
+        batch_size=best_parameters.get('batch_size', 32),
         shuffle=True
     )
     df = ax_client.get_trials_data_frame()
     best_arm_idx = df.trial_index[df['loss'] == df['loss'].max()].values[0]
     best_arm = ax_client.get_trial_parameters(best_arm_idx)
-    print(f'\nTraining best model with parameters: {best_parameters}', flush=True)
+    print(f'\nBest model training with parameters: {best_parameters}', flush=True)
     best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_arm, weights=weights)
     test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=loss_function, device=device)
 

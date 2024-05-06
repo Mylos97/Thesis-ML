@@ -139,7 +139,7 @@ def load_costmodel_data(path, device:str):
             costs.append(cost)
 
     in_dim, out_dim = len(executionPlan[0]), None
-    print('in_dim ', in_dim, ' out_dim ', out_dim, flush=True)
+    print('in_dim ', in_dim, flush=True)
     x = []
     trees, indexes = build_trees(trees, device=device)
 
@@ -162,6 +162,13 @@ def set_weights(weights:dict, model:torch.nn.Module) -> torch.nn.Module:
         if name in weights:
             param.data = torch.tensor(weights[name].copy())
     return model
+
+def get_data_loaders(data, batch_size):
+    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(data, [0.8, 0.1, 0.1])
+    train_loader = make_dataloader(x=train_dataset, batch_size=batch_size)
+    val_loader = make_dataloader(x=val_dataset, batch_size=batch_size)
+    test_loader = make_dataloader(x=test_dataset, batch_size=batch_size)
+    return train_loader, val_loader, test_loader
 
 def convert_to_json(plans) -> None:
     l = []
