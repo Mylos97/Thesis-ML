@@ -12,14 +12,15 @@ class VAE(nn.Module):
         self.encoder = TreeEncoder(in_dim, dropout_prob)
         self.decoder = TreeDecoder(out_dim, dropout_prob)
         self.training = is_done
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         if not self.training:
             encoded, indexes = self.encoder(x)
             z = self.mu(encoded)
             decoded = self.decoder(z, indexes)
-
-            return decoded[0]
+            x = self.sigmoid(decoded[0])
+            return x
 
         encoded, indexes = self.encoder(x)
         mean = self.mu(encoded)
@@ -28,4 +29,5 @@ class VAE(nn.Module):
         epsilon = torch.randn(batch, dim)
         z = mean + torch.exp(0.5 * log_var) * epsilon
         decoded = self.decoder(z, indexes)
-        return decoded[0]
+        x = self.sigmoid(decoded[0])
+        return x

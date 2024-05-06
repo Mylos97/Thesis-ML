@@ -45,7 +45,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         {
             'name': 'patience',
             'type': 'range',
-            'bounds': [5, 50],
+            'bounds': [1, 50],
             'value_type': 'int'
         },
     ]
