@@ -61,10 +61,6 @@ def latent_space_BO(ML_model, device, plan):
         return model
 
     def optimize_acqf_and_get_observation(acq_func):
-        '''Optimizes the acquisition function, and returns a
-        new candidate and a noisy observation'''
-
-        # optimize
         candidates, _ = optimize_acqf(
             acq_function=acq_func,
             bounds=torch.stack(
@@ -89,20 +85,16 @@ def latent_space_BO(ML_model, device, plan):
     best_observed.append(best_value)
     state_dict = None
     for _ in range(N_BATCH):
-
-        # fit the model
         model = get_fitted_model(
             train_x=train_x,
             train_obj=train_obj.double(),
             state_dict=state_dict,
         )
 
-        # define the qNEI acquisition function
         qEI = qExpectedImprovement(
             model=model, best_f=train_obj.min()
         )
 
-        # optimize and get new observation
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
 
         train_x = torch.cat((train_x, new_x))

@@ -141,10 +141,10 @@ def load_costmodel_data(path, device:str):
     in_dim, out_dim = len(executionPlan[0]), None
     print('in_dim ', in_dim, ' out_dim ', out_dim, flush=True)
     x = []
-    in_trees = build_trees(trees, device=device)
+    trees, indexes = build_trees(trees, device=device)
 
-    for i, tree in enumerate(in_trees[0]):
-        x.append(((tree, in_trees[1][i]), costs[i]))
+    for i, tree in enumerate(trees):
+        x.append(((tree, indexes[i]), costs[i]))
 
     return TreeVectorDataset(x), in_dim, out_dim
 
