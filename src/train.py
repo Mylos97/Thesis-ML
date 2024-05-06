@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from torch import Tensor
 from helper import set_weights
 
-EPOCHS = 1
+EPOCHS = 100
 
 def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , loss_function, device, parameters, weights=None) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get('lr', 0.001)
