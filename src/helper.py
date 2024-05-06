@@ -76,7 +76,6 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     x = []
     trees, indexes = build_trees(trees, device=device)
     target_trees, _ = build_trees(targets, device=device)
-    trees = torch.where((trees > 1) | (trees < 0), 0, trees)
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
     for i, tree in enumerate(trees):
