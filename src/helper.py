@@ -121,7 +121,7 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
                 tree1, cost1 = tree1
                 tree2, cost2 = tree2
                 label = 0.0 if cost1 < cost2 else 1.0
-                pairs.add(((tree1, tree2), label))
+                pairs.append(((tree1, tree2), label))
 
     print(f'Found {len(pairs)} different Wayang pairs')
 
