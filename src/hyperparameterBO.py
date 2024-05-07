@@ -49,7 +49,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         {
             'name': 'batch_size',
             'type': 'range',
-            'bounds': [32, 256],
+            'bounds': [128, 256],
             'value_type': 'int'
         },
     ]
