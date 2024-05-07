@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch import Tensor
 from helper import set_weights
+from datetime import datetime
 
 EPOCHS = 1
 
@@ -19,8 +20,9 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
     best_val_loss = float('inf')
     counter = 0
     patience = parameters.get('patience', 10)
-
-    print(f'Starting training model epochs:{EPOCHS} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience}', flush=True)
+    time = datetime.now().strftime("%H:%M:%S")
+    
+    print(f'Starting training model epochs:{EPOCHS} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience} at {time}', flush=True)
     for epoch in range(EPOCHS):
         loss_accum = 0
         model.train()
