@@ -145,7 +145,6 @@ def load_costmodel_data(path, device:str):
     trees, indexes = build_trees(trees, device=device)
 
     for i, tree in enumerate(trees):
-        print(f"Trees are equal {tree == indexes[i]}")
         x.append(((tree, indexes[i]), costs[i]))
 
     return TreeVectorDataset(x), in_dim, out_dim

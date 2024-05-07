@@ -18,10 +18,11 @@ class CostModel(nn.Module):
             DynamicPooling(),
             nn.BatchNorm1d(64),
             nn.Linear(64, 32),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Linear(32, 16),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Linear(16, 1),
+            nn.ReLU()
         )
 
     def forward(self, trees):
