@@ -6,7 +6,7 @@ from train import train, evaluate
 
 
 def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, weights:dict=None):
-    TRIALS = 25
+    TRIALS = 1
 
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
@@ -49,7 +49,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         {
             'name': 'batch_size',
             'type': 'range',
-            'bounds': [32, 256],
+            'bounds': [128, 256],
             'value_type': 'int'
         },
     ]

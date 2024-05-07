@@ -114,7 +114,7 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
 
             pairs_trees[wayangPlan] = tuples
 
-        pairs = set()
+        pairs = []
 
         for wayangPlan, pair in pairs_trees.items():
             for tree1, tree2 in pair:
@@ -123,8 +123,9 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
                 label = 0.0 if cost1 < cost2 else 1.0
                 pairs.add(((tree1, tree2), label))
 
-        print(f"Found {len(pairs)} unique pairs to compare")
-    return TreeVectorDataset(list(pairs)), in_dim, None
+    print(f'Found {len(pairs)} different Wayang pairs')
+
+    return TreeVectorDataset(pairs), in_dim, None
 
 def load_costmodel_data(path, device:str):
     trees = []
