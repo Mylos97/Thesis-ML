@@ -80,7 +80,7 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
 
     for i, tree in enumerate(trees):
         x.append(((tree, indexes[i]), target_trees[i]))
-    
+
     print(f'Succesfully loaded {len(x)} plans', flush=True)
     return TreeVectorDataset(x), in_dim, out_dim
 
@@ -113,7 +113,7 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
                 tuples.append((best_tree, current_tree))
 
             pairs_trees[wayangPlan] = tuples
-       
+
         pairs = []
 
         for wayangPlan, pair in pairs_trees.items():
@@ -121,7 +121,7 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
                 tree1, cost1 = tree1
                 tree2, cost2 = tree2
                 label = 0.0 if cost1 < cost2 else 1.0
-                pairs.append(((tree1, tree2), label))
+                pairs.add(((tree1, tree2), label))
 
     print(f'Found {len(pairs)} different Wayang pairs')
 
@@ -145,6 +145,7 @@ def load_costmodel_data(path, device:str):
     trees, indexes = build_trees(trees, device=device)
 
     for i, tree in enumerate(trees):
+        print(f"Trees are equal {tree == indexes[i]}")
         x.append(((tree, indexes[i]), costs[i]))
 
     return TreeVectorDataset(x), in_dim, out_dim

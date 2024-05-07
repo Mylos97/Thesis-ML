@@ -26,7 +26,7 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
     for epoch in range(EPOCHS):
         loss_accum = 0
         model.train()
-        
+
         for tree, target in training_data_loader:
 
             prediction = model(tree)
@@ -65,5 +65,5 @@ def evaluate(model: torch.nn.Module, val_data_loader: DataLoader, loss_function,
             val_loss += loss.item()
 
     val_loss /= len(val_data_loader)
-    
+
     return val_loss
