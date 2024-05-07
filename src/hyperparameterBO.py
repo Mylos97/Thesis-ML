@@ -60,7 +60,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         objectives={'loss': ObjectiveProperties(minimize=True)},
     )
     ax_client.attach_trial(
-        parameters={'lr': 0.00001, 'dropout': 0.1, 'gradient_norm': 1.0, 'patience': 1, 'batch_size':32}
+        parameters={'lr': 0.00001, 'dropout': 0.1, 'gradient_norm': 1.0, 'patience': 1, 'batch_size':128}
     )
 
     baseline_parameters = ax_client.get_trial_parameters(trial_index=0)

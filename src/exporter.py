@@ -27,12 +27,14 @@ def export_model(model, x, model_name) -> None:
         output_names = ['output'],
         dynamic_axes = axes
     )
-
+    
     torch_out = model(x)
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
     ort_session = onnxruntime.InferenceSession(model_name, providers=['CPUExecutionProvider'])
-    
+    options = ort_session.get_session_options()
+    options.intra_op_num_threads = 1
+
     def to_numpy(tensor):
         return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
