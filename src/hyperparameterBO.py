@@ -25,7 +25,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         {
             'name': 'lr',
             'type': 'range',
-            'bounds': [1e-6, 0.1],
+            'bounds': [1e-6, 1e-3],
             'value_type': 'float'
         },
         {
