@@ -9,10 +9,10 @@ class CostModel(nn.Module):
         self.tree_conv = nn.Sequential(
             BinaryTreeConv(in_dim, 256),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.ReLU()),
             BinaryTreeConv(256, 128),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.ReLU()),
             BinaryTreeConv(128, 64),
             TreeLayerNorm(),
             DynamicPooling(),
