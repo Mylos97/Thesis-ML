@@ -37,7 +37,7 @@ def main(args) -> None:
     if args.model == 'cost':
         data, in_dim, out_dim = load_costmodel_data(path=path, device=device)
         model_class = CostModel
-        loss_function = torch.nn.HuberLoss()
+        loss_function = torch.nn.MSELoss()
 
     best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, weights=weights)
     
