@@ -30,8 +30,6 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
         for tree, target in training_data_loader:
             prediction = model(tree)
             loss = loss_function(prediction, target.float())
-            print(prediction[0])
-            print(target[0])
             if torch.isnan(prediction).any():
                 print('Found nan values exiting', flush=True)
                 break
@@ -42,9 +40,9 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
             
-
         loss_accum /= len(training_data_loader)
 
+        print(f'Sampled prediction {prediction[0]} and target {target[0]}', flush=True)
         print(f'Epoch  {epoch} training loss: {loss_accum}', flush=True)
         val_loss = evaluate(model=model, val_data_loader=val_data_loader, loss_function=loss_function, device=device)
 
