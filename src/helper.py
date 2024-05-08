@@ -4,6 +4,7 @@ import onnx
 import torch
 import os
 import json
+import torch.nn.intrinsic
 import torch.utils
 import torch.utils.data
 import torch.utils.data.dataset
@@ -138,7 +139,7 @@ def load_costmodel_data(path, device:str):
             executionPlan = ast.literal_eval(executionPlan)
             trees.append(executionPlan)
             costs.append(cost)
-
+    print(f'Loaded {len(trees)} different trees')
     in_dim, out_dim = len(executionPlan[0]), None
     print('in_dim ', in_dim, flush=True)
     x = []
