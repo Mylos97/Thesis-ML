@@ -27,7 +27,7 @@ def export_model(model, x, model_name) -> None:
         output_names = ['output'],
         dynamic_axes = axes
     )
-    
+    print('Finished exporting model')
     torch_out = model(x)
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
