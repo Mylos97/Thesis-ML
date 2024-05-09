@@ -6,7 +6,7 @@ from train import train, evaluate
 
 
 def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, weights:dict=None):
-    TRIALS = 10
+    TRIALS = 15
 
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
@@ -25,7 +25,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         {
             'name': 'lr',
             'type': 'range',
-            'bounds': [1e-6, 1e-3],
+            'bounds': [1e-6, 0.1],
             'value_type': 'float'
         },
         {
@@ -87,7 +87,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         shuffle=True
     )
     df = ax_client.get_trials_data_frame()
-    best_arm_idx = df.trial_index[df['loss'] == df['loss'].max()].values[0]
+    best_arm_idx = df.trial_index[df['loss'] == df['loss'].min()].values[0]
     best_arm = ax_client.get_trial_parameters(best_arm_idx)
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
     best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_arm, weights=weights)

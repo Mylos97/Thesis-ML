@@ -21,7 +21,7 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
     counter = 0
     patience = parameters.get('patience', 10)
     time = datetime.now().strftime("%H:%M:%S")
-    
+
     print(f'Starting training model epochs:{EPOCHS} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience} at {time}', flush=True)
     for epoch in range(EPOCHS):
         loss_accum = 0
@@ -39,7 +39,7 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
-            
+
         loss_accum /= len(training_data_loader)
 
         print(f'Sampled prediction {prediction[0]} and target {target[0]}', flush=True)
