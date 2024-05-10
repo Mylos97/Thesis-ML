@@ -25,7 +25,7 @@ class VAE(nn.Module):
         self.encoder = TreeEncoder(in_dim, dropout_prob)
         self.decoder = TreeDecoder(out_dim, dropout_prob)
         self.training = True
-        self.softmax = MaxNormalize()
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         if not self.training:
@@ -43,5 +43,4 @@ class VAE(nn.Module):
         z = mean + torch.exp(0.5 * log_var) * epsilon
         decoded = self.decoder(z, indexes)
         x = self.softmax(decoded[0])
-
         return x

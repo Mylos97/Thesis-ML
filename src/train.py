@@ -4,7 +4,7 @@ from torch import Tensor
 from helper import set_weights
 from datetime import datetime
 
-EPOCHS = 2
+EPOCHS = 100
 
 def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , loss_function, device, parameters, weights=None) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get('lr', 0.001)
@@ -30,15 +30,16 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
         for tree, target in training_data_loader:
             prediction = model(tree)
             loss = loss_function(prediction, target.float())
-            if torch.isnan(prediction).any():
-                print('Found nan values exiting', flush=True)
-                break
-
             loss_accum += loss.item()
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
+
+        if torch.isnan(prediction).any():
+            print('Found nan values exiting', flush=True)
+            break
+
 
         loss_accum /= len(training_data_loader)
 
@@ -67,7 +68,10 @@ def evaluate(model: torch.nn.Module, val_data_loader: DataLoader, loss_function,
             prediction = model(tree)
             loss = loss_function(prediction, target.float())
             val_loss += loss.item()
-
+            if torch.isnan(prediction).any():
+                print('Found nan values exiting', flush=True)
+                return float('inf')
+            
     val_loss /= len(val_data_loader)
 
     return val_loss
