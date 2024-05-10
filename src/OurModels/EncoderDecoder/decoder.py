@@ -32,7 +32,7 @@ class TreeDecoder(nn.Module):
             nn.Linear(1024, 4096),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
-            MaxNormalize()
+            #MaxNormalize()
         )
 
 

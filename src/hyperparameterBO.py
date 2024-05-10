@@ -5,7 +5,7 @@ from helper import get_data_loaders
 from train import train, evaluate
 
 
-def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, weights:dict=None):
+def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr,  weights:dict=None):
     TRIALS = 2
 
     def train_evaluate(params):
