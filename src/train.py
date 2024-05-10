@@ -42,7 +42,7 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
 
         loss_accum /= len(training_data_loader)
 
-        print(f'Sampled prediction {prediction[0]} and target {target[0]}', flush=True)
+        print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
         print(f'Epoch  {epoch} training loss: {loss_accum}', flush=True)
         val_loss = evaluate(model=model, val_data_loader=val_data_loader, loss_function=loss_function, device=device)
 
