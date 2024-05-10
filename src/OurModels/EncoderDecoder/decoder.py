@@ -32,10 +32,22 @@ class TreeDecoder(nn.Module):
             nn.Linear(1024, 4096),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
+            MaxNormalize()
         )
+
 
     def forward(self, trees, indexes):
         x = self.linear(trees)
         x = x.view(x.shape[0], 64, 64)
         r = self.tree_conv((x, indexes))
         return r
+
+class MaxNormalize(nn.Module):
+    def __init__(self):
+        super(MaxNormalize, self).__init__()
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        max_val = torch.max(torch.abs(x))
+        x = self.softmax(x / max_val)
+        return x

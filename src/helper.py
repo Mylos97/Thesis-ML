@@ -8,6 +8,7 @@ import torch.nn.intrinsic
 import torch.utils
 import torch.utils.data
 import torch.utils.data.dataset
+import re
 from TreeConvolution.util import prepare_trees
 from onnx import numpy_helper
 from torch.utils.data import DataLoader, Dataset
@@ -60,6 +61,18 @@ def build_trees(feature:list[tuple[torch.Tensor, torch.Tensor]], device:str) -> 
     return prepare_trees(feature, transformer, left_child, right_child, device=device)
 
 def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int, int]:
+    def convert_optimal_tree(optimal_tree: str):
+        regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+        matches_iterator = re.finditer(regex_pattern, optimal_tree)
+
+        for match in matches_iterator:
+            find = match.group().strip('(').strip(')')
+            values = numbers_list = [int(num.strip()) for num in find.split(',')]
+            replacement = ','.join(map(str, values[40:47]))
+            optimal_tree = optimal_tree.replace(find, replacement)
+
+        return optimal_tree
+
     trees = []
     targets = []
     with open(path, 'r') as f:
@@ -67,6 +80,8 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
             s = l.split(':')
             tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = tree.strip(), optimal_tree.strip()
+            """ Convert optimal tree to only hold platform encodings """
+            optimal_tree = convert_optimal_tree(optimal_tree)
             tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
             trees.append(tree)
             targets.append(optimal_tree)

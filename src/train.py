@@ -4,7 +4,7 @@ from torch import Tensor
 from helper import set_weights
 from datetime import datetime
 
-EPOCHS = 100
+EPOCHS = 2
 
 def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , loss_function, device, parameters, weights=None) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get('lr', 0.001)

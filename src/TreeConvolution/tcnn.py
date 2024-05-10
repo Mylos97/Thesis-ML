@@ -39,8 +39,7 @@ class TreeLayerNorm(nn.Module):
         std = torch.std(data, dim=(1, 2)).unsqueeze(1).unsqueeze(1)
         normd = (data - mean) / (std + 0.00001)
         return (normd, idxes)
-    
+
 class DynamicPooling(nn.Module):
     def forward(self, x):
         return torch.max(x[0], dim=2).values
-    

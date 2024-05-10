@@ -15,7 +15,7 @@ class MaxNormalize(nn.Module):
 
 class VAE(nn.Module):
     def __init__(self, in_dim, out_dim, dropout_prob):
-        super().__init__()            
+        super().__init__()
         self.num_hidden = 16
         self.mu = nn.Linear(self.num_hidden, self.num_hidden)
         self.log_var = nn.Sequential(
