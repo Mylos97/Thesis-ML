@@ -16,7 +16,7 @@ def main(args) -> None:
     data = None
     weights = None
     lr = ast.literal_eval(args.lr)
-    path = get_relative_path('no-co-encodings.txt', 'Data')
+    path = None
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     args_name = args.name if '.onnx' in args.name else f'{args.name}.onnx'
     print(f'Started training model {args.model}', flush=True)
