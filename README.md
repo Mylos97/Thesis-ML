@@ -4,9 +4,9 @@
 
 --model vae (default), pairwise, cost
 <br>
---retrain 'path/to/data', (default) ''''
+--retrain 'path/to/data', (default) ' '
 <br>
---name 'name-of-themodel', (default) ''''
+--name 'name-of-themodel', (default) ' '
 <br>
 --lr '[1e-6, 1e-3]', (default) '[1e-6, 0.1]'
 <br>
