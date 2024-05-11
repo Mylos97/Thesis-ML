@@ -41,6 +41,8 @@ def main(args) -> None:
         model_class = CostModel
         loss_function = torch.nn.MSELoss()
 
+    print(f'Succesfully loaded data with in_dimensions:{in_dim} out_dimensions:{out_dim}', flush=True)
+
     best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights)
 
     #if args.model == 'vae': does not work

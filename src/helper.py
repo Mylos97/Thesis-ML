@@ -84,7 +84,6 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
 
     assert len(trees) == len(targets)
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
-    print('in_dim ', in_dim, ' out_dim ', out_dim, flush=True)
     x = []
     trees, indexes = build_trees(trees, device=device)
     target_trees, _ = build_trees(targets, device=device)
@@ -113,7 +112,6 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
         print(f'Read {len(wayangPlans)} different WayangPlans', flush=True)
         in_dim = len(executionPlan[0])
         trees, indexes = build_trees(trees, device=device)
-        print('in_dim ', in_dim, flush=True)
 
         for wayangPlan, exTuple in wayangPlans.items():
             best_plan_index, best_cost  = min(exTuple, key=lambda x: x[1])
@@ -155,7 +153,6 @@ def load_costmodel_data(device:str, path:str) -> tuple[TreeVectorDataset, int, N
             costs.append(cost)
     print(f'Loaded {len(trees)} different trees')
     in_dim, out_dim = len(executionPlan[0]), None
-    print('in_dim ', in_dim, flush=True)
     x = []
     trees, indexes = build_trees(trees, device=device)
 
