@@ -58,7 +58,7 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
     path = get_relative_path('no-co-encodings.txt', 'Data') if path == None else path
 
-    def convert_optimal_tree(optimal_tree: str):
+    def platform_encodings(optimal_tree: str):
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
 
         for match in matches_iterator:
@@ -76,8 +76,7 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
             s = l.split(':')
             tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = tree.strip(), optimal_tree.strip()
-            """ Convert optimal tree to only hold platform encodings """
-            optimal_tree = convert_optimal_tree(optimal_tree)
+            optimal_tree = platform_encodings(optimal_tree)
             tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
             trees.append(tree)
             targets.append(optimal_tree)
