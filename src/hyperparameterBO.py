@@ -5,16 +5,14 @@ from helper import get_data_loaders
 from train import train, evaluate
 
 
-def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr,  weights:dict=None):
-    TRIALS = 25
-
+def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr, epochs, trials, weights:dict=None):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
         train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
         print(f'Batch size: {batch_size}')
         print(f'Training batches: {len(train_loader)} Test batches: {len(test_loader)} Validation batches: {len(val_loader)} \n', flush=True)
         model, _ = train(model_class=model_class, training_data_loader=train_loader, val_data_loader=val_loader,
-                      in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=params, weights=weights)
+                      in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=params, epochs=epochs, weights=weights)
         loss = evaluate(model=model, val_data_loader=val_loader, loss_function=loss_function, device=device)
         print(f'Validation loss for the model after training {loss}', flush=True)
 
@@ -25,7 +23,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         {
             'name': 'lr',
             'type': 'range',
-            'bounds': [1e-6, 1e-3],
+            'bounds': lr,
             'value_type': 'float'
         },
         {
@@ -66,8 +64,8 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
     baseline_parameters = ax_client.get_trial_parameters(trial_index=0)
     ax_client.complete_trial(trial_index=0, raw_data=train_evaluate(baseline_parameters))
 
-    for i in range(TRIALS):
-        print(f'Started Hyperparameter BO trial {i}', flush=True)
+    for i in range(trials):
+        print(f'Started Hyperparameter BO trial {i} out of {trials}', flush=True)
         parameters, trial_index = ax_client.get_next_trial()
         ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
 

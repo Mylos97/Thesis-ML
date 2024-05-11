@@ -4,9 +4,7 @@ from torch import Tensor
 from helper import set_weights
 from datetime import datetime
 
-EPOCHS = 100
-
-def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , loss_function, device, parameters, weights=None) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
+def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , loss_function, device, parameters, epochs, weights=None) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get('lr', 0.001)
     gradient_norm = parameters.get('gradient_norm', 1.0)
     dropout = parameters.get('dropout', 0.1)
@@ -22,8 +20,8 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
     patience = parameters.get('patience', 10)
     time = datetime.now().strftime("%H:%M:%S")
 
-    print(f'Starting training model epochs:{EPOCHS} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience} at {time}', flush=True)
-    for epoch in range(EPOCHS):
+    print(f'Starting training model epochs:{epochs} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience} at {time}', flush=True)
+    for epoch in range(epochs):
         loss_accum = 0
         model.train()
 
