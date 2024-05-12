@@ -34,13 +34,13 @@ class VAE(nn.Module):
             decoded = self.decoder(z, indexes)
             x = self.softmax(decoded[0])
             return x
-
-        encoded, indexes = self.encoder(x)
-        mean = self.mu(encoded)
-        log_var = self.log_var(encoded)
-        batch, dim = mean.shape
-        epsilon = torch.randn(batch, dim)
-        z = mean + torch.exp(0.5 * log_var) * epsilon
-        decoded = self.decoder(z, indexes)
-        x = self.softmax(decoded[0])
-        return x
+        else:
+            encoded, indexes = self.encoder(x)
+            mean = self.mu(encoded)
+            log_var = self.log_var(encoded)
+            batch, dim = mean.shape
+            epsilon = torch.randn(batch, dim)
+            z = mean + torch.exp(0.5 * log_var) * epsilon
+            decoded = self.decoder(z, indexes)
+            x = self.softmax(decoded[0])
+            return x
