@@ -54,6 +54,19 @@ def make_dataloader(x:Dataset, batch_size:int) -> DataLoader:
 def build_trees(feature:list[tuple[torch.Tensor, torch.Tensor]], device:str) -> tuple[torch.Tensor, torch.Tensor]:
     return prepare_trees(feature, transformer, left_child, right_child, device=device)
 
+def remove_operator_ids(tree: str):
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+    matches_iterator = re.finditer(regex_pattern, optimal_tree)
+
+    for match in matches_iterator:
+        find = match.group().strip('(').strip(')')
+        values = [int(num.strip()) for num in find.split(',')]
+        values[0] = 0
+        replacement = ','.join(map(str, values))
+        optimal_tree = optimal_tree.replace(find, replacement)
+
+    return optimal_tree
+
 def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
     path = get_relative_path('no-co-encodings.txt', 'Data') if path == None else path
@@ -75,7 +88,7 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
         for l in f:
             s = l.split(':')
             tree, optimal_tree = s[0], s[1]
-            tree, optimal_tree = tree.strip(), optimal_tree.strip()
+            tree, optimal_tree = remove_operator_ids(tree.strip()), remove_operator_ids(optimal_tree.strip())
             optimal_tree = platform_encodings(optimal_tree)
             tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
             trees.append(tree)
@@ -103,7 +116,7 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
         pairs_trees = {}
         for l in f:
             s = l.split(':')
-            wayangPlan, executionPlan, cost = s[0].strip(), s[1].strip(), int(s[2].strip())
+            wayangPlan, executionPlan, cost = remove_operator_ids(s[0].strip()), remove_operator_ids(s[1].strip()), int(s[2].strip())
             executionPlan = ast.literal_eval(executionPlan)
             trees.append(executionPlan)
             wayangPlans.setdefault(wayangPlan, []).append((len(trees) - 1, cost))
@@ -146,7 +159,7 @@ def load_costmodel_data(device:str, path:str) -> tuple[TreeVectorDataset, int, N
     with open(path, 'r') as f:
         for l in f:
             s = l.split(':')
-            executionPlan, cost = s[1].strip(), int(s[2].strip())
+            executionPlan, cost = remove_operator_ids(s[1].strip()), int(s[2].strip())
             executionPlan = ast.literal_eval(executionPlan)
             trees.append(executionPlan)
             costs.append(cost)
