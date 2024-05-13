@@ -27,7 +27,7 @@ def export_model(model, x, model_name) -> None:
         output_names = ['output'],
         dynamic_axes = axes
     )
-    print('Finished exporting model')
+    print('Finished exporting model', flush=True)
     torch_out = model(x)
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
@@ -41,7 +41,9 @@ def export_model(model, x, model_name) -> None:
     ort_inputs = {}
 
     for i, input in enumerate(ort_session.get_inputs()):
-        ort_inputs[input.name] = to_numpy(ort_input[i])
+        ort_inputs[input.name] = to_numpy(x[i])
 
+    print('Checking the output of the model', flush=True)
     ort_outs = ort_session.run(None, ort_inputs)
     np.testing.assert_allclose(to_numpy(torch_out), ort_outs[0], rtol=1e-03, atol=1e-05)
+    print('All good!')

@@ -29,12 +29,6 @@ def get_relative_path(file_name:str, dir:str) -> str:
     file_path = os.path.join(script_dir, dir, file_name)
     return file_path
 
-def to_device(vector: torch.Tensor, target: torch.Tensor, device:str) -> tuple[list[torch.Tensor], torch.Tensor]:
-    if len(vector) == 2:
-        return [vector[0].to(device), vector[1].to(device)], target.to(device)
-
-    return None
-
 def left_child(x:tuple) -> tuple:
     assert isinstance(x, tuple)
     if len(x) == 1:
@@ -61,13 +55,15 @@ def build_trees(feature:list[tuple[torch.Tensor, torch.Tensor]], device:str) -> 
     return prepare_trees(feature, transformer, left_child, right_child, device=device)
 
 def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int, int]:
-    def convert_optimal_tree(optimal_tree: str):
-        regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+    path = get_relative_path('no-co-encodings.txt', 'Data') if path == None else path
+
+    def platform_encodings(optimal_tree: str):
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
 
         for match in matches_iterator:
             find = match.group().strip('(').strip(')')
-            values = numbers_list = [int(num.strip()) for num in find.split(',')]
+            values = [int(num.strip()) for num in find.split(',')]
             replacement = ','.join(map(str, values[40:47]))
             optimal_tree = optimal_tree.replace(find, replacement)
 
@@ -80,15 +76,13 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
             s = l.split(':')
             tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = tree.strip(), optimal_tree.strip()
-            """ Convert optimal tree to only hold platform encodings """
-            optimal_tree = convert_optimal_tree(optimal_tree)
+            optimal_tree = platform_encodings(optimal_tree)
             tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
             trees.append(tree)
             targets.append(optimal_tree)
 
     assert len(trees) == len(targets)
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
-    print('in_dim ', in_dim, ' out_dim ', out_dim, flush=True)
     x = []
     trees, indexes = build_trees(trees, device=device)
     target_trees, _ = build_trees(targets, device=device)
@@ -101,7 +95,9 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     return TreeVectorDataset(x), in_dim, out_dim
 
 def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, None]:
-    with open(get_relative_path('pairwise-encodings.txt', 'Data'), 'r') as f:
+    path = get_relative_path('pairwise-encodings.txt', 'Data') if path == None else path
+
+    with open(path, 'r') as f:
         wayangPlans = {}
         trees = []
         pairs_trees = {}
@@ -115,7 +111,6 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
         print(f'Read {len(wayangPlans)} different WayangPlans', flush=True)
         in_dim = len(executionPlan[0])
         trees, indexes = build_trees(trees, device=device)
-        print('in_dim ', in_dim, flush=True)
 
         for wayangPlan, exTuple in wayangPlans.items():
             best_plan_index, best_cost  = min(exTuple, key=lambda x: x[1])
@@ -143,11 +138,12 @@ def load_pairwise_data(device:str, path:str) -> tuple[TreeVectorDataset, int, No
 
     return TreeVectorDataset(pairs), in_dim, None
 
-def load_costmodel_data(path, device:str):
+def load_costmodel_data(device:str, path:str) -> tuple[TreeVectorDataset, int, None]:
+    path = get_relative_path('full-encodings.txt', 'Data') if path == None else path
     trees = []
     costs = []
 
-    with open(get_relative_path('full-encodings.txt', 'Data'), 'r') as f:
+    with open(path, 'r') as f:
         for l in f:
             s = l.split(':')
             executionPlan, cost = s[1].strip(), int(s[2].strip())
@@ -156,7 +152,6 @@ def load_costmodel_data(path, device:str):
             costs.append(cost)
     print(f'Loaded {len(trees)} different trees')
     in_dim, out_dim = len(executionPlan[0]), None
-    print('in_dim ', in_dim, flush=True)
     x = []
     trees, indexes = build_trees(trees, device=device)
 

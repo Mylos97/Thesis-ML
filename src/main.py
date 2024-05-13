@@ -15,8 +15,10 @@ def main(args) -> None:
     loss_function = None
     data = None
     weights = None
+    path = None
     lr = ast.literal_eval(args.lr)
-    path = get_relative_path('no-co-encodings.txt', 'Data')
+    epochs = args.epochs
+    trials = args.trials
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     args_name = args.name if '.onnx' in args.name else f'{args.name}.onnx'
     print(f'Started training model {args.model}', flush=True)
@@ -41,7 +43,9 @@ def main(args) -> None:
         model_class = CostModel
         loss_function = torch.nn.MSELoss()
 
-    best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights)
+    print(f'Succesfully loaded data with in_dimensions:{in_dim} out_dimensions:{out_dim}', flush=True)
+
+    best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials)
 
     #if args.model == 'vae': does not work
     #    latent_space_BO(best_model, device, x)
@@ -54,6 +58,8 @@ if __name__ == '__main__':
     parser.add_argument('--model', default='vae')
     parser.add_argument('--retrain', type=str, default='')
     parser.add_argument('--name', type=str, default='')
-    parser.add_argument('--lr', type=str, default='[1e-6, 0.1]')
+    parser.add_argument('--lr', type=str, default='[1e-6, 1e-3]')
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--trials', type=int, default=25)
     args = parser.parse_args()
     main(args)

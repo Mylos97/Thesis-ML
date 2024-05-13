@@ -3,10 +3,9 @@ from torch.utils.data import DataLoader
 from torch import Tensor
 from helper import set_weights
 from datetime import datetime
+from OurModels.EncoderDecoder.model import VAE
 
-EPOCHS = 100
-
-def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , loss_function, device, parameters, weights=None) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
+def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , loss_function, device, parameters, epochs, weights=None) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
     lr = parameters.get('lr', 0.001)
     gradient_norm = parameters.get('gradient_norm', 1.0)
     dropout = parameters.get('dropout', 0.1)
@@ -16,14 +15,18 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
     if weights:
         set_weights(weights=weights, model=model)
 
+    # We flag it to train here because it is defaulted to False
+    if isinstance(model, VAE):
+        model.training = True
+
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     best_val_loss = float('inf')
     counter = 0
     patience = parameters.get('patience', 10)
     time = datetime.now().strftime("%H:%M:%S")
 
-    print(f'Starting training model epochs:{EPOCHS} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience} at {time}', flush=True)
-    for epoch in range(EPOCHS):
+    print(f'Starting training model epochs:{epochs} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience} at {time}', flush=True)
+    for epoch in range(epochs):
         loss_accum = 0
         model.train()
 
@@ -71,7 +74,7 @@ def evaluate(model: torch.nn.Module, val_data_loader: DataLoader, loss_function,
             if torch.isnan(prediction).any():
                 print('Found nan values exiting', flush=True)
                 return float('inf')
-            
+
     val_loss /= len(val_data_loader)
 
     return val_loss
