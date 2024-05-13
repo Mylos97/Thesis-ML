@@ -56,16 +56,16 @@ def build_trees(feature:list[tuple[torch.Tensor, torch.Tensor]], device:str) -> 
 
 def remove_operator_ids(tree: str):
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
-    matches_iterator = re.finditer(regex_pattern, optimal_tree)
+    matches_iterator = re.finditer(regex_pattern, tree)
 
     for match in matches_iterator:
         find = match.group().strip('(').strip(')')
         values = [int(num.strip()) for num in find.split(',')]
         values[0] = 0
         replacement = ','.join(map(str, values))
-        optimal_tree = optimal_tree.replace(find, replacement)
+        tree = tree.replace(find, replacement)
 
-    return optimal_tree
+    return tree
 
 def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
