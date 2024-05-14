@@ -9,6 +9,8 @@ import torch.utils
 import torch.utils.data
 import torch.utils.data.dataset
 import re
+import torch.nn.functional as F
+import torch.nn
 from TreeConvolution.util import prepare_trees
 from onnx import numpy_helper
 from torch.utils.data import DataLoader, Dataset
@@ -85,7 +87,8 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     trees = []
     targets = []
     with open(path, 'r') as f:
-        for l in f:
+        for l in range(2048):
+            l = f.readline()
             s = l.split(':')
             tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = remove_operator_ids(tree.strip()), remove_operator_ids(optimal_tree.strip())
@@ -207,3 +210,15 @@ def convert_to_json(plans) -> None:
     with open(f'{relative_path}.txt', 'w') as file:
         file.write(json_data)
 
+class Beta_Vae_Loss(torch.nn.Module):
+    def __init__(self, beta=1.0):
+        super(Beta_Vae_Loss, self).__init__()
+        self.beta = beta
+
+    def forward(self, prediction, target):
+        recon_x, mu, logvar = prediction
+        recon_loss = F.mse_loss(recon_x, target, reduction='sum')
+        klds = -0.5*(1 + logvar - mu.pow(2) - logvar.exp())
+        total_kld = klds.sum(1).mean(0, True)
+
+        return recon_loss + total_kld*self.beta

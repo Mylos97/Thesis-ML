@@ -3,7 +3,7 @@ import torch.nn as nn
 from OurModels.EncoderDecoder.encoder import TreeEncoder
 from OurModels.EncoderDecoder.decoder import TreeDecoder
 
-class VAE(nn.Module):
+class BVAE(nn.Module):
     def __init__(self, in_dim, out_dim, dropout_prob):
         super().__init__()
         self.num_hidden = 16
@@ -33,4 +33,4 @@ class VAE(nn.Module):
             z = mean + torch.exp(0.5 * log_var) * epsilon
             decoded = self.decoder(z, indexes)
             x = self.softmax(decoded[0])
-            return x 
+            return [x, mean, log_var]

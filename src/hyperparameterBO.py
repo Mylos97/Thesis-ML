@@ -5,16 +5,22 @@ from ax.service.ax_client import AxClient, ObjectiveProperties
 from helper import get_data_loaders, get_relative_path
 from train import train, evaluate
 from ax.utils.notebook.plotting import render
+from OurModels.EncoderDecoder.bvae import BVAE 
 
 def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr, epochs, trials, weights:dict=None):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
         train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
+        if model_class == BVAE:
+            l_function = loss_function(parameters.get('beta',1.0))
+        else:
+            l_function = loss_function()
+        
         print(f'Batch size: {batch_size}')
         print(f'Training batches: {len(train_loader)} Test batches: {len(test_loader)} Validation batches: {len(val_loader)} \n', flush=True)
         model, _ = train(model_class=model_class, training_data_loader=train_loader, val_data_loader=val_loader,
-                      in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=params, epochs=epochs, weights=weights)
-        loss = evaluate(model=model, val_data_loader=val_loader, loss_function=loss_function, device=device)
+                      in_dim=in_dim, out_dim=out_dim, loss_function=l_function, device=device, parameters=params, epochs=epochs, weights=weights)
+        loss = evaluate(model=model, val_data_loader=val_loader, loss_function=l_function, device=device)
         print(f'Validation loss for the model after training {loss}', flush=True)
         return loss
 
@@ -52,6 +58,15 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
             'value_type': 'int'
         },
     ]
+
+    if model_class == BVAE:
+        parameters.append({
+            'name': 'beta',
+            'type': 'range',
+            'bounds': [1.0, 4.0],
+            'value_type': 'float',
+            "log_scale": True,
+        })
 
     ax_client.create_experiment(
         name='tune_model',

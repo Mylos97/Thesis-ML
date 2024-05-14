@@ -6,7 +6,9 @@ from exporter import export_model
 from OurModels.PairWise.model import Pairwise
 from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
-from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model
+from OurModels.EncoderDecoder.bvae import BVAE
+
+from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model, Beta_Vae_Loss
 from hyperparameterBO import do_hyperparameter_BO
 from latentspaceBO import latent_space_BO
 
@@ -31,17 +33,22 @@ def main(args) -> None:
     if args.model == 'vae':
         data, in_dim, out_dim = load_autoencoder_data(path=path, device=device)
         model_class = VAE
-        loss_function = torch.nn.CrossEntropyLoss()
+        loss_function = torch.nn.CrossEntropyLoss
+
+    if args.model == 'bvae':
+        data, in_dim, out_dim = load_autoencoder_data(path=path, device=device)
+        model_class = BVAE
+        loss_function = Beta_Vae_Loss
 
     if args.model == 'pairwise':
         data, in_dim, out_dim = load_pairwise_data(path=path, device=device)
         model_class = Pairwise
-        loss_function = torch.nn.BCELoss()
+        loss_function = torch.nn.BCELoss
 
     if args.model == 'cost':
         data, in_dim, out_dim = load_costmodel_data(path=path, device=device)
         model_class = CostModel
-        loss_function = torch.nn.MSELoss()
+        loss_function = torch.nn.MSELoss
 
     print(f'Succesfully loaded data with in_dimensions:{in_dim} out_dimensions:{out_dim}', flush=True)
 
@@ -58,7 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', default='vae')
     parser.add_argument('--retrain', type=str, default='')
     parser.add_argument('--name', type=str, default='')
-    parser.add_argument('--lr', type=str, default='[1e-6, 1e-3]')
+    parser.add_argument('--lr', type=str, default='[0.01, 0.1]')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--trials', type=int, default=25)
     args = parser.parse_args()
