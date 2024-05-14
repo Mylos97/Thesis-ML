@@ -1,9 +1,10 @@
 import torch
+import datetime
 import torch.nn as nn
 from ax.service.ax_client import AxClient, ObjectiveProperties
-from helper import get_data_loaders
+from helper import get_data_loaders, get_relative_path
 from train import train, evaluate
-
+from ax.utils.notebook.plotting import render
 
 def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr, epochs, trials, weights:dict=None):
     def train_evaluate(params):
@@ -15,16 +16,16 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
                       in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=params, epochs=epochs, weights=weights)
         loss = evaluate(model=model, val_data_loader=val_loader, loss_function=loss_function, device=device)
         print(f'Validation loss for the model after training {loss}', flush=True)
-
         return loss
 
-    ax_client = AxClient(verbose_logging=False)
+    ax_client = AxClient()
     parameters = [
         {
             'name': 'lr',
             'type': 'range',
             'bounds': lr,
-            'value_type': 'float'
+            'value_type': 'float',
+            "log_scale": True,
         },
         {
             'name': 'dropout',
@@ -47,7 +48,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         {
             'name': 'batch_size',
             'type': 'range',
-            'bounds': [32, 128],
+            'bounds': [32, 64],
             'value_type': 'int'
         },
     ]
@@ -57,20 +58,10 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         parameters=parameters,
         objectives={'loss': ObjectiveProperties(minimize=True)},
     )
-    ax_client.attach_trial(
-        parameters={'lr': 1e-6, 'dropout': 0.1, 'gradient_norm': 1.0, 'patience': 1, 'batch_size':32}
-    )
-
-    baseline_parameters = ax_client.get_trial_parameters(trial_index=0)
-    ax_client.complete_trial(trial_index=0, raw_data=train_evaluate(baseline_parameters))
-
-    for i in range(trials):
-        print(f'Started Hyperparameter BO trial {i} out of {trials}', flush=True)
+    
+    for _ in range(trials):
         parameters, trial_index = ax_client.get_next_trial()
         ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
-
-    ax_client.get_max_parallelism()
-    ax_client.get_trials_data_frame()
 
     best_parameters, _ = ax_client.get_best_parameters()
     train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=best_parameters.get('batch_size', 32))
@@ -84,12 +75,13 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         batch_size=best_parameters.get('batch_size', 32),
         shuffle=True
     )
-    df = ax_client.get_trials_data_frame()
-    best_arm_idx = df.trial_index[df['loss'] == df['loss'].min()].values[0]
-    best_arm = ax_client.get_trial_parameters(best_arm_idx)
-    print(f'\nBest model training with parameters: {best_parameters}', flush=True)
-    best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_arm, epochs=epochs, weights=weights)
-    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=loss_function, device=device)
 
+    print(f'\nBest model training with parameters: {best_parameters} best arm index', flush=True)
+    best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_parameters, epochs=epochs, weights=weights)
+    ax_path = get_relative_path('test.json', 'Logs')  #get_relative_path(file_name=f'{type(best_model).__name__}{datetime.datetime.now().strftime("%d-%H:%M:%S")}.json', dir='Logs')
+    ax_client.save_to_json_file(ax_path)
+    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=loss_function, device=device)
+    render(ax_client.get_optimization_trace())
+    render(ax_client.get_contour_plot(param_x="lr", param_y="batch_size", metric_name="loss"))
     print(f'Best model loss test set: {test_accuracy}', flush=True)
     return best_model, tree
