@@ -99,12 +99,12 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         l_function = loss_function()
     
     best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=l_function, device=device, parameters=best_parameters, epochs=epochs, weights=weights)
-    ax_path = get_relative_path('test.json', 'Logs')  #get_relative_path(file_name=f'{type(best_model).__name__}{datetime.datetime.now().strftime("%d-%H:%M:%S")}.json', dir='Logs')
-    ax_client.save_to_json_file(ax_path)
     test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device)
     
     if plots:
         try:
+            ax_path = get_relative_path('test.json', 'Logs')  #get_relative_path(file_name=f'{type(best_model).__name__}{datetime.datetime.now().strftime("%d-%H:%M:%S")}.json', dir='Logs')
+            ax_client.save_to_json_file(ax_path)
             render(ax_client.get_optimization_trace())
             render(ax_client.get_contour_plot(param_x="lr", param_y="batch_size", metric_name="loss"))
         except:
