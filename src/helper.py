@@ -11,6 +11,7 @@ import torch.utils.data.dataset
 import re
 import torch.nn.functional as F
 import torch.nn
+from itertools import islice
 from TreeConvolution.util import prepare_trees
 from onnx import numpy_helper
 from torch.utils.data import DataLoader, Dataset
@@ -87,8 +88,7 @@ def load_autoencoder_data(device:str, path:str) -> tuple[TreeVectorDataset, int,
     trees = []
     targets = []
     with open(path, 'r') as f:
-        for l in range(2048):
-            l = f.readline()
+        for l in f:
             s = l.split(':')
             tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = remove_operator_ids(tree.strip()), remove_operator_ids(optimal_tree.strip())

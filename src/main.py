@@ -52,7 +52,7 @@ def main(args) -> None:
 
     print(f'Succesfully loaded data with in_dimensions:{in_dim} out_dimensions:{out_dim}', flush=True)
 
-    best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials)
+    best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
 
     #if args.model == 'vae': does not work
     #    latent_space_BO(best_model, device, x)
@@ -65,8 +65,9 @@ if __name__ == '__main__':
     parser.add_argument('--model', default='vae')
     parser.add_argument('--retrain', type=str, default='')
     parser.add_argument('--name', type=str, default='')
-    parser.add_argument('--lr', type=str, default='[0.01, 0.1]')
+    parser.add_argument('--lr', type=str, default='[1e-6, 0.1]')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--trials', type=int, default=25)
+    parser.add_argument('--plots', type=bool, default=False)
     args = parser.parse_args()
     main(args)

@@ -5,7 +5,7 @@ import onnxruntime
 
 def export_model(model, x, model_name) -> None:
     ort_input = x
-    if type(x[0]) == list:
+    if type(x[0]) == list: 
         ort_input = sum(x, [])
     amount_inputs = len(ort_input)
     inputs = [f'input{i+1}' for i in range(amount_inputs)]
@@ -39,9 +39,8 @@ def export_model(model, x, model_name) -> None:
         return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
     ort_inputs = {}
-
     for i, input in enumerate(ort_session.get_inputs()):
-        ort_inputs[input.name] = to_numpy(x[i])
+        ort_inputs[input.name] = to_numpy(ort_input[i])
 
     print('Checking the output of the model', flush=True)
     ort_outs = ort_session.run(None, ort_inputs)

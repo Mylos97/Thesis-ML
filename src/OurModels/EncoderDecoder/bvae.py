@@ -8,10 +8,7 @@ class BVAE(nn.Module):
         super().__init__()
         self.num_hidden = 16
         self.mu = nn.Linear(self.num_hidden, self.num_hidden)
-        self.log_var = nn.Sequential(
-            nn.Linear(self.num_hidden, self.num_hidden),
-            nn.ReLU()
-        )
+        self.log_var = nn.Linear(self.num_hidden, self.num_hidden)
         self.encoder = TreeEncoder(in_dim, dropout_prob)
         self.decoder = TreeDecoder(out_dim, dropout_prob)
         self.training = False

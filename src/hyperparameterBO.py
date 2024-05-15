@@ -7,7 +7,7 @@ from train import train, evaluate
 from ax.utils.notebook.plotting import render
 from OurModels.EncoderDecoder.bvae import BVAE 
 
-def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr, epochs, trials, weights:dict=None):
+def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr, epochs, trials, plots, weights:dict=None):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
         train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
@@ -91,12 +91,24 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         shuffle=True
     )
 
-    print(f'\nBest model training with parameters: {best_parameters} best arm index', flush=True)
-    best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, parameters=best_parameters, epochs=epochs, weights=weights)
+    print(f'\nBest model training with parameters: {best_parameters}', flush=True)
+
+    if model_class == BVAE:
+        l_function = loss_function(best_parameters.get('beta', 1.0))
+    else:
+        l_function = loss_function()
+    
+    best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=l_function, device=device, parameters=best_parameters, epochs=epochs, weights=weights)
     ax_path = get_relative_path('test.json', 'Logs')  #get_relative_path(file_name=f'{type(best_model).__name__}{datetime.datetime.now().strftime("%d-%H:%M:%S")}.json', dir='Logs')
     ax_client.save_to_json_file(ax_path)
-    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=loss_function, device=device)
-    render(ax_client.get_optimization_trace())
-    render(ax_client.get_contour_plot(param_x="lr", param_y="batch_size", metric_name="loss"))
+    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device)
+    
+    if plots:
+        try:
+            render(ax_client.get_optimization_trace())
+            render(ax_client.get_contour_plot(param_x="lr", param_y="batch_size", metric_name="loss"))
+        except:
+            print('Could not produce plots')
+    
     print(f'Best model loss test set: {test_accuracy}', flush=True)
     return best_model, tree
