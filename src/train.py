@@ -44,8 +44,7 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
-            print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
-
+            #print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
 
         loss_accum /= len(training_data_loader)
 

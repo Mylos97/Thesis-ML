@@ -4,6 +4,7 @@ import onnx
 import torch
 import os
 import json
+import random
 import torch.nn.intrinsic
 import torch.utils
 import torch.utils.data
@@ -65,39 +66,39 @@ def build_trees(
 
 
 def remove_operator_ids(tree: str):
-    regex_pattern = r"\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)"
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
     matches_iterator = re.finditer(regex_pattern, tree)
 
     for match in matches_iterator:
-        find = match.group().strip("(").strip(")")
-        values = [int(num.strip()) for num in find.split(",")]
+        find = match.group().strip('(').strip(')')
+        values = [int(num.strip()) for num in find.split(',')]
         values[0] = 0
-        replacement = ",".join(map(str, values))
+        replacement = ','.join(map(str, values))
         tree = tree.replace(find, replacement)
 
     return tree
 
 
 def load_autoencoder_data(device: str, path: str) -> tuple[TreeVectorDataset, int, int]:
-    regex_pattern = r"\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)"
-    path = get_relative_path("no-co-encodings.txt", "Data") if path == None else path
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+    path = get_relative_path('no-co-encodings.txt', 'Data') if path == None else path
 
     def platform_encodings(optimal_tree: str):
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
 
         for match in matches_iterator:
-            find = match.group().strip("(").strip(")")
-            values = [int(num.strip()) for num in find.split(",")]
-            replacement = ",".join(map(str, values[40:47]))
+            find = match.group().strip('(').strip(')')
+            values = [int(num.strip()) for num in find.split(',')]
+            replacement = ','.join(map(str, values[40:47]))
             optimal_tree = optimal_tree.replace(find, replacement)
 
         return optimal_tree
 
     trees = []
     targets = []
-    with open(path, "r") as f:
+    with open(path, 'r') as f:
         for l in f:
-            s = l.split(":")
+            s = l.split(':')
             tree, optimal_tree = s[0], s[1]
             tree, optimal_tree = (
                 remove_operator_ids(tree.strip()),
@@ -118,19 +119,19 @@ def load_autoencoder_data(device: str, path: str) -> tuple[TreeVectorDataset, in
     for i, tree in enumerate(trees):
         x.append(((tree, indexes[i]), target_trees[i]))
 
-    print(f"Succesfully loaded {len(x)} plans", flush=True)
+    print(f'Succesfully loaded {len(x)} plans', flush=True)
     return TreeVectorDataset(x), in_dim, out_dim
 
 
 def load_pairwise_data(device: str, path: str) -> tuple[TreeVectorDataset, int, None]:
-    path = get_relative_path("pairwise-encodings.txt", "Data") if path == None else path
+    path = get_relative_path('pairwise-encodings.txt', 'Data') if path == None else path
 
-    with open(path, "r") as f:
+    with open(path, 'r') as f:
         wayangPlans = {}
         trees = []
         pairs_trees = {}
         for l in f:
-            s = l.split(":")
+            s = l.split(':')
             wayangPlan, executionPlan, cost = (
                 remove_operator_ids(s[0].strip()),
                 remove_operator_ids(s[1].strip()),
@@ -140,7 +141,7 @@ def load_pairwise_data(device: str, path: str) -> tuple[TreeVectorDataset, int, 
             trees.append(executionPlan)
             wayangPlans.setdefault(wayangPlan, []).append((len(trees) - 1, cost))
 
-        print(f"Read {len(wayangPlans)} different WayangPlans", flush=True)
+        print(f'Read {len(wayangPlans)} different WayangPlans', flush=True)
         in_dim = len(executionPlan[0])
         trees, indexes = build_trees(trees, device=device)
 
@@ -152,37 +153,40 @@ def load_pairwise_data(device: str, path: str) -> tuple[TreeVectorDataset, int, 
                 if i == best_plan_index:
                     continue
                 current_tree = ((trees[i], indexes[i]), cost)
-                tuples.append((best_tree, current_tree))
+                pair = [best_tree, current_tree]
+                random.shuffle(pair)
+                tuples.append(pair)
 
             pairs_trees[wayangPlan] = tuples
 
         pairs = []
-
+        labels = [0,0]
         for wayangPlan, pair in pairs_trees.items():
             for tree1, tree2 in pair:
                 tree1, cost1 = tree1
                 tree2, cost2 = tree2
                 label = 0.0 if cost1 < cost2 else 1.0
+                labels[int(label)] += 1
                 pairs.append(((tree1, tree2), torch.tensor(label).to(device)))
 
-    print(f"Found {len(pairs)} different Wayang pairs")
+    print(f'Found {len(pairs)} different Wayang pairs and labels {labels}')
 
     return TreeVectorDataset(pairs), in_dim, None
 
 
 def load_costmodel_data(device: str, path: str) -> tuple[TreeVectorDataset, int, None]:
-    path = get_relative_path("full-encodings.txt", "Data") if path == None else path
+    path = get_relative_path('full-encodings.txt', 'Data') if path == None else path
     trees = []
     costs = []
 
-    with open(path, "r") as f:
+    with open(path, 'r') as f:
         for l in f:
-            s = l.split(":")
+            s = l.split(':')
             executionPlan, cost = remove_operator_ids(s[1].strip()), int(s[2].strip())
             executionPlan = ast.literal_eval(executionPlan)
             trees.append(executionPlan)
             costs.append(cost)
-    print(f"Loaded {len(trees)} different trees")
+    print(f'Loaded {len(trees)} different trees')
     in_dim, out_dim = len(executionPlan[0]), None
     x = []
     trees, indexes = build_trees(trees, device=device)
@@ -196,7 +200,7 @@ def load_costmodel_data(device: str, path: str) -> tuple[TreeVectorDataset, int,
 
 
 def get_weights_of_model(modelname: str) -> dict:
-    onnx_model = onnx.load(get_relative_path(f"{modelname}.onnx", "Models"))
+    onnx_model = onnx.load(get_relative_path(f'{modelname}.onnx', 'Models'))
     INTIALIZERS = onnx_model.graph.initializer
     onnx_weights = {}
     for initializer in INTIALIZERS:
@@ -226,12 +230,12 @@ def convert_to_json(plans) -> None:
     l = []
     for plan in plans:
         current_plan = {}
-        current_plan["values"] = plan[0].tolist()
-        current_plan["indexes"] = plan[1].tolist()
+        current_plan['values'] = plan[0].tolist()
+        current_plan['indexes'] = plan[1].tolist()
         l.append(current_plan)
     json_data = json.dumps(l)
-    relative_path = get_relative_path("json-plans", "Data")
-    with open(f"{relative_path}.txt", "w") as file:
+    relative_path = get_relative_path('json-plans', 'Data')
+    with open(f'{relative_path}.txt', 'w') as file:
         file.write(json_data)
 
 class Beta_Vae_Loss(torch.nn.Module):
