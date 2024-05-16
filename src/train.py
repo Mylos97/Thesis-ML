@@ -21,12 +21,15 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
         model.training = True
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    best_val_loss = float('inf')
+    best_val_loss = float("inf")
     counter = 0
-    patience = parameters.get('patience', 10)
+    patience = parameters.get("patience", 10)
     time = datetime.now().strftime("%H:%M:%S")
 
-    print(f'Starting training model epochs:{epochs} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience} at {time}', flush=True)
+    print(
+        f"Starting training model epochs:{epochs} training samples: {len(training_data_loader)} lr:{lr} optimizer:{optimizer.__class__.__name__} gradient norm:{gradient_norm} drop out: {dropout} patience: {patience} at {time}",
+        flush=True,
+    )
     for epoch in range(epochs):
         loss_accum = 0
         model.train()
@@ -41,17 +44,25 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
             optimizer.step()
 
         loss_accum /= len(training_data_loader)
+
+        print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
         print(f'Epoch  {epoch} training loss: {loss_accum}', flush=True)
         val_loss = evaluate(model=model, val_data_loader=val_data_loader, loss_function=loss_function, device=device)
 
         counter += 1
         if val_loss < best_val_loss:
-            print(f'Got better validation loss {val_loss} than {best_val_loss}', flush=True)
+            print(
+                f"Got better validation loss {val_loss} than {best_val_loss}",
+                flush=True,
+            )
             best_val_loss = val_loss
             counter = 0
 
         if counter > patience:
-            print(f'Early stopping on Epoch {epoch} training loss: {loss} validation loss: {val_loss} model has not improved for {patience} epochs', flush=True)
+            print(
+                f"Early stopping on Epoch {epoch} training loss: {loss} validation loss: {val_loss} model has not improved for {patience} epochs",
+                flush=True,
+            )
             break
 
     return model, tree
