@@ -19,21 +19,23 @@ class TreeDecoder(nn.Module):
         )
 
         self.linear = nn.Sequential(
-            nn.BatchNorm1d(z_dim),
             nn.Linear(z_dim, 64),
+            nn.BatchNorm1d(64),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
             nn.Linear(64, 256),
+            nn.BatchNorm1d(256),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
             nn.Linear(256, 1024),
+            nn.BatchNorm1d(1024),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
             nn.Linear(1024, 4096),
+            nn.BatchNorm1d(4096),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
         )
-
 
     def forward(self, trees, indexes):
         x = self.linear(trees)

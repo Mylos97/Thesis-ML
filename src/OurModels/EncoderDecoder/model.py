@@ -9,9 +9,7 @@ class VAE(nn.Module):
         super().__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.mu = nn.Linear(z_dim, z_dim)
-        self.log_var = nn.Sequential(
-            nn.Linear(z_dim, z_dim), nn.ReLU()
-        )
+        self.log_var = nn.Linear(z_dim, z_dim)
         self.encoder = TreeEncoder(in_dim, dropout_prob, z_dim)
         self.decoder = TreeDecoder(out_dim, dropout_prob, z_dim)
         self.training = False

@@ -14,7 +14,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         batch_size = params.get('batch_size', 32)
         train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
         if model_class == BVAE:
-            l_function = loss_function(parameters.get('beta',1.0))
+            l_function = loss_function(parameters.get('beta', 1.0))
         else:
             l_function = loss_function()
         

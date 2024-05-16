@@ -8,8 +8,8 @@ class BVAE(nn.Module):
         super().__init__()
         self.mu = nn.Linear(z_dim, z_dim)
         self.log_var = nn.Linear(z_dim, z_dim)
-        self.encoder = TreeEncoder(in_dim, dropout_prob)
-        self.decoder = TreeDecoder(out_dim, dropout_prob)
+        self.encoder = TreeEncoder(in_dim, dropout_prob, z_dim)
+        self.decoder = TreeDecoder(out_dim, dropout_prob, z_dim)
         self.training = False
         self.softmax = nn.Softmax(dim=1)
 

@@ -20,11 +20,12 @@ class TreeEncoder(nn.Module):
 
         self.linear = nn.Sequential(
             DynamicPooling(),
-            nn.BatchNorm1d(64),
             nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
             nn.Linear(32, z_dim),
+            nn.BatchNorm1d(z_dim),
             nn.Dropout(dropout_prob),
             nn.LeakyReLU()
         )
