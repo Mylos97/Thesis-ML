@@ -5,10 +5,11 @@ import torch
 class TreeConvolutionError(Exception):
     pass
 
+
 def _is_leaf(x, left_child, right_child):
     has_left = left_child(x) is not None
     has_right = right_child(x) is not None
-    
+
     if has_left != has_right:
         raise TreeConvolutionError(
             "All nodes must have both a left and a right child or no children"
@@ -16,8 +17,9 @@ def _is_leaf(x, left_child, right_child):
 
     return not has_left
 
+
 def _flatten(root, transformer, left_child, right_child):
-    """ turns a tree into a flattened vector, preorder """
+    """turns a tree into a flattened vector, preorder"""
 
     if not callable(transformer):
         raise TreeConvolutionError(
@@ -40,7 +42,7 @@ def _flatten(root, transformer, left_child, right_child):
         accum.append(transformer(x))
         recurse(left_child(x))
         recurse(right_child(x))
-    
+
     recurse(root)
     try:
         accum = [np.zeros(accum[0].shape, dtype=int)] + accum
@@ -51,14 +53,14 @@ def _flatten(root, transformer, left_child, right_child):
         )
     return np.array(accum)
 
+
 def _preorder_indexes(root, left_child, right_child, idx=1):
-    """ transforms a tree into a tree of preorder indexes """
+    """transforms a tree into a tree of preorder indexes"""
     if not callable(left_child) or not callable(right_child):
         raise TreeConvolutionError(
-            "left_child and right_child must be a function mapping a " +
-            "tree node to its child, or None"
+            "left_child and right_child must be a function mapping a "
+            + "tree node to its child, or None"
         )
-
 
     if _is_leaf(root, left_child, right_child):
         # leaf
@@ -68,27 +70,32 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
         if isinstance(tree, tuple):
             return rightmost(tree[2])
         return tree
-    left_subtree = _preorder_indexes(left_child(root), left_child, right_child,
-                                     idx=idx+1)
+
+    left_subtree = _preorder_indexes(
+        left_child(root), left_child, right_child, idx=idx + 1
+    )
     max_index_in_left = rightmost(left_subtree)
-    right_subtree = _preorder_indexes(right_child(root), left_child, right_child,
-                                      idx=max_index_in_left + 1)
+    right_subtree = _preorder_indexes(
+        right_child(root), left_child, right_child, idx=max_index_in_left + 1
+    )
     return (idx, left_subtree, right_subtree)
-    
+
+
 def _tree_conv_indexes(root, left_child, right_child):
-    """ 
+    """
     Create indexes that, when used as indexes into the output of `flatten`,
     create an array such that a stride-3 1D convolution is the same as a
     tree convolution.
     """
-    
+
     if not callable(left_child) or not callable(right_child):
         raise TreeConvolutionError(
             "left_child and right_child must be a function mapping a "
             + "tree node to its child, or None"
         )
-    
+
     index_tree = _preorder_indexes(root, left_child, right_child)
+
     def recurse(root):
         if isinstance(root, tuple):
             my_id = root[0]
@@ -96,13 +103,15 @@ def _tree_conv_indexes(root, left_child, right_child):
             right_id = root[2][0] if isinstance(root[2], tuple) else root[2]
             swag = [my_id, left_id, right_id]
             yield swag
-                                           
+
             yield from recurse(root[1])
             yield from recurse(root[2])
         else:
             yield [root, 0, 0]
+
     out = np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
     return out
+
 
 def _pad_and_combine(x):
     assert len(x) >= 1
@@ -122,12 +131,13 @@ def _pad_and_combine(x):
     vecs = []
     for arr in x:
         padded = np.zeros((max_first_dim, second_dim))
-        padded[0:arr.shape[0]] = arr
+        padded[0 : arr.shape[0]] = arr
         vecs.append(padded)
 
     return np.array(vecs)
 
-def prepare_trees(trees, transformer, left_child, right_child, cuda=False, device=None):
+
+def prepare_trees(trees, transformer, left_child, right_child, cuda=True, device=None):
     flat_trees = [_flatten(x, transformer, left_child, right_child) for x in trees]
     flat_trees = _pad_and_combine(flat_trees)
     flat_trees = torch.Tensor(flat_trees)
