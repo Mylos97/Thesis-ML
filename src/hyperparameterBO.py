@@ -63,7 +63,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [0.1, 4.0],
+            'bounds': [1.0, 4.0],
             'value_type': 'float',
             "log_scale": True,
         })
