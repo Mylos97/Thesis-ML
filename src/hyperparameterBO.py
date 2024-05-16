@@ -6,6 +6,8 @@ from helper import get_data_loaders, get_relative_path
 from train import train, evaluate
 from ax.utils.notebook.plotting import render
 from OurModels.EncoderDecoder.bvae import BVAE 
+from OurModels.EncoderDecoder.model import VAE 
+
 
 def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr, epochs, trials, plots, weights:dict=None):
     def train_evaluate(params):
@@ -66,6 +68,14 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
             'bounds': [1.0, 4.0],
             'value_type': 'float',
             "log_scale": True,
+        })
+
+    if model_class == VAE or model_class == BVAE:
+        parameters.append({
+            'name': 'z_dim',
+            'type': 'choice',
+            'values': [2,4,8,16,32,48],
+            'value_type': 'int',
         })
 
     ax_client.create_experiment(

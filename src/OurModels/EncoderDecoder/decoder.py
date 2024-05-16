@@ -3,7 +3,7 @@ import torch.nn as nn
 from TreeConvolution.tcnn import (BinaryTreeConv, TreeActivation, TreeLayerNorm)
 
 class TreeDecoder(nn.Module):
-    def __init__(self, output_dim, dropout_prob=0.1) -> None:
+    def __init__(self, output_dim, dropout_prob, z_dim) -> None:
         super(TreeDecoder, self).__init__()
 
         self.tree_conv = nn.Sequential(
@@ -19,8 +19,8 @@ class TreeDecoder(nn.Module):
         )
 
         self.linear = nn.Sequential(
-            nn.BatchNorm1d(16),
-            nn.Linear(16, 64),
+            nn.BatchNorm1d(z_dim),
+            nn.Linear(z_dim, 64),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
             nn.Linear(64, 256),

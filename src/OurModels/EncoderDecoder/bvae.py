@@ -4,11 +4,10 @@ from OurModels.EncoderDecoder.encoder import TreeEncoder
 from OurModels.EncoderDecoder.decoder import TreeDecoder
 
 class BVAE(nn.Module):
-    def __init__(self, in_dim, out_dim, dropout_prob):
+    def __init__(self, in_dim, out_dim, dropout_prob, z_dim):
         super().__init__()
-        self.num_hidden = 16
-        self.mu = nn.Linear(self.num_hidden, self.num_hidden)
-        self.log_var = nn.Linear(self.num_hidden, self.num_hidden)
+        self.mu = nn.Linear(z_dim, z_dim)
+        self.log_var = nn.Linear(z_dim, z_dim)
         self.encoder = TreeEncoder(in_dim, dropout_prob)
         self.decoder = TreeDecoder(out_dim, dropout_prob)
         self.training = False

@@ -10,9 +10,11 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
     lr = parameters.get('lr', 0.001)
     gradient_norm = parameters.get('gradient_norm', 1.0)
     dropout = parameters.get('dropout', 0.1)
+    z_dim = parameters.get('z_dim', 16)
     model = model_class(in_dim = in_dim,
                         out_dim = out_dim,
-                        dropout_prob = dropout)    
+                        dropout_prob = dropout,
+                        z_dim = z_dim)    
     if weights:
         set_weights(weights=weights, model=model)
 

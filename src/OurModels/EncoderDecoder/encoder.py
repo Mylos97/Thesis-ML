@@ -3,7 +3,7 @@ from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
                                   TreeActivation, TreeLayerNorm)
 
 class TreeEncoder(nn.Module):
-    def __init__(self, input_dim, dropout_prob=0.1) -> None:
+    def __init__(self, input_dim, dropout_prob, z_dim) -> None:
         super(TreeEncoder, self).__init__()
 
         self.binary_conv = nn.Sequential (
@@ -24,7 +24,7 @@ class TreeEncoder(nn.Module):
             nn.Linear(64, 32),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
-            nn.Linear(32, 16),
+            nn.Linear(32, z_dim),
             nn.Dropout(dropout_prob),
             nn.LeakyReLU()
         )
