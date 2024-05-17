@@ -2,6 +2,7 @@ import torch
 import argparse
 import torch.onnx
 import ast
+import json
 from exporter import export_model
 from OurModels.PairWise.model import Pairwise
 from OurModels.CostModel.model import CostModel
@@ -58,7 +59,13 @@ def main(args) -> None:
         flush=True,
     )
 
-    best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
+    if args.retrain:
+        # dont do shit
+        with open(args.parameters) as file:
+            best_parameters = json.load(file)
+        best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots, best_parameters=best_parameters)
+    else:
+        best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
 
     # if args.model == 'vae': does not work
     #    latent_space_BO(best_model, device, x)
@@ -73,6 +80,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', default='vae')
     parser.add_argument('--model-path', default='./src/Data/vae.onnx')
+    parser.add_argument('--parameters', default='./src/HyperparameterLogs/BVAE.json')
     parser.add_argument('--retrain', type=str, default='')
     parser.add_argument('--name', type=str, default='')
     parser.add_argument('--lr', type=str, default='[1e-6, 0.1]')

@@ -232,6 +232,9 @@ def get_data_loaders(data, batch_size):
     train_loader = make_dataloader(x=train_dataset, batch_size=batch_size)
     val_loader = make_dataloader(x=val_dataset, batch_size=batch_size)
     test_loader = make_dataloader(x=test_dataset, batch_size=batch_size)
+    print(f"Train set len: {len(train_loader)}")
+    print(f"Val set len: {len(val_loader)}")
+    print(f"Test set len: {len(test_loader)}")
     return train_loader, val_loader, test_loader
 
 

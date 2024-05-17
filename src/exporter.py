@@ -6,7 +6,7 @@ import onnxruntime
 
 def export_model(model, x, model_name) -> None:
     ort_input = x
-    if type(x[0]) == list: 
+    if type(x[0]) == list:
         ort_input = sum(x, [])
     amount_inputs = len(ort_input)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
@@ -39,7 +39,6 @@ def export_model(model, x, model_name) -> None:
     options.intra_op_num_threads = 1
 
     def to_numpy(tensor):
-        print("tensor: " + tensor)
         return (
             tensor.detach().cpu().numpy()
             if tensor.requires_grad

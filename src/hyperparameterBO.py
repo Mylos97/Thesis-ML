@@ -1,23 +1,38 @@
 import torch
 import datetime
 import torch.nn as nn
+import json
 from ax.service.ax_client import AxClient, ObjectiveProperties
 from helper import get_data_loaders, get_relative_path
 from train import train, evaluate
 from ax.utils.notebook.plotting import render
-from OurModels.EncoderDecoder.bvae import BVAE 
-from OurModels.EncoderDecoder.model import VAE 
+from OurModels.EncoderDecoder.bvae import BVAE
+from OurModels.EncoderDecoder.model import VAE
 
 
-def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int , loss_function:nn.Module, device: torch.device, lr, epochs, trials, plots, weights:dict=None):
+def do_hyperparameter_BO(
+    model_class: nn.Module,
+    data,
+    in_dim:int,
+    out_dim:int,
+    loss_function:nn.Module,
+    device: torch.device,
+    lr,
+    epochs,
+    trials,
+    plots,
+    weights:dict=None,
+    best_parameters=None
+    ):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
+
         train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
         if model_class == BVAE:
             l_function = loss_function(parameters.get('beta', 1.0))
         else:
             l_function = loss_function()
-        
+
         print(f'Batch size: {batch_size}')
         print(f'Training batches: {len(train_loader)} Test batches: {len(test_loader)} Validation batches: {len(val_loader)} \n', flush=True)
         model, _ = train(model_class=model_class, training_data_loader=train_loader, val_data_loader=val_loader,
@@ -26,6 +41,7 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         print(f'Validation loss for the model after training {loss}', flush=True)
         return loss
 
+    is_retraining = best_parameters is not None
     ax_client = AxClient()
     parameters = [
         {
@@ -83,12 +99,14 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         parameters=parameters,
         objectives={'loss': ObjectiveProperties(minimize=True)},
     )
-    
-    for _ in range(trials):
-        parameters, trial_index = ax_client.get_next_trial()
-        ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
 
-    best_parameters, _ = ax_client.get_best_parameters()
+    if best_parameters is None:
+        for _ in range(trials):
+            parameters, trial_index = ax_client.get_next_trial()
+            ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
+
+        best_parameters, _ = ax_client.get_best_parameters()
+
     train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=best_parameters.get('batch_size', 32))
 
     combined_train_valid_set = torch.utils.data.ConcatDataset([
@@ -107,18 +125,23 @@ def do_hyperparameter_BO(model_class: nn.Module,  data, in_dim:int, out_dim:int 
         l_function = loss_function(best_parameters.get('beta', 1.0))
     else:
         l_function = loss_function()
-    
+
     best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=l_function, device=device, parameters=best_parameters, epochs=epochs, weights=weights)
     test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device)
-    
+
+    # write best parameters to file
+    if not is_retraining:
+        with open(get_relative_path(f"{type(best_model).__name__}.json", 'HyperparameterLogs'), 'w') as file:
+            json.dump(best_parameters, file)
+
     if plots:
         try:
-            ax_path = get_relative_path('test.json', 'Logs')  #get_relative_path(file_name=f'{type(best_model).__name__}{datetime.datetime.now().strftime("%d-%H:%M:%S")}.json', dir='Logs')
+            ax_path = get_relative_path(f"{type(best_model).__name__}.json", 'Logs')  #get_relative_path(file_name=f'{type(best_model).__name__}{datetime.datetime.now().strftime("%d-%H:%M:%S")}.json', dir='Logs')
             ax_client.save_to_json_file(ax_path)
             render(ax_client.get_optimization_trace())
             render(ax_client.get_contour_plot(param_x="lr", param_y="batch_size", metric_name="loss"))
         except:
             print('Could not produce plots')
-    
+
     print(f'Best model loss test set: {test_accuracy}', flush=True)
     return best_model, tree

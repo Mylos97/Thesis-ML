@@ -6,20 +6,33 @@ from datetime import datetime
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 
-def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , loss_function, device, parameters, epochs, weights=None) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
-    lr = parameters.get('lr', 0.001)
-    gradient_norm = parameters.get('gradient_norm', 1.0)
-    dropout = parameters.get('dropout', 0.1)
-    z_dim = parameters.get('z_dim', 16)
-    model = model_class(in_dim = in_dim,
-                        out_dim = out_dim,
-                        dropout_prob = dropout,
-                        z_dim = z_dim)
+def train(
+    model_class,
+    training_data_loader,
+    val_data_loader,
+    in_dim,
+    out_dim,
+    loss_function,
+    device,
+    parameters,
+    epochs,
+    weights=None,
+) -> tuple[torch.nn.Module, tuple[list[Tensor], list[Tensor]]]:
+    lr = parameters.get("lr", 0.001)
+    gradient_norm = parameters.get("gradient_norm", 1.0)
+    dropout = parameters.get("dropout", 0.1)
+    z_dim = parameters.get("z_dim", 16)
+    model = model_class(
+        in_dim=in_dim, out_dim=out_dim, dropout_prob=dropout, z_dim=z_dim
+    )
+
     if weights:
         set_weights(weights=weights, model=model, device=device)
 
+    model.to(device)
+
     if isinstance(model, VAE) or isinstance(model, BVAE):
-        print('Setting model to training mode', flush=True)
+        print("Setting model to training mode", flush=True)
         model.training = True
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -44,12 +57,17 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
-            #print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
+            # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
 
         loss_accum /= len(training_data_loader)
 
-        print(f'Epoch  {epoch} training loss: {loss_accum}', flush=True)
-        val_loss = evaluate(model=model, val_data_loader=val_data_loader, loss_function=loss_function, device=device)
+        print(f"Epoch  {epoch} training loss: {loss_accum}", flush=True)
+        val_loss = evaluate(
+            model=model,
+            val_data_loader=val_data_loader,
+            loss_function=loss_function,
+            device=device,
+        )
 
         counter += 1
         if val_loss < best_val_loss:
@@ -69,7 +87,13 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
 
     return model, tree
 
-def evaluate(model: torch.nn.Module, val_data_loader: DataLoader, loss_function, device: torch.device) -> float:
+
+def evaluate(
+    model: torch.nn.Module,
+    val_data_loader: DataLoader,
+    loss_function,
+    device: torch.device,
+) -> float:
     model.eval()
     val_loss = 0
     if isinstance(model, VAE) or isinstance(model, BVAE):
