@@ -208,8 +208,17 @@ def get_weights_of_model(modelname: str) -> dict:
         onnx_weights[initializer.name] = W
     return onnx_weights
 
+def get_weights_of_model_by_path(path: str,) -> dict:
+    onnx_model = onnx.load(path)
+    INTIALIZERS = onnx_model.graph.initializer
+    onnx_weights = {}
+    for initializer in INTIALIZERS:
+        W = numpy_helper.to_array(initializer)
+        onnx_weights[initializer.name] = W
+    return onnx_weights
 
-def set_weights(weights: dict, model: torch.nn.Module) -> torch.nn.Module:
+
+def set_weights(weights: dict, model: torch.nn.Module, device: str) -> torch.nn.Module:
     for name, param in model.named_parameters():
         if name in weights:
             param.data = torch.tensor(weights[name].copy())

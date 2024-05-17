@@ -15,9 +15,10 @@
 --trials 15, (default) 25
 
 Example use model.py --model <model_name> --retrain <retrain>
+--model-path <model_path>
 
 ```bash
-python main.py --model pairwise --retrain src/Data/pairwise-encodings.txt --name model-name
+python main.py --model pairwise --retrain src/Data/pairwise-encodings.txt --model-path src/Data/vae.onnx --name model-name
 ```
 
 ---

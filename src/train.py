@@ -14,9 +14,9 @@ def train(model_class, training_data_loader, val_data_loader, in_dim, out_dim , 
     model = model_class(in_dim = in_dim,
                         out_dim = out_dim,
                         dropout_prob = dropout,
-                        z_dim = z_dim)    
+                        z_dim = z_dim)
     if weights:
-        set_weights(weights=weights, model=model)
+        set_weights(weights=weights, model=model, device=device)
 
     if isinstance(model, VAE) or isinstance(model, BVAE):
         print('Setting model to training mode', flush=True)
@@ -74,7 +74,7 @@ def evaluate(model: torch.nn.Module, val_data_loader: DataLoader, loss_function,
     val_loss = 0
     if isinstance(model, VAE) or isinstance(model, BVAE):
         model.training = True
-    
+
     with torch.no_grad():
         for tree, target in val_data_loader:
             prediction = model(tree)

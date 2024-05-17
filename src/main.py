@@ -8,7 +8,7 @@ from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 
-from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model, Beta_Vae_Loss
+from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model, get_weights_of_model_by_path, Beta_Vae_Loss
 from hyperparameterBO import do_hyperparameter_BO
 from latentspaceBO import latent_space_BO
 
@@ -28,8 +28,10 @@ def main(args) -> None:
 
     if args.retrain:
         print(f"Retraining model {args.model}")
-        weights = get_weights_of_model(args.model)
+        print(f"Retrained model will be sourced from {args.model_path}")
+        weights = get_weights_of_model_by_path(args.model_path)
         path = args.retrain
+        model_path = args.model_path
 
     if args.model == "vae":
         data, in_dim, out_dim = load_autoencoder_data(path=path, device=device)
@@ -70,6 +72,7 @@ def main(args) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', default='vae')
+    parser.add_argument('--model-path', default='./src/Data/vae.onnx')
     parser.add_argument('--retrain', type=str, default='')
     parser.add_argument('--name', type=str, default='')
     parser.add_argument('--lr', type=str, default='[1e-6, 0.1]')
