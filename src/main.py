@@ -52,7 +52,7 @@ def main(args) -> None:
     if args.model == "cost":
         data, in_dim, out_dim = load_costmodel_data(path=path, device=device)
         model_class = CostModel
-        loss_function = torch.nn.MSELoss
+        loss_function = torch.nn.L1Loss
 
     print(
         f"Succesfully loaded data with in_dimensions:{in_dim} out_dimensions:{out_dim}",
@@ -64,16 +64,22 @@ def main(args) -> None:
         with open(args.parameters) as file:
             best_parameters = json.load(file)
         best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots, best_parameters=best_parameters)
+
+        model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+        export_model(
+            model=best_model, x=x, model_name=args.model_path
+        )
     else:
         best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
+
+        model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+        export_model(
+            model=best_model, x=x, model_name=get_relative_path(model_name, "Models")
+        )
 
     # if args.model == 'vae': does not work
     #    latent_space_BO(best_model, device, x)
 
-    model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
-    export_model(
-        model=best_model, x=x, model_name=get_relative_path(model_name, "Models")
-    )
 
 
 if __name__ == "__main__":
