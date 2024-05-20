@@ -112,13 +112,13 @@ def do_hyperparameter_BO(
 
     if best_parameters is not None and (model_class == BVAE or model_class == VAE):
         batch_size = best_parameters.get('batch_size')
-        samples_needed = batch_size*11 - len(data)
+        samples_needed = batch_size-(batch_size%len(data))
         print("Starting batch generation ", batch_size, " lenght of data: ", len(data))
         print("with samples needed: ", samples_needed)
 
-        for i in range(samples_needed):
+        for i in range(samples_needed+batch_size*10):
             print("", i)
-            elem = data.__getitem__(i%len(data))
+            elem = data.__getitem__(i%len(data)) 
             data.append(elem)
 
     train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=best_parameters.get('batch_size', 32))

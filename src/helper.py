@@ -30,7 +30,7 @@ class TreeVectorDataset(Dataset):
         return vector, cost
     
     def append(self, item):
-        self.data += item
+        self.data.append(item)
 
 
 def get_relative_path(file_name: str, dir: str) -> str:
