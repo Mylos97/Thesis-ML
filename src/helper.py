@@ -94,7 +94,7 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
     return intersect_latency_map
 
 
-def load_autoencoder_data(device: str, path: str, retrain_path: str = "", batch_size: int = 0, model = None) -> tuple[TreeVectorDataset, int, int]:
+def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
     path = get_relative_path('no-co-encodings.txt', 'Data') if path == None else path
 
@@ -113,27 +113,6 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", batch_
     targets = []
     # structure tree -> (exec-plan, latency)
     tree_latency_map = generate_tree_latency_map(path)
-
-    if retrain_path != "":
-        tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
-        samples_needed = batch_size - (batch_size % len(tree_latency_map.keys()))
-
-        if len(tree_latency_map.keys()) < batch_size:
-            keys = tree_latency_map.keys().take(samples_needed)
-            model.training = True
-
-            list_of_tuples = []
-            for key in keys:
-                model.training = True
-                sample = model.decoder(model.encoder(tree_latency_map[key][0]))
-                latency = tree_latency_map[key][1]
-                model.training = False
-                list_of_tuples.append((sample,latency))
-
-
-
-
-
 
     for tree, tup in tree_latency_map.items():
         optimal_tree = platform_encodings(tup[0])
