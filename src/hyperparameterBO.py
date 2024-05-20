@@ -92,6 +92,8 @@ def do_hyperparameter_BO(
             'type': 'choice',
             'values': [2,4,8,16,32,48],
             'value_type': 'int',
+            'is_ordered': True,
+            'sort_values' : True
         })
 
     ax_client.create_experiment(

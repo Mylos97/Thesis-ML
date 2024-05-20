@@ -34,7 +34,7 @@ def main(args) -> None:
         path = args.retrain
 
     if args.model == "vae":
-        data, in_dim, out_dim = load_autoencoder_data(path=path, device=device)
+        data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain,device=device)
         model_class = VAE
         loss_function = torch.nn.CrossEntropyLoss
 
@@ -61,10 +61,7 @@ def main(args) -> None:
     if args.retrain:
         # dont do shit
         with open(args.parameters) as file:
-            best_parameters = json.load(file)
-
-        if args.model == "vae" or "bvae":
-            data = load_autoencoder_data(device=device, path=None, retrain_path=path)                                                                  
+            best_parameters = json.load(file)                                                          
 
         best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots, best_parameters=best_parameters)
 

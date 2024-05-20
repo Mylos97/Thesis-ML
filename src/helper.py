@@ -90,6 +90,8 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
             intersect_latency_map[key] = new_tree_latency_map[key]
         else:
             intersect_latency_map[key] = old_tree_latency_map[key]
+    
+    return intersect_latency_map
 
 
 def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tuple[TreeVectorDataset, int, int]:
@@ -112,7 +114,7 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tup
     # structure tree -> (exec-plan, latency)
     tree_latency_map = generate_tree_latency_map(path)
 
-    if retrain_path is not "":
+    if retrain_path != "":
         tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
 
     for tree, tup in tree_latency_map.items():
