@@ -28,6 +28,9 @@ class TreeVectorDataset(Dataset):
     def __getitem__(self, idx):
         vector, cost = self.data[idx]
         return vector, cost
+    
+    def append(self, item):
+        self.data += item
 
 
 def get_relative_path(file_name: str, dir: str) -> str:

@@ -26,17 +26,7 @@ def do_hyperparameter_BO(
     ):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
-
-        if best_parameters is not None and (model_class == BVAE or model_class == VAE):
-            batch_size = best_parameters.get('batch_size')
-            samples_needed = batch_size - (batch_size % len(data))
-
-            if len(data) < batch_size:
-                for i in range(samples_needed + (batch_size * 10)):
-                    elem = data[i%len(data)]
-                    data.append(elem)
-                    model.training = True
-
+    
         train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
         if model_class == BVAE:
             l_function = loss_function(parameters.get('beta', 1.0))
@@ -118,6 +108,18 @@ def do_hyperparameter_BO(
             ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
 
         best_parameters, _ = ax_client.get_best_parameters()
+
+
+    if best_parameters is not None and (model_class == BVAE or model_class == VAE):
+        batch_size = best_parameters.get('batch_size')
+        samples_needed = batch_size*11 - len(data)
+        print("Starting batch generation ", batch_size, " lenght of data: ", len(data))
+        print("with samples needed: ", samples_needed)
+
+        for i in range(samples_needed):
+            print("", i)
+            elem = data.__getitem__(i%len(data))
+            data.append(elem)
 
     train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=best_parameters.get('batch_size', 32))
 
