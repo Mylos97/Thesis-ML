@@ -28,7 +28,7 @@ class TreeVectorDataset(Dataset):
     def __getitem__(self, idx):
         vector, cost = self.data[idx]
         return vector, cost
-    
+
     def append(self, item):
         self.data.append(item)
 
@@ -87,13 +87,13 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
 
     intersect_latency_map = {}
     key_intersection = {k: old_tree_latency_map[k] for k in old_tree_latency_map if k in new_tree_latency_map}
-            
+
     for key in key_intersection:
-        if old_tree_latency_map[key][1] > new_tree_latency_map[key][1]:   
+        if old_tree_latency_map[key][1] > new_tree_latency_map[key][1]:
             intersect_latency_map[key] = new_tree_latency_map[key]
         else:
             intersect_latency_map[key] = old_tree_latency_map[key]
-    
+
     return intersect_latency_map
 
 
@@ -117,13 +117,16 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tup
     # structure tree -> (exec-plan, latency)
     tree_latency_map = generate_tree_latency_map(path)
 
+    if retrain_path != "":
+        tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
+
     for tree, tup in tree_latency_map.items():
         optimal_tree = platform_encodings(tup[0])
         tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
         trees.append(tree)
         targets.append(optimal_tree)
 
-    print(f"Tree size: {len(trees)}")    
+    print(f"Tree size: {len(trees)}")
     print(f"Targets size: {len(targets)}")
 
     assert len(trees) == len(targets)
