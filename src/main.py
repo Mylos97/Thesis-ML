@@ -34,7 +34,7 @@ def main(args) -> None:
 
     if args.model == "vae":
         model_class = VAE   
-        data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device, model=model, batch_size=43)
+        data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device)
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
