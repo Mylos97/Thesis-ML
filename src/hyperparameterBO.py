@@ -3,7 +3,7 @@ import datetime
 import torch.nn as nn
 import json
 from ax.service.ax_client import AxClient, ObjectiveProperties
-from helper import get_data_loaders, get_relative_path
+from helper import generate_latency_map_intersect, get_data_loaders, get_relative_path
 from train import train, evaluate
 from ax.utils.notebook.plotting import render
 from OurModels.EncoderDecoder.bvae import BVAE
@@ -26,6 +26,16 @@ def do_hyperparameter_BO(
     ):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
+
+        if best_parameters is not None and (model_class == BVAE or model_class == VAE):
+            batch_size = best_parameters.get('batch_size')
+            samples_needed = batch_size - (batch_size % len(data))
+
+            if len(data) < batch_size:
+                for i in range(samples_needed + (batch_size * 10)):
+                    elem = data[i%len(data)]
+                    data.append(elem)
+                    model.training = True
 
         train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
         if model_class == BVAE:

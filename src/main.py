@@ -9,9 +9,8 @@ from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 
-from helper import generate_tree_latency_map, load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model, get_weights_of_model_by_path, Beta_Vae_Loss, remove_operator_ids
+from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights
 from hyperparameterBO import do_hyperparameter_BO
-from latentspaceBO import latent_space_BO
 
 
 def main(args) -> None:
@@ -34,8 +33,10 @@ def main(args) -> None:
         path = args.retrain
 
     if args.model == "vae":
-        data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain,device=device)
-        model_class = VAE
+        model_class = VAE   
+        model = VAE()
+        model = set_weights(model=model, weights=weights,device=device)
+        data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device, model=model, batch_size=43)
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
