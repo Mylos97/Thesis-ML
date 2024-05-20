@@ -96,18 +96,31 @@ def load_autoencoder_data(device: str, path: str) -> tuple[TreeVectorDataset, in
 
     trees = []
     targets = []
+    # structure tree -> (exec-plan, latency)
+    tree_latency_map = {}
     with open(path, 'r') as f:
         for l in f:
             s = l.split(':')
-            tree, optimal_tree = s[0], s[1]
+            tree, optimal_tree, latency = s[0], s[1], int(s[2].strip())
             tree, optimal_tree = (
                 remove_operator_ids(tree.strip()),
                 remove_operator_ids(optimal_tree.strip()),
             )
-            optimal_tree = platform_encodings(optimal_tree)
-            tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
-            trees.append(tree)
-            targets.append(optimal_tree)
+
+            if tree in tree_latency_map:
+               if tree_latency_map[tree][1] > latency:
+                   tree_latency_map[tree] = (optimal_tree, latency)
+            else:
+               tree_latency_map[tree] = (optimal_tree, latency)
+
+    for tree, tup in tree_latency_map.items():
+        optimal_tree = platform_encodings(tup[0])
+        tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
+        trees.append(tree)
+        targets.append(optimal_tree)
+
+    print(f"Tree size: {len(trees)}")
+    print(f"Targets size: {len(targets)}")
 
     assert len(trees) == len(targets)
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
@@ -257,7 +270,8 @@ class Beta_Vae_Loss(torch.nn.Module):
 
     def forward(self, prediction, target):
         recon_x, mu, logvar = prediction
-        recon_loss = F.mse_loss(recon_x, target, reduction='sum')
+        #recon_loss = F.mse_loss(recon_x, target, reduction='sum')
+        recon_loss = F.cross_entropy(recon_x, target)
         klds = -0.5*(1 + logvar - mu.pow(2) - logvar.exp())
         total_kld = klds.sum(1).mean(0, True)
 
