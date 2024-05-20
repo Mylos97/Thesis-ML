@@ -9,7 +9,7 @@ from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 
-from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model, get_weights_of_model_by_path, Beta_Vae_Loss
+from helper import generate_tree_latency_map, load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model, get_weights_of_model_by_path, Beta_Vae_Loss, remove_operator_ids
 from hyperparameterBO import do_hyperparameter_BO
 from latentspaceBO import latent_space_BO
 
@@ -32,7 +32,6 @@ def main(args) -> None:
         print(f"Retrained model will be sourced from {args.model_path}")
         weights = get_weights_of_model_by_path(args.model_path)
         path = args.retrain
-        model_path = args.model_path
 
     if args.model == "vae":
         data, in_dim, out_dim = load_autoencoder_data(path=path, device=device)
@@ -63,6 +62,10 @@ def main(args) -> None:
         # dont do shit
         with open(args.parameters) as file:
             best_parameters = json.load(file)
+
+        if args.model == "vae" or "bvae":
+            data = load_autoencoder_data(device=device, path=None, retrain_path=path)                                                                  
+
         best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots, best_parameters=best_parameters)
 
         model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
@@ -76,6 +79,7 @@ def main(args) -> None:
         export_model(
             model=best_model, x=x, model_name=get_relative_path(model_name, "Models")
         )
+
 
     # if args.model == 'vae': does not work
     #    latent_space_BO(best_model, device, x)

@@ -79,7 +79,20 @@ def remove_operator_ids(tree: str):
     return tree
 
 
-def load_autoencoder_data(device: str, path: str) -> tuple[TreeVectorDataset, int, int]:
+def generate_latency_map_intersect(path, old_tree_latency_map):
+    new_tree_latency_map = generate_tree_latency_map(path)
+
+    intersect_latency_map = {}
+    key_intersection = {k: old_tree_latency_map[k] for k in old_tree_latency_map if k in new_tree_latency_map}
+            
+    for key in key_intersection:
+        if old_tree_latency_map[key][1] > new_tree_latency_map[key][1]:   
+            intersect_latency_map[key] = new_tree_latency_map[key]
+        else:
+            intersect_latency_map[key] = old_tree_latency_map[key]
+
+
+def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
     path = get_relative_path('no-co-encodings.txt', 'Data') if path == None else path
 
@@ -97,21 +110,10 @@ def load_autoencoder_data(device: str, path: str) -> tuple[TreeVectorDataset, in
     trees = []
     targets = []
     # structure tree -> (exec-plan, latency)
-    tree_latency_map = {}
-    with open(path, 'r') as f:
-        for l in f:
-            s = l.split(':')
-            tree, optimal_tree, latency = s[0], s[1], int(s[2].strip())
-            tree, optimal_tree = (
-                remove_operator_ids(tree.strip()),
-                remove_operator_ids(optimal_tree.strip()),
-            )
+    tree_latency_map = generate_tree_latency_map(path)
 
-            if tree in tree_latency_map:
-               if tree_latency_map[tree][1] > latency:
-                   tree_latency_map[tree] = (optimal_tree, latency)
-            else:
-               tree_latency_map[tree] = (optimal_tree, latency)
+    if retrain_path is not "":
+        tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
 
     for tree, tup in tree_latency_map.items():
         optimal_tree = platform_encodings(tup[0])
@@ -134,6 +136,24 @@ def load_autoencoder_data(device: str, path: str) -> tuple[TreeVectorDataset, in
 
     print(f'Succesfully loaded {len(x)} plans', flush=True)
     return TreeVectorDataset(x), in_dim, out_dim
+
+def generate_tree_latency_map(path):
+    tree_latency_map = {}
+    with open(path, 'r') as f:
+        for l in f:
+            s = l.split(':')
+            tree, optimal_tree, latency = s[0], s[1], int(s[2].strip())
+            tree, optimal_tree = (
+                remove_operator_ids(tree.strip()),
+                remove_operator_ids(optimal_tree.strip()),
+            )
+
+            if tree in tree_latency_map:
+               if tree_latency_map[tree][1] > latency:
+                   tree_latency_map[tree] = (optimal_tree, latency)
+            else:
+               tree_latency_map[tree] = (optimal_tree, latency)
+    return tree_latency_map
 
 
 def load_pairwise_data(device: str, path: str) -> tuple[TreeVectorDataset, int, None]:
