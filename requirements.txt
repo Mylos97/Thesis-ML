@@ -19,6 +19,7 @@ charset-normalizer==3.3.2
 coloredlogs==15.0.1
 comm==0.2.2
 decorator==5.1.1
+distutils==1.4.32.post2
 docopt==0.6.2
 dotmap==1.3.8
 executing==2.0.1
