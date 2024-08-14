@@ -107,6 +107,7 @@ Sanic-GraphQL==1.1.0
 sanic-jwt==1.4.0
 Sanic-Plugins-Framework==0.9.5
 sanic_compress==0.1.1
+setuptools==65.5.0
 scikit-learn==1.4.2
 scipy==1.13.0
 singledispatch==3.7.0
