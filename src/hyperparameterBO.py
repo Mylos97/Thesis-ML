@@ -26,7 +26,7 @@ def do_hyperparameter_BO(
     ):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
-    
+
         train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
         if model_class == BVAE:
             l_function = loss_function(parameters.get('beta', 1.0))
@@ -118,7 +118,7 @@ def do_hyperparameter_BO(
 
         for i in range(samples_needed+batch_size*10):
             print("", i)
-            elem = data.__getitem__(i%len(data)) 
+            elem = data.__getitem__(i%len(data))
             data.append(elem)
 
     train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=best_parameters.get('batch_size', 32))

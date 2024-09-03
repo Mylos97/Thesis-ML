@@ -99,7 +99,7 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
 
 def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
-    path = get_relative_path('no-co-encodings.txt', 'Data') if path == None else path
+    path = get_relative_path('new-encodings.txt', 'Data') if path == None else path
 
     def platform_encodings(optimal_tree: str):
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
@@ -142,6 +142,48 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tup
     print(f'Succesfully loaded {len(x)} plans', flush=True)
     return TreeVectorDataset(x), in_dim, out_dim
 
+
+def load_autoencoder_data_from_str(device: str, data: str) -> tuple[TreeVectorDataset, int, int]:
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+
+    def platform_encodings(optimal_tree: str):
+        matches_iterator = re.finditer(regex_pattern, optimal_tree)
+
+        for match in matches_iterator:
+            find = match.group().strip('(').strip(')')
+            values = [int(num.strip()) for num in find.split(',')]
+            replacement = ','.join(map(str, values[40:47]))
+            optimal_tree = optimal_tree.replace(find, replacement)
+
+        return optimal_tree
+
+    trees = []
+    targets = []
+    # structure tree -> (exec-plan, latency)
+    tree_latency_map = generate_tree_latency_map_from_str(data)
+
+    for tree, tup in tree_latency_map.items():
+        optimal_tree = platform_encodings(tup[0])
+        tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
+        trees.append(tree)
+        targets.append(optimal_tree)
+
+    print(f"Tree size: {len(trees)}")
+    print(f"Targets size: {len(targets)}")
+
+    assert len(trees) == len(targets)
+    in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
+    x = []
+    trees, indexes = build_trees(trees, device=device)
+    target_trees, _ = build_trees(targets, device=device)
+    target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
+
+    for i, tree in enumerate(trees):
+        x.append(((tree, indexes[i]), target_trees[i]))
+
+    print(f'Succesfully loaded {len(x)} plans', flush=True)
+    return TreeVectorDataset(x), in_dim, out_dim
+
 def generate_tree_latency_map(path):
     tree_latency_map = {}
     with open(path, 'r') as f:
@@ -157,7 +199,25 @@ def generate_tree_latency_map(path):
                if tree_latency_map[tree][1] > latency:
                    tree_latency_map[tree] = (optimal_tree, latency)
             else:
+                tree_latency_map[tree] = (optimal_tree, latency)
+    return tree_latency_map
+
+def generate_tree_latency_map_from_str(plans: str):
+    tree_latency_map = {}
+    for plan in plans:
+        s = plan.split(':')
+        tree, optimal_tree, latency = s[0], s[1], int(s[2].strip())
+        tree, optimal_tree = (
+            remove_operator_ids(tree.strip()),
+            remove_operator_ids(optimal_tree.strip()),
+        )
+
+        if tree in tree_latency_map:
+           if tree_latency_map[tree][1] > latency:
                tree_latency_map[tree] = (optimal_tree, latency)
+        else:
+           tree_latency_map[tree] = (optimal_tree, latency)
+
     return tree_latency_map
 
 

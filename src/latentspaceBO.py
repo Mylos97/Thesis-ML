@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import json
 from botorch.models import SingleTaskGP
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 from botorch.utils.transforms import normalize, unnormalize
@@ -10,17 +11,19 @@ from botorch.optim import optimize_acqf
 from helper import convert_to_json
 
 def latent_space_BO(ML_model, device, plan):
+    json_result = ""
     print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
-    encoded_plan = ML_model.encoder(plan)
+    for tree,target in plan:
+        encoded_plan = ML_model.encoder(tree)
     latent_vector = encoded_plan[0]
     indexes = encoded_plan[1]
     d = latent_vector.shape[1]
     n = 10
-    BATCH_SIZE = 3
+    BATCH_SIZE = 1
     NUM_RESTARTS = 1
     RAW_SAMPLES = 256
-    bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype) 
+    bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype)
 
     def get_latencies(plans) -> list[torch.Tensor]:
         results = []
@@ -28,7 +31,7 @@ def latent_space_BO(ML_model, device, plan):
             results.append(plan[0].sum().item())
         convert_to_json(plans)
         return results
-    
+
     def objective_function(X):
         v_hat = [latent_vector + v for v in X]
         model_results = []
@@ -40,7 +43,7 @@ def latent_space_BO(ML_model, device, plan):
 
     def gen_initial_data():
         train_x = unnormalize(
-            torch.rand(n, d, device=device, dtype=dtype), 
+            torch.rand(n, d, device=device, dtype=dtype),
             bounds=bounds)
         train_obj = objective_function(train_x).unsqueeze(-1)
         best_observed_value = train_obj.min().item()
@@ -49,7 +52,7 @@ def latent_space_BO(ML_model, device, plan):
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
         model = SingleTaskGP(
-            train_X=normalize(train_x, bounds), 
+            train_X=normalize(train_x, bounds),
             train_Y=train_obj,
             outcome_transform=Standardize(m=1)
         )
@@ -75,15 +78,17 @@ def latent_space_BO(ML_model, device, plan):
         )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
+        #print(f'new x: {new_x}')
         new_obj = objective_function(new_x).unsqueeze(-1)
         return new_x, new_obj
 
     torch.manual_seed(42)
-    N_BATCH = 1
+    N_BATCH = 3
     best_observed = []
     train_x, train_obj, best_value = gen_initial_data()
     best_observed.append(best_value)
     state_dict = None
+    model_results = []
     for _ in range(N_BATCH):
         model = get_fitted_model(
             train_x=train_x,
@@ -96,6 +101,12 @@ def latent_space_BO(ML_model, device, plan):
         )
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
+        v_hat = [latent_vector + v for v in new_x]
+        for v in v_hat:
+            # Cast to float() because of warning from BoTorch
+            decoded = ML_model.decoder(v.float(), indexes)
+            x = ML_model.softmax(decoded[0])
+            model_results.append([x.detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
 
         train_x = torch.cat((train_x, new_x))
         train_obj = torch.cat((train_obj, new_obj))
@@ -104,5 +115,7 @@ def latent_space_BO(ML_model, device, plan):
         best_observed.append(best_value)
 
         state_dict = model.state_dict()
-    
+        json_result = json.dumps({"data": model_results})
+
     print('Finish Bayesian Optimization for latent space', flush=True)
+    return json_result

@@ -9,7 +9,7 @@ from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 
-from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights
+from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str
 from hyperparameterBO import do_hyperparameter_BO
 
 
@@ -32,9 +32,40 @@ def main(args) -> None:
         weights = get_weights_of_model_by_path(args.model_path)
         path = args.retrain
 
+        # find model parameters
+        with open(args.parameters) as file:
+            best_parameters = json.load(file)
+            lr = parameters.get("lr", 0.001)
+            gradient_norm = parameters.get("gradient_norm", 1.0)
+            dropout = parameters.get("dropout", 0.1)
+            z_dim = parameters.get("z_dim", 16)
+            weights = get_weights_of_model_by_path(args.model_path)
+
+            #best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
+
+            model = VAE(
+                in_dim=in_dim,
+                out_dim=out_dim,
+                dropout_prob=dropout,
+                z_dim=z_dim
+            )
+
+            if weights:
+                set_weights(weights=weights, model=model, device=device)
+
+            # load model
+            model.to(device)
+
+            model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+            latent_space_BO(model, device, data)
+
+        return
+
     if args.model == "vae":
-        model_class = VAE   
+        model_class = VAE
         data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device)
+        print(data)
+        print(data[0])
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
@@ -60,11 +91,12 @@ def main(args) -> None:
     if args.retrain:
         # dont do shit
         with open(args.parameters) as file:
-            best_parameters = json.load(file)                                                          
+            best_parameters = json.load(file)
 
         best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots, best_parameters=best_parameters)
 
         model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+
         export_model(
             model=best_model, x=x, model_name=args.model_path
         )
@@ -72,14 +104,10 @@ def main(args) -> None:
         best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
 
         model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+
         export_model(
             model=best_model, x=x, model_name=get_relative_path(model_name, "Models")
         )
-
-
-    # if args.model == 'vae': does not work
-    #    latent_space_BO(best_model, device, x)
-
 
 
 if __name__ == "__main__":
@@ -93,5 +121,6 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--trials', type=int, default=25)
     parser.add_argument('--plots', type=bool, default=False)
+    parser.add_argument('--lsbo', type=str, default='')
     args = parser.parse_args()
     main(args)

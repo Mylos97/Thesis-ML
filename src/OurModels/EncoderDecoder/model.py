@@ -31,4 +31,4 @@ class VAE(nn.Module):
             z = mean + torch.exp(0.5 * log_var) * epsilon
             decoded = self.decoder(z, indexes)
             x = self.softmax(decoded[0])
-            return x 
+            return x
