@@ -97,7 +97,7 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
     return intersect_latency_map
 
 
-def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tuple[TreeVectorDataset, int, int]:
+def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_ops: int = 43, num_platfs: int = 9) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
     path = get_relative_path('new-encodings.txt', 'Data') if path == None else path
 
@@ -107,7 +107,7 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tup
         for match in matches_iterator:
             find = match.group().strip('(').strip(')')
             values = [int(num.strip()) for num in find.split(',')]
-            replacement = ','.join(map(str, values[40:47]))
+            replacement = ','.join(map(str, values[num_ops:num_ops+num_platfs]))
             optimal_tree = optimal_tree.replace(find, replacement)
 
         return optimal_tree
@@ -143,7 +143,7 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "") -> tup
     return TreeVectorDataset(x), in_dim, out_dim
 
 
-def load_autoencoder_data_from_str(device: str, data: str) -> tuple[TreeVectorDataset, int, int]:
+def load_autoencoder_data_from_str(device: str, data: str, num_ops: int = 43, num_platfs: int = 9) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
 
     def platform_encodings(optimal_tree: str):
@@ -152,7 +152,7 @@ def load_autoencoder_data_from_str(device: str, data: str) -> tuple[TreeVectorDa
         for match in matches_iterator:
             find = match.group().strip('(').strip(')')
             values = [int(num.strip()) for num in find.split(',')]
-            replacement = ','.join(map(str, values[40:47]))
+            replacement = ','.join(map(str, values[num_ops:num_ops+num_platfs]))
             optimal_tree = optimal_tree.replace(find, replacement)
 
         return optimal_tree

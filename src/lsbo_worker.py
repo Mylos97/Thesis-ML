@@ -37,7 +37,7 @@ from OurModels.EncoderDecoder.bvae import BVAE
 
 from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str
 from hyperparameterBO import do_hyperparameter_BO
-from latentspaceBO import latent_space_BO
+from latentspaceBO import latent_space_BO, LSBOResult
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -120,14 +120,20 @@ def dump_stream(iterator, stream):
             ##    write_with_length(obj, stream)
     write_int(SpecialLengths.END_OF_DATA_SECTION, stream)
 
-def lsbo(input):
+def lsbo(input, previous: LSBOResult = None):
     print(f"Starting LSBO from python")
 
     # set some defaults, highly WIP
     dir_path = os.path.dirname(os.path.realpath(__file__))
     model_path= f"{dir_path}/Models/vae.onnx"
+    surrogate_path = f"{dir_path}/Models/vae-surrogate.onnx"
     parameters_path = f"{dir_path}/HyperparameterLogs/VAE.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Rather use a surrogate if it already exists
+    if os.path.isfile(surrogate_path):
+        print(f"Using existing surrogate model at {surrogate_path}", flush=True)
+        model_path = surrogate_path
 
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
@@ -160,9 +166,15 @@ def lsbo(input):
         model.eval()
 
         dataloader = DataLoader(data, batch_size=1, drop_last=False, shuffle=True)
-        json_result = latent_space_BO(model, device, dataloader)
+        lsbo_result = latent_space_BO(model, device, dataloader, previous)
 
-    return [json_result]
+        """
+        export_model(
+            model=model, x=tree, model_name=surrogate_path
+        )
+        """
+
+    return lsbo_result
 
 def process(infile, outfile):
     udf_length = read_int(infile)

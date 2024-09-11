@@ -26,44 +26,9 @@ def main(args) -> None:
     args_name = args.name if ".onnx" in args.name else f"{args.name}.onnx"
     print(f"Started training model {args.model}", flush=True)
 
-    if args.retrain:
-        print(f"Retraining model {args.model}")
-        print(f"Retrained model will be sourced from {args.model_path}")
-        weights = get_weights_of_model_by_path(args.model_path)
-        path = args.retrain
-
-        # find model parameters
-        with open(args.parameters) as file:
-            best_parameters = json.load(file)
-            lr = parameters.get("lr", 0.001)
-            gradient_norm = parameters.get("gradient_norm", 1.0)
-            dropout = parameters.get("dropout", 0.1)
-            z_dim = parameters.get("z_dim", 16)
-            weights = get_weights_of_model_by_path(args.model_path)
-
-            #best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
-
-            model = VAE(
-                in_dim=in_dim,
-                out_dim=out_dim,
-                dropout_prob=dropout,
-                z_dim=z_dim
-            )
-
-            if weights:
-                set_weights(weights=weights, model=model, device=device)
-
-            # load model
-            model.to(device)
-
-            model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
-            latent_space_BO(model, device, data)
-
-        return
-
     if args.model == "vae":
         model_class = VAE
-        data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device)
+        data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         print(data)
         print(data[0])
         loss_function = torch.nn.CrossEntropyLoss
@@ -121,6 +86,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--trials', type=int, default=25)
     parser.add_argument('--plots', type=bool, default=False)
-    parser.add_argument('--lsbo', type=str, default='')
+    parser.add_argument('--platforms', type=int, default=9)
+    parser.add_argument('--operators', type=int, default=43)
     args = parser.parse_args()
     main(args)
