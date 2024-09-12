@@ -15,20 +15,20 @@
 # limitations under the License.
 #
 import argparse
-import torch
 from subprocess import PIPE, Popen
-from torch.utils.data import DataLoader, Dataset
+import threading
 
-from Util.communication import read_int, SpecialLengths, UTF8Deserializer, write_int, write_with_length, dump_stream, open_connection
+from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
 from lsbo_worker import lsbo
 from latentspaceBO import LSBOResult
-from helper import load_autoencoder_data_from_str
 from main import main as retrain
 
-def init_model():
-    pass
+# Default should be an hour
+TIMEOUT = 60 * 60 * 60
+TOLERANCE = 1.25
+time_limit_reached = False
 
-def request_wayang_plan(exec: str, namespace: str, args: str, lsbo_result: LSBOResult = None, index: int = 0) -> LSBOResult:
+def request_wayang_plan(exec: str, namespace: str, args: str, lsbo_result: LSBOResult = None, index: int = 0, timeout: float = 3600) -> LSBOResult:
     process = Popen([
         exec,
         namespace,
@@ -62,6 +62,17 @@ def request_wayang_plan(exec: str, namespace: str, args: str, lsbo_result: LSBOR
     #print(process.stdout.read())
     process.stdout.flush()
 
+    try:
+        if process.wait(timeout) != 0:
+            print("Error closing Wayang process!")
+    except Exception:
+        print("Didnt finish fast enough")
+
+        exec_time = int(timeout * 100000)
+        lsbo_result.train_obj[index][0] = exec_time
+
+        return lsbo_result, ("", "", exec_time)
+
     input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
 
     exec_time = int(exec_time_str)
@@ -70,9 +81,6 @@ def request_wayang_plan(exec: str, namespace: str, args: str, lsbo_result: LSBOR
 
     lsbo_result.train_obj[index][0] = exec_time
     print(f"Train_obj: {lsbo_result.train_obj}")
-
-    if process.wait() != 0:
-        print("Error closing Wayang process!")
 
     plan_data = (input, picked_plan, exec_time_str)
 
@@ -85,19 +93,34 @@ def read_from_wayang(sock_file):
 
     return next(iterator)
 
+def realize():
+    print("This plan is slower than the previous")
 
 def main(args) -> None:
-    #model, surrogate_model = init_model()
     lsbo_result = None
     best_plan = None
-    for i in range(10):
-        lsbo_result, plan_data = request_wayang_plan(args.exec, args.namespace, args.args, lsbo_result, i)
+    timeout = float(60 * 60 * 60)
+    index = -1
+
+    def set_time_limit_reached():
+        global time_limit_reached
+        time_limit_reached = True
+        print(f"Time limit of {time_limit_reached}m reached, stopping LSBO loop")
+
+    t = threading.Timer(args.time * 60, set_time_limit_reached)
+    t.start()
+
+    while not time_limit_reached:
+        index += 1
+        lsbo_result, plan_data = request_wayang_plan(args.exec, args.namespace, args.args, lsbo_result, index, timeout)
 
         if best_plan is None:
             best_plan = plan_data
         elif float(best_plan[2]) > float(plan_data[2]):
             print("Found better plan latency")
             best_plan = plan_data
+
+        timeout = (float(best_plan[2]) * 1.5) / 1000
 
     print(best_plan)
 
@@ -115,7 +138,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', default='vae')
     parser.add_argument('--exec', type=str, default='/var/www/html/wayang-assembly/target/wayang-0.7.1/bin/wayang-submit')
-    parser.add_argument('--namespace', type=str, default='org.apache.wayang.ml.benchmarks.LSBOSampler')
+    parser.add_argument('--namespace', type=str, default='org.apache.wayang.ml.benchmarks.LSBORunner')
     parser.add_argument('--args', type=str, default='java,spark,flink file:///var/www/html/data')
     parser.add_argument('--trainset', type=str, default='./src/Data/new-encodings.txt')
     parser.add_argument('--model-path', default='./src/Models/vae.onnx')
@@ -127,6 +150,8 @@ if __name__ == '__main__':
     parser.add_argument('--plots', type=bool, default=False)
     parser.add_argument('--platforms', type=int, default=9)
     parser.add_argument('--operators', type=int, default=43)
+    # add a time in minutes for this process to run, otherwise stop it
+    parser.add_argument('--time', type=int, default=1)
     args = parser.parse_args()
 
     main(args)
