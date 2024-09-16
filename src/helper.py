@@ -99,7 +99,7 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
 
 def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_ops: int = 43, num_platfs: int = 9) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
-    path = get_relative_path('new-encodings.txt', 'Data') if path == None else path
+    path = get_relative_path('naive-lsbo.txt', 'Data') if path == None else path
 
     def platform_encodings(optimal_tree: str):
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
