@@ -1,10 +1,24 @@
 import torch
 import torch.nn as nn
-from TreeConvolution.tcnn import (BinaryTreeConv, TreeActivation, TreeLayerNorm)
+from TreeConvolution.tcnn import (BinaryTreeConv, TreeActivation, TreeLayerNorm, DynamicPooling)
 
 class TreeDecoder(nn.Module):
     def __init__(self, output_dim, dropout_prob, z_dim) -> None:
         super(TreeDecoder, self).__init__()
+
+        """
+        self.tree_conv = nn.Sequential(
+            BinaryTreeConv(64, 128),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(128, 256),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(256, output_dim),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU())
+        )
+        """
 
         self.tree_conv = nn.Sequential(
             BinaryTreeConv(64, 128),
@@ -41,4 +55,6 @@ class TreeDecoder(nn.Module):
         x = self.linear(trees)
         x = x.view(x.shape[0], 64, 64)
         r = self.tree_conv((x, indexes))
+
         return r
+

@@ -18,6 +18,20 @@ class TreeEncoder(nn.Module):
             TreeActivation(nn.LeakyReLU())
         )
 
+        """
+        self.binary_conv = nn.Sequential (
+            BinaryTreeConv(input_dim, 256),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(256, 128),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(128, 64),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU())
+        )
+        """
+
         self.linear = nn.Sequential(
             DynamicPooling(),
             nn.Linear(64, 32),
@@ -33,4 +47,5 @@ class TreeEncoder(nn.Module):
     def forward(self, trees):
         x = self.binary_conv(trees)
         y = self.linear(x)
+
         return y, x[1]

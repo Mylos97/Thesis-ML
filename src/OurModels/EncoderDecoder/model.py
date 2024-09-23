@@ -20,7 +20,8 @@ class VAE(nn.Module):
             encoded, indexes = self.encoder(x)
             z = self.mu(encoded)
             decoded = self.decoder(z, indexes)
-            x = self.softmax(decoded[0])
+            x = decoded[0]
+            #x = self.softmax(decoded[0])
             return x
         else:
             encoded, indexes = self.encoder(x)
@@ -30,5 +31,6 @@ class VAE(nn.Module):
             epsilon = torch.randn(batch, dim).to(self.device)
             z = mean + torch.exp(0.5 * log_var) * epsilon
             decoded = self.decoder(z, indexes)
-            x = self.softmax(decoded[0])
+            x = decoded[0]
+            #x = self.softmax(decoded[0])
             return x

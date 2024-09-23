@@ -29,8 +29,10 @@ from botorch.utils.transforms import normalize, unnormalize
 from botorch.models.transforms import Standardize
 from botorch import fit_gpytorch_mll
 from botorch.acquisition.logei import qLogExpectedImprovement
+from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.optim import optimize_acqf
 from OurModels.EncoderDecoder.model import VAE
+from OurModels.EncoderDecoder.bvae import BVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
 
 TIMEOUT = float(60 * 60 * 60)
@@ -62,12 +64,13 @@ class LSBOResult:
         self.train_obj = torch.cat((self.train_obj, new_obj))
 
         # update progress
-        best_value = self.train_obj.min().item()
+        best_value = self.train_obj.max().item()
         self.best_values.append(best_value)
 
         self.state_dict = self.model.state_dict()
 
 def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -> LSBOResult:
+    global initial_latency
     print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
     for tree,target in plan:
@@ -76,44 +79,58 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
     indexes = encoded_plan[1]
     d = latent_vector.shape[1]
     N_BATCH = 25
-    BATCH_SIZE = 3
+    BATCH_SIZE = 1
     NUM_RESTARTS = 10
     RAW_SAMPLES = 256
+    MC_SAMPLES = 2000
+    initial_latency = 0
+    seed = 42
     is_initial_run = False
-    bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype)
+    latent_vector_sample = latent_vector[0].max().item()
+
+    bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
 
     def get_latencies(plans) -> list[torch.Tensor]:
+        global initial_latency
         results = []
         for plan in plans:
             #results.append(plan[0].sum().item())
-            results.append(get_plan_latency(args, plan))
+            if initial_latency == 0:
+                latency = get_plan_latency(args, plan)
+            else:
+                latency = initial_latency - get_plan_latency(args, plan)
+            results.append(latency)
 
         #convert_to_json(plans)
         return results
 
     def objective_function(X):
-        v_hat = [latent_vector + v for v in X]
-        print(f"Latent vector: {latent_vector}")
+        # Move the prediction made in latent_vector by some random v
+        v_hat = [torch.add(v, latent_vector) for v in X]
         model_results = []
+
         for v in v_hat:
-            print(f"V: {v.float()}")
             decoded = ML_model.decoder(v.float(), indexes)
-            print(f"Decoded: {decoded}")
             model_results.append(decoded)
         results = get_latencies(model_results)
 
         return torch.tensor(results)
 
-    def gen_initial_data(n: int = 5):
+    def gen_initial_data(n: int = 1):
+        global initial_latency
         print(f"Generating {n} initial samples")
         train_x = unnormalize(
             torch.rand(n, d, device=device, dtype=dtype),
             bounds=bounds)
         train_obj = objective_function(train_x).unsqueeze(-1)
-        best_observed_value = train_obj.min().item()
-        print(f"Finished generating {n} initial samples")
+        best_observed_value = train_obj.max().item()
+        train_obj = torch.tensor([[0]])
 
-        return train_x, train_obj, best_observed_value
+        initial_latency = best_observed_value
+        print(f"Finished generating {n} initial samples")
+        print(f"Initial latency: {initial_latency}")
+
+        return train_x, train_obj, train_obj
 
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
@@ -126,7 +143,9 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
             model.load_state_dict(state_dict)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
         mll.to(train_x)
+        print(f"Train x: {train_x}")
         fit_gpytorch_mll(mll)
+
         return model
 
     def optimize_acqf_and_get_observation(acq_func):
@@ -143,12 +162,14 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
             raw_samples=RAW_SAMPLES,
         )
 
+        print(f"Candidates: {candidates}")
+
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         new_obj = objective_function(new_x).unsqueeze(-1)
 
         return new_x, new_obj
 
-    torch.manual_seed(42)
+    torch.manual_seed(seed)
 
     if previous is None:
         is_initial_run = True
@@ -170,18 +191,24 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
 
         previous = LSBOResult(ML_model, model, previous.model_results, tree, previous.train_x, previous.train_obj, previous.state_dict, previous.best_values)
 
+        print(f"Best f: {previous.train_obj.max()}")
 
+        qmc_sampler = SobolQMCNormalSampler(torch.Size([MC_SAMPLES]), seed=seed)
         qEI = qLogExpectedImprovement(
-            model=model, best_f=previous.train_obj.min()
+            model=model,
+            sampler=qmc_sampler,
+            best_f=previous.train_obj.max()
         )
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
+        print(f"New_x: {new_x}")
+        print(f"New_obj: {new_obj}")
         v_hat = [latent_vector + v for v in new_x]
         for v in v_hat:
             # Cast to float() because of warning from BoTorch
             decoded = ML_model.decoder(v.float(), indexes)
-            x = ML_model.softmax(decoded[0])
-            previous.model_results.append([x.detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
+            #x = ML_model.softmax(decoded[0])
+            previous.model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
 
         if is_initial_run:
             previous.train_x = new_x
@@ -199,9 +226,9 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 
     # set some defaults, highly WIP
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    model_path= f"{dir_path}/../Models/vae.onnx"
+    model_path= f"{dir_path}/../Models/bvae.onnx"
     surrogate_path = f"{dir_path}/../Models/vae-surrogate.onnx"
-    parameters_path = f"{dir_path}/../HyperparameterLogs/VAE.json"
+    parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Rather use a surrogate if it already exists
@@ -225,7 +252,7 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 
         #best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
 
-        model = VAE(
+        model = BVAE(
             in_dim=in_dim,
             out_dim=out_dim,
             dropout_prob=dropout,
@@ -295,7 +322,7 @@ def get_plan_latency(args, sampled_plan) -> float:
 
     exec_time = int(exec_time_str)
 
-    print(float(exec_time))
+    print(exec_time)
 
     return exec_time
 

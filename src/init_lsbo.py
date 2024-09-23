@@ -68,13 +68,13 @@ def main(args) -> None:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', default='vae')
+    parser.add_argument('--model', default='bvae')
     parser.add_argument('--exec', type=str, default='/var/www/html/wayang-assembly/target/wayang-0.7.1/bin/wayang-submit')
     parser.add_argument('--namespace', type=str, default='org.apache.wayang.ml.benchmarks.LSBORunner')
     parser.add_argument('--args', type=str, default='java,spark,flink,giraph file:///var/www/html/data')
     parser.add_argument('--trainset', type=str, default='./src/Data/naive-lsbo.txt')
-    parser.add_argument('--model-path', default='./src/Models/vae.onnx')
-    parser.add_argument('--parameters', default='./src/HyperparameterLogs/VAE.json')
+    parser.add_argument('--model-path', default='./src/Models/bvae.onnx')
+    parser.add_argument('--parameters', default='./src/HyperparameterLogs/BVAE.json')
     parser.add_argument('--name', type=str, default='')
     parser.add_argument('--lr', type=str, default='[1e-6, 0.1]')
     parser.add_argument('--epochs', type=int, default=100)
