@@ -36,7 +36,6 @@ from botorch.generation.gen import get_best_candidates, gen_candidates_torch
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
-import matplotlib.pyplot as plt
 
 TIMEOUT = float(60 * 60 * 60)
 
@@ -92,8 +91,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
     latent_vector_sample = latent_vector[0].max().item()
 
     #bounds = torch.tensor([[-1.0] * d, [1.0] * d], device=device, dtype=dtype)
-    bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
-    #bounds = torch.stack([-torch.ones(d), torch.ones(d)])
+    #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
+    bounds = torch.stack([-torch.ones(d), torch.ones(d)])
 
     def get_latencies(plans) -> list[torch.Tensor]:
         global initial_latency
@@ -119,9 +118,9 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
                 print(f"V: {v}")
                 decoded = ML_model.decoder(v.float(), indexes)
                 print(f"Decoded: {decoded}")
-                #x = ML_model.softmax(decoded[0])
+                x = ML_model.softmax(decoded[0])
                 #model_results.append(x)
-                model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
+                model_results.append([x.detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
             results = get_latencies(model_results)
 
             return torch.tensor(results)
@@ -188,7 +187,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
 
         return new_x, new_obj
 
-    #torch.manual_seed(seed)
+    torch.manual_seed(seed)
 
     if previous is None:
         best_observed = []
