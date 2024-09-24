@@ -70,6 +70,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', default='bvae')
     parser.add_argument('--exec', type=str, default='/var/www/html/wayang-assembly/target/wayang-0.7.1/bin/wayang-submit')
+    parser.add_argument('--memory', type=str, default='-Xmx8g')
     parser.add_argument('--namespace', type=str, default='org.apache.wayang.ml.benchmarks.LSBORunner')
     parser.add_argument('--args', type=str, default='java,spark,flink,giraph file:///var/www/html/data')
     parser.add_argument('--trainset', type=str, default='./src/Data/naive-lsbo.txt')

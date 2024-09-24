@@ -26,14 +26,17 @@ from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_d
 from botorch.models import SingleTaskGP
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 from botorch.utils.transforms import normalize, unnormalize
-from botorch.models.transforms import Standardize
+from botorch.models.transforms import Standardize, Normalize
 from botorch import fit_gpytorch_mll
 from botorch.acquisition.logei import qLogExpectedImprovement
 from botorch.sampling.normal import SobolQMCNormalSampler
-from botorch.optim import optimize_acqf
+from botorch.sampling.stochastic_samplers import StochasticSampler
+from botorch.optim import optimize_acqf, gen_batch_initial_conditions
+from botorch.generation.gen import get_best_candidates, gen_candidates_torch
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
+import matplotlib.pyplot as plt
 
 TIMEOUT = float(60 * 60 * 60)
 
@@ -73,11 +76,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
     global initial_latency
     print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
-    for tree,target in plan:
-        encoded_plan = ML_model.encoder(tree)
-    latent_vector = encoded_plan[0]
-    indexes = encoded_plan[1]
-    d = latent_vector.shape[1]
+    with torch.no_grad():
+        for tree,target in plan:
+            encoded_plan = ML_model.encoder(tree)
+        latent_vector = encoded_plan[0]
+        indexes = encoded_plan[1]
+        d = latent_vector.shape[1]
     N_BATCH = 25
     BATCH_SIZE = 1
     NUM_RESTARTS = 10
@@ -85,10 +89,11 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
     MC_SAMPLES = 2000
     initial_latency = 0
     seed = 42
-    is_initial_run = False
     latent_vector_sample = latent_vector[0].max().item()
 
+    #bounds = torch.tensor([[-1.0] * d, [1.0] * d], device=device, dtype=dtype)
     bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
+    #bounds = torch.stack([-torch.ones(d), torch.ones(d)])
 
     def get_latencies(plans) -> list[torch.Tensor]:
         global initial_latency
@@ -105,16 +110,21 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         return results
 
     def objective_function(X):
-        # Move the prediction made in latent_vector by some random v
-        v_hat = [torch.add(v, latent_vector) for v in X]
-        model_results = []
+        with torch.no_grad():
+            # Move the prediction made in latent_vector by some random v
+            v_hat = [torch.add(v, latent_vector) for v in X]
+            model_results = []
 
-        for v in v_hat:
-            decoded = ML_model.decoder(v.float(), indexes)
-            model_results.append(decoded)
-        results = get_latencies(model_results)
+            for v in v_hat:
+                print(f"V: {v}")
+                decoded = ML_model.decoder(v.float(), indexes)
+                print(f"Decoded: {decoded}")
+                #x = ML_model.softmax(decoded[0])
+                #model_results.append(x)
+                model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
+            results = get_latencies(model_results)
 
-        return torch.tensor(results)
+            return torch.tensor(results)
 
     def gen_initial_data(n: int = 1):
         global initial_latency
@@ -137,6 +147,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         model = SingleTaskGP(
             train_X=normalize(train_x, bounds),
             train_Y=train_obj,
+            input_transform=Normalize(d=d),
             outcome_transform=Standardize(m=1)
         )
         if state_dict is not None:
@@ -149,30 +160,37 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         return model
 
     def optimize_acqf_and_get_observation(acq_func):
-        candidates, _ = optimize_acqf(
-            acq_function=acq_func,
-            bounds=torch.stack(
-                [
-                    torch.zeros(d, dtype=dtype, device=device),
-                    torch.ones(d, dtype=dtype, device=device),
-                ]
-            ),
-            q=BATCH_SIZE,
-            num_restarts=NUM_RESTARTS,
-            raw_samples=RAW_SAMPLES,
+        Xinit = gen_batch_initial_conditions(
+            acq_func, bounds, q=BATCH_SIZE, num_restarts=NUM_RESTARTS, raw_samples=RAW_SAMPLES
         )
 
-        print(f"Candidates: {candidates}")
+        batch_candidates, batch_acq_values = gen_candidates_torch(
+            initial_conditions=Xinit,
+            acquisition_function=qEI,
+            lower_bounds=bounds[0],
+            upper_bounds=bounds[1],
+        )
+        """
+        candidates, _ = optimize_acqf(
+            acq_function=acq_func,
+            bounds=bounds,
+            q=BATCH_SIZE,
+            num_restarts=NUM_RESTARTS,, gen_batch_initial_conditions
+            raw_samples=RAW_SAMPLES,
+        )
+        """
+
+        #print(f"Candidates: {candidates}")
+        candidates = get_best_candidates(batch_candidates, batch_acq_values)
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         new_obj = objective_function(new_x).unsqueeze(-1)
 
         return new_x, new_obj
 
-    torch.manual_seed(seed)
+    #torch.manual_seed(seed)
 
     if previous is None:
-        is_initial_run = True
         best_observed = []
         train_x, train_obj, best_value = gen_initial_data()
         best_observed.append(best_value)
@@ -193,28 +211,26 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
 
         print(f"Best f: {previous.train_obj.max()}")
 
-        qmc_sampler = SobolQMCNormalSampler(torch.Size([MC_SAMPLES]), seed=seed)
+        sampler = StochasticSampler(sample_shape=torch.Size([MC_SAMPLES]))
+
         qEI = qLogExpectedImprovement(
             model=model,
-            sampler=qmc_sampler,
+            sampler=sampler,
             best_f=previous.train_obj.max()
         )
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
         print(f"New_x: {new_x}")
         print(f"New_obj: {new_obj}")
+        """
         v_hat = [latent_vector + v for v in new_x]
         for v in v_hat:
             # Cast to float() because of warning from BoTorch
             decoded = ML_model.decoder(v.float(), indexes)
             #x = ML_model.softmax(decoded[0])
             previous.model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
-
-        if is_initial_run:
-            previous.train_x = new_x
-            previous.train_obj = new_obj
-        else:
-            previous.update(new_x, new_obj)
+        """
+        previous.update(new_x, new_obj)
 
         print('Finish Bayesian Optimization for latent space', flush=True)
 
@@ -276,9 +292,11 @@ def get_plan_latency(args, sampled_plan) -> float:
 
     process = Popen([
         args.exec,
+        args.memory,
         args.namespace,
         args.args
     ], stdout=PIPE)
+
 
     """
     The first message received in the stdout should be the socket_port
@@ -290,18 +308,22 @@ def get_plan_latency(args, sampled_plan) -> float:
 
     sock_file, sock = open_connection(socket_port)
 
-    plan = read_from_wayang(sock_file)
+    _ = read_from_wayang(sock_file)
 
     print("Sending sampled plan back to Wayang")
 
-    input_plan = [sampled_plan[0].detach().numpy().tolist()[0], sampled_plan[1].detach().numpy().tolist()[0]]
+    #input_plan = [sampled_plan[0].detach().numpy().tolist()[0], sampled_plan[1].detach().numpy().tolist()[0]]
+    input_plan = sampled_plan
     dump_stream(iterator=[input_plan], stream=sock_file)
 
     sock_file.flush()
 
     print("Sent sampled plan back to Wayang")
 
-    print(process.stdout.read())
+    #print(process.stdout.read())
+    for line in iter(process.stdout.readline, b''):
+        print(line.rstrip())
+
     process.stdout.flush()
 
     try:
@@ -320,6 +342,9 @@ def get_plan_latency(args, sampled_plan) -> float:
 
     input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
 
+    sock_file.close()
+    sock.close()
+
     exec_time = int(exec_time_str)
 
     print(exec_time)
@@ -333,6 +358,7 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, index: int = 0, ti
 
     process = Popen([
         args.exec,
+        args.memory,
         args.namespace,
         args.args
     ], stdout=PIPE)
@@ -369,6 +395,7 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, index: int = 0, ti
     print(process.stdout.read())
     process.stdout.flush()
 
+    """
     try:
         if process.wait() != 0:
             print("Error closing Wayang process!")
@@ -384,6 +411,7 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, index: int = 0, ti
         lsbo_result.train_obj[index][0] = exec_time
 
         return lsbo_result, ("", "", exec_time)
+    """
 
     """
     input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")

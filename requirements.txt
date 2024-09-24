@@ -53,6 +53,7 @@ loguru==0.4.1
 Mako==1.3.3
 markdown2==2.3.8
 MarkupSafe==2.1.5
+matplotlib==3.9.2
 matplotlib-inline==0.1.7
 mpmath==1.3.0
 multidict
