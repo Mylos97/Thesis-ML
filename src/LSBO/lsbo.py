@@ -20,6 +20,7 @@ import torch.onnx
 from torch.utils.data import DataLoader
 import json
 from subprocess import PIPE, Popen
+import signal
 
 from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str
 
@@ -82,7 +83,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         latent_vector = encoded_plan[0]
         indexes = encoded_plan[1]
         d = latent_vector.shape[1]
-    N_BATCH = 25
+    N_BATCH = 100
     BATCH_SIZE = 1
     NUM_RESTARTS = 10
     RAW_SAMPLES = 256
@@ -92,8 +93,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
     latent_vector_sample = latent_vector[0].max().item()
 
     #bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
-    bounds = torch.stack([-torch.ones(d), torch.ones(d)])
+    bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
+    #bounds = torch.stack([-torch.ones(d), torch.ones(d)])
 
     def get_latencies(plans) -> list[torch.Tensor]:
         global initial_latency
@@ -116,9 +117,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
             model_results = []
 
             for v in v_hat:
-                print(f"V: {v}")
                 decoded = ML_model.decoder(v.float(), indexes)
-                print(f"Decoded: {decoded}")
                 #x = ML_model.softmax(decoded[0])
                 #model_results.append(x)
                 model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
@@ -154,7 +153,6 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
             model.load_state_dict(state_dict)
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
         mll.to(train_x)
-        print(f"Train x: {train_x}")
         fit_gpytorch_mll(mll)
 
         return model
@@ -220,8 +218,6 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         )
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
-        print(f"New_x: {new_x}")
-        print(f"New_obj: {new_obj}")
         """
         v_hat = [latent_vector + v for v in new_x]
         for v in v_hat:
@@ -232,7 +228,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         """
         previous.update(new_x, new_obj)
 
-        print('Finish Bayesian Optimization for latent space', flush=True)
+    print('Finish Bayesian Optimization for latent space', flush=True)
 
     return previous
 
@@ -289,12 +285,14 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 
 def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
+    global PLAN_CACHE
 
     process = Popen([
         args.exec,
         args.memory,
         args.namespace,
-        args.args
+        args.args,
+        str(args.query)
     ], stdout=PIPE)
 
 
@@ -323,12 +321,17 @@ def get_plan_latency(args, sampled_plan) -> float:
     #print(process.stdout.read())
     plan_out = ""
     for line in iter(process.stdout.readline, b''):
-        plan_out += line.rstrip().decode('utf-8')
-        print(line.rstrip())
+        line_str = line.rstrip().decode('utf-8')
+        if line_str.startswith("Encoding while choices: "):
+            plan_out += line_str
+            print(line_str)
+        elif plan_out != "":
+            break
+
 
     if plan_out in PLAN_CACHE:
         print("Seen this plan before")
-        process.kill()
+        os.system("pkill -TERM -P %s"%process.pid)
         sock_file.close()
         sock.close()
 
@@ -336,6 +339,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         return exec_time
 
     PLAN_CACHE.add(plan_out)
+    print(PLAN_CACHE)
     process.stdout.flush()
 
     try:
@@ -376,7 +380,8 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, index: int = 0, ti
         args.exec,
         args.memory,
         args.namespace,
-        args.args
+        args.args,
+        str(args.query)
     ], stdout=PIPE)
 
     """
