@@ -38,6 +38,7 @@ from OurModels.EncoderDecoder.bvae import BVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
 
 TIMEOUT = float(60 * 60 * 60)
+PLAN_CACHE = set()
 
 class LSBOResult:
     def __init__(
@@ -90,7 +91,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
     seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    #bounds = torch.tensor([[-1.0] * d, [1.0] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
     bounds = torch.stack([-torch.ones(d), torch.ones(d)])
 
@@ -118,9 +119,9 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
                 print(f"V: {v}")
                 decoded = ML_model.decoder(v.float(), indexes)
                 print(f"Decoded: {decoded}")
-                x = ML_model.softmax(decoded[0])
+                #x = ML_model.softmax(decoded[0])
                 #model_results.append(x)
-                model_results.append([x.detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
+                model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
             results = get_latencies(model_results)
 
             return torch.tensor(results)
@@ -241,9 +242,9 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 
     # set some defaults, highly WIP
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    model_path= f"{dir_path}/../Models/bvae.onnx"
+    model_path= f"{dir_path}/../Models/bvae-lsbo.onnx"
     surrogate_path = f"{dir_path}/../Models/vae-surrogate.onnx"
-    parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
+    parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE-LSBO.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Rather use a surrogate if it already exists
@@ -320,9 +321,21 @@ def get_plan_latency(args, sampled_plan) -> float:
     print("Sent sampled plan back to Wayang")
 
     #print(process.stdout.read())
+    plan_out = ""
     for line in iter(process.stdout.readline, b''):
+        plan_out += line.rstrip().decode('utf-8')
         print(line.rstrip())
 
+    if plan_out in PLAN_CACHE:
+        print("Seen this plan before")
+        process.kill()
+        sock_file.close()
+        sock.close()
+
+        exec_time = int(TIMEOUT * 100000)
+        return exec_time
+
+    PLAN_CACHE.add(plan_out)
     process.stdout.flush()
 
     try:
@@ -345,6 +358,10 @@ def get_plan_latency(args, sampled_plan) -> float:
     sock.close()
 
     exec_time = int(exec_time_str)
+
+    if TIMEOUT > exec_time:
+        TIMEOUT = exec_time
+        print(f"Found better plan, updating timeout: {TIMEOUT}")
 
     print(exec_time)
 
@@ -389,12 +406,10 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, index: int = 0, ti
     sock_file.flush()
 
     print("Sent sampled plan back to Wayang")
-    """
 
     print(process.stdout.read())
     process.stdout.flush()
 
-    """
     try:
         if process.wait() != 0:
             print("Error closing Wayang process!")
@@ -424,6 +439,8 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, index: int = 0, ti
 
     plan_data = (input, picked_plan, exec_time_str)
     """
+    process.kill()
+
     plan_data = (input, input, input)
 
     return lsbo_result, plan_data

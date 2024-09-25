@@ -355,11 +355,13 @@ class Beta_Vae_Loss(torch.nn.Module):
 
     def forward(self, prediction, target):
         recon_x, mu, logvar = prediction
-        recon_loss = F.mse_loss(recon_x, target, reduction='sum')
-        recon_loss = F.cross_entropy(recon_x, target)
-        klds = -0.5*(1 + logvar - mu.pow(2) - logvar.exp())
-        klds = klds * 0.0001
-        total_kld = klds.sum(1).mean(0, True)
+        #recon_loss = F.mse_loss(recon_x, target, reduction='sum')
+        #recon_loss = F.cross_entropy(recon_x, target)
+        recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
+        #klds = -0.5*(1 + logvar - mu.pow(2) - logvar.exp())
+        loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
+        total_kld = loss_reg * 0.0001
+        #total_kld = klds.sum(1).mean(0, True) * 0.0001
 
         """
         print(f"Recon loss: {recon_loss}")
@@ -368,4 +370,4 @@ class Beta_Vae_Loss(torch.nn.Module):
         print(f"Total kld: {total_kld}")
         print(f"Result: {recon_loss + total_kld*self.beta}")
         """
-        return recon_loss + total_kld*self.beta
+        return recon_loss + total_kld * self.beta
