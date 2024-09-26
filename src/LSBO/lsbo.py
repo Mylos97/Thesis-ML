@@ -236,14 +236,8 @@ def run_lsbo(input, args, previous: LSBOResult = None):
     # set some defaults, highly WIP
     dir_path = os.path.dirname(os.path.realpath(__file__))
     model_path= f"{dir_path}/../Models/bvae.onnx"
-    surrogate_path = f"{dir_path}/../Models/vae-surrogate.onnx"
     parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # Rather use a surrogate if it already exists
-    if os.path.isfile(surrogate_path):
-        print(f"Using existing surrogate model at {surrogate_path}", flush=True)
-        model_path = surrogate_path
 
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
@@ -306,14 +300,10 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         _ = read_from_wayang(sock_file)
 
-        print("Sending sampled plan back to Wayang")
-
         input_plan = sampled_plan
         dump_stream(iterator=[input_plan], stream=sock_file)
 
         sock_file.flush()
-
-        print("Sent sampled plan back to Wayang")
 
         #print(process.stdout.read())
         plan_out = ""
@@ -333,6 +323,8 @@ def get_plan_latency(args, sampled_plan) -> float:
 
             exec_time = int(TIMEOUT * 100000)
             return exec_time
+
+        print("Sampling new plan")
 
         PLAN_CACHE.add(plan_out)
         process.stdout.flush()
@@ -385,7 +377,6 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3
     """
 
     socket_port = int(process.stdout.readline().rstrip().decode("utf-8"))
-    print(socket_port)
     process.stdout.flush()
 
     sock_file, sock = open_connection(socket_port)
