@@ -21,6 +21,7 @@ from torch.utils.data import DataLoader
 import json
 from subprocess import PIPE, Popen
 import signal
+import threading
 
 from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str
 
@@ -40,6 +41,8 @@ from Util.communication import read_int, UTF8Deserializer, dump_stream, open_con
 
 TIMEOUT = float(60 * 60 * 60)
 PLAN_CACHE = set()
+time_limit_reached = False
+best_plan_data = None
 
 class LSBOResult:
     def __init__(
@@ -73,8 +76,15 @@ class LSBOResult:
 
         self.state_dict = self.model.state_dict()
 
-def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -> LSBOResult:
+def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     global initial_latency
+    global time_limit_reached
+
+    def set_time_limit_reached():
+        global time_limit_reached
+        time_limit_reached = True
+        print("Time limit reached, stopping LSBO loop")
+
     print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
     with torch.no_grad():
@@ -83,7 +93,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         latent_vector = encoded_plan[0]
         indexes = encoded_plan[1]
         d = latent_vector.shape[1]
-    N_BATCH = 100
+    #N_BATCH = 100
     BATCH_SIZE = 1
     NUM_RESTARTS = 10
     RAW_SAMPLES = 256
@@ -100,14 +110,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         global initial_latency
         results = []
         for plan in plans:
-            #results.append(plan[0].sum().item())
             if initial_latency == 0:
                 latency = get_plan_latency(args, plan)
             else:
                 latency = initial_latency - get_plan_latency(args, plan)
             results.append(latency)
 
-        #convert_to_json(plans)
         return results
 
     def objective_function(X):
@@ -118,8 +126,6 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
 
             for v in v_hat:
                 decoded = ML_model.decoder(v.float(), indexes)
-                #x = ML_model.softmax(decoded[0])
-                #model_results.append(x)
                 model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
             results = get_latencies(model_results)
 
@@ -127,7 +133,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
 
     def gen_initial_data(n: int = 1):
         global initial_latency
-        print(f"Generating {n} initial samples")
+
         train_x = unnormalize(
             torch.rand(n, d, device=device, dtype=dtype),
             bounds=bounds)
@@ -168,17 +174,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
             lower_bounds=bounds[0],
             upper_bounds=bounds[1],
         )
-        """
-        candidates, _ = optimize_acqf(
-            acq_function=acq_func,
-            bounds=bounds,
-            q=BATCH_SIZE,
-            num_restarts=NUM_RESTARTS,, gen_batch_initial_conditions
-            raw_samples=RAW_SAMPLES,
-        )
-        """
 
-        #print(f"Candidates: {candidates}")
         candidates = get_best_candidates(batch_candidates, batch_acq_values)
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
@@ -197,7 +193,11 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
 
         previous = LSBOResult(ML_model, None, model_results, tree, train_x, train_obj, state_dict, best_observed)
 
-    for iteration in range(N_BATCH):
+    t = threading.Timer(args.time * 60, set_time_limit_reached)
+    t.start()
+
+    #for iteration in range(N_BATCH):
+    while not time_limit_reached:
 
         model = get_fitted_model(
             train_x=previous.train_x,
@@ -218,19 +218,16 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None) -
         )
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
-        """
-        v_hat = [latent_vector + v for v in new_x]
-        for v in v_hat:
-            # Cast to float() because of warning from BoTorch
-            decoded = ML_model.decoder(v.float(), indexes)
-            #x = ML_model.softmax(decoded[0])
-            previous.model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
-        """
         previous.update(new_x, new_obj)
 
     print('Finish Bayesian Optimization for latent space', flush=True)
 
-    return previous
+    index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
+
+    best_plan = previous.train_x[index]
+    best_latency = initial_latency - best_impr.item()
+
+    return best_plan, best_latency
 
 
 def run_lsbo(input, args, previous: LSBOResult = None):
@@ -286,68 +283,81 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
     global PLAN_CACHE
-
-    process = Popen([
-        args.exec,
-        args.memory,
-        args.namespace,
-        args.args,
-        str(args.query)
-    ], stdout=PIPE)
-
-
-    """
-    The first message received in the stdout should be the socket_port
-    """
-
-    socket_port = int(process.stdout.readline().rstrip().decode("utf-8"))
-    print(socket_port)
-    process.stdout.flush()
-
-    sock_file, sock = open_connection(socket_port)
-
-    _ = read_from_wayang(sock_file)
-
-    print("Sending sampled plan back to Wayang")
-
-    #input_plan = [sampled_plan[0].detach().numpy().tolist()[0], sampled_plan[1].detach().numpy().tolist()[0]]
-    input_plan = sampled_plan
-    dump_stream(iterator=[input_plan], stream=sock_file)
-
-    sock_file.flush()
-
-    print("Sent sampled plan back to Wayang")
-
-    #print(process.stdout.read())
-    plan_out = ""
-    for line in iter(process.stdout.readline, b''):
-        line_str = line.rstrip().decode('utf-8')
-        if line_str.startswith("Encoding while choices: "):
-            plan_out += line_str
-            print(line_str)
-        elif plan_out != "":
-            break
-
-
-    if plan_out in PLAN_CACHE:
-        print("Seen this plan before")
-        os.system("pkill -TERM -P %s"%process.pid)
-        sock_file.close()
-        sock.close()
-
-        exec_time = int(TIMEOUT * 100000)
-        return exec_time
-
-    PLAN_CACHE.add(plan_out)
-    print(PLAN_CACHE)
-    process.stdout.flush()
+    global best_plan_data
 
     try:
+        process = Popen([
+            args.exec,
+            args.memory,
+            args.namespace,
+            args.args,
+            str(args.query)
+        ], stdout=PIPE)
+
+
+        """
+        The first message received in the stdout should be the socket_port
+        """
+
+        socket_port = int(process.stdout.readline().rstrip().decode("utf-8"))
+        process.stdout.flush()
+
+        sock_file, sock = open_connection(socket_port)
+
+        _ = read_from_wayang(sock_file)
+
+        print("Sending sampled plan back to Wayang")
+
+        input_plan = sampled_plan
+        dump_stream(iterator=[input_plan], stream=sock_file)
+
+        sock_file.flush()
+
+        print("Sent sampled plan back to Wayang")
+
+        #print(process.stdout.read())
+        plan_out = ""
+        for line in iter(process.stdout.readline, b''):
+            line_str = line.rstrip().decode('utf-8')
+            if line_str.startswith("Encoding while choices: "):
+                plan_out += line_str
+                #print(line_str)
+            elif plan_out != "":
+                break
+
+        if plan_out in PLAN_CACHE:
+            print("Seen this plan before")
+            os.system("pkill -TERM -P %s"%process.pid)
+            sock_file.close()
+            sock.close()
+
+            exec_time = int(TIMEOUT * 100000)
+            return exec_time
+
+        PLAN_CACHE.add(plan_out)
+        process.stdout.flush()
+
         if process.wait(TIMEOUT) != 0:
             print("Error closing Wayang process!")
 
             exec_time = int(TIMEOUT * 100000)
             return exec_time
+
+        input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
+
+        sock_file.close()
+        sock.close()
+
+        exec_time = int(exec_time_str)
+
+        if TIMEOUT > exec_time:
+            TIMEOUT = exec_time
+            print(f"Found better plan, updating timeout: {TIMEOUT}")
+            best_plan_data = input, picked_plan, exec_time_str
+
+        print(exec_time)
+
+        return exec_time
 
     except Exception:
         print("Didnt finish fast enough")
@@ -356,24 +366,10 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         return exec_time
 
-    input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
 
-    sock_file.close()
-    sock.close()
-
-    exec_time = int(exec_time_str)
-
-    if TIMEOUT > exec_time:
-        TIMEOUT = exec_time
-        print(f"Found better plan, updating timeout: {TIMEOUT}")
-
-    print(exec_time)
-
-    return exec_time
-
-
-def request_wayang_plan(args, lsbo_result: LSBOResult = None, index: int = 0, timeout: float = 3600) -> LSBOResult:
+def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3600):
     global TIMEOUT
+    global best_plan_data
     TIMEOUT = timeout
 
     process = Popen([
@@ -400,55 +396,9 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, index: int = 0, ti
     # and updating the actual latency of plans
     lsbo_result = run_lsbo([plan], args, lsbo_result)
 
-    """
-    print("Sending sampled plan back to Wayang")
-
-    dump_stream(iterator=[lsbo_result.model_results[0]], stream=sock_file)
-
-    for plan in lsbo_result.model_results:
-        print(plan)
-
-    sock_file.flush()
-
-    print("Sent sampled plan back to Wayang")
-
-    print(process.stdout.read())
-    process.stdout.flush()
-
-    try:
-        if process.wait() != 0:
-            print("Error closing Wayang process!")
-
-            exec_time = int(timeout * 100000)
-            lsbo_result.train_obj[index][0] = exec_time
-
-            return lsbo_result, ("", "", exec_time)
-    except Exception:
-        print("Didnt finish fast enough")
-
-        exec_time = int(timeout * 100000)
-        lsbo_result.train_obj[index][0] = exec_time
-
-        return lsbo_result, ("", "", exec_time)
-    """
-
-    """
-    input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
-
-    exec_time = int(exec_time_str)
-
-    print(float(exec_time))
-
-    lsbo_result.train_obj[index][0] = exec_time
-    print(f"Train_obj: {lsbo_result.train_obj}")
-
-    plan_data = (input, picked_plan, exec_time_str)
-    """
     process.kill()
 
-    plan_data = (input, input, input)
-
-    return lsbo_result, plan_data
+    return best_plan_data
 
 def read_from_wayang(sock_file):
     udf_length = read_int(sock_file)

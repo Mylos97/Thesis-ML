@@ -16,7 +16,6 @@
 #
 
 import argparse
-import threading
 
 from LSBO.lsbo import LSBOResult, request_wayang_plan
 from main import main as retrain
@@ -28,42 +27,17 @@ time_limit_reached = False
 
 def main(args) -> None:
     lsbo_result = None
-    best_plan = None
     timeout = float(60 * 60 * 60)
-    index = -1
 
-    def set_time_limit_reached():
-        global time_limit_reached
-        time_limit_reached = True
-        print("Time limit reached, stopping LSBO loop")
-
-    """
-    t = threading.Timer(args.time * 60, set_time_limit_reached)
-    t.start()
-
-    while not time_limit_reached:
-    """
-    index += 1
-    lsbo_result, plan_data = request_wayang_plan(args, lsbo_result, index, timeout)
-
-    if best_plan is None:
-        best_plan = plan_data
-    elif float(best_plan[2]) > float(plan_data[2]):
-        print("Found better plan latency")
-        best_plan = plan_data
-
-    timeout = (float(best_plan[2]) * 1.5) / 1000
-
-    print(best_plan)
+    plan_data = request_wayang_plan(args, lsbo_result, timeout)
 
     # add best plan to trainset
     with open(args.trainset, 'a') as training_file:
-        training_file.write(f"{best_plan[0]}:{best_plan[1]}:{best_plan[2]}\n")
+        training_file.write(f"{plan_data[0]}:{plan_data[1]}:{plan_data[2]}\n")
         print(f"Successfully appended best sampled plan to {args.trainset}")
 
     args.retrain = args.trainset
     retrain(args)
-    #lsbo()
 
 
 if __name__ == '__main__':
