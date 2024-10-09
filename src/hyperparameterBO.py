@@ -90,7 +90,7 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'z_dim',
             'type': 'choice',
-            'values': [2,4,8,16,32,48],
+            'values': [1,2,4,8],
             'value_type': 'int',
             'is_ordered': True,
             'sort_values' : True
