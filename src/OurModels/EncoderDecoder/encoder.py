@@ -26,7 +26,7 @@ class TreeEncoder(nn.Module):
             nn.Dropout(dropout_prob),
             nn.Linear(32, z_dim),
             nn.BatchNorm1d(z_dim),
-            nn.LeakyReLU()
+            nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
         )
 
