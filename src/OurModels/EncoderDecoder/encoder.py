@@ -16,10 +16,10 @@ class TreeEncoder(nn.Module):
             BinaryTreeConv(128, 64),
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU()),
-            DynamicPooling(),
         )
 
         self.linear = nn.Sequential(
+            DynamicPooling(),
             nn.Linear(64, 32),
             nn.BatchNorm1d(32),
             nn.LeakyReLU(),
