@@ -102,8 +102,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    #bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype)
-    bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
     #bounds = torch.stack([-torch.ones(d), torch.ones(d)])
 
     def get_latencies(plans) -> list[torch.Tensor]:
@@ -353,6 +353,9 @@ def get_plan_latency(args, sampled_plan) -> float:
 
     except Exception:
         print("Didnt finish fast enough")
+        os.system("pkill -TERM -P %s"%process.pid)
+        sock_file.close()
+        sock.close()
 
         exec_time = int(TIMEOUT * 100000)
 

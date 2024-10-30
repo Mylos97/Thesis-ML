@@ -6,6 +6,7 @@ class TreeDecoder(nn.Module):
     def __init__(self, output_dim, dropout_prob, z_dim) -> None:
         super(TreeDecoder, self).__init__()
 
+        """
         self.tree_conv = nn.Sequential(
             BinaryTreeConv(64, 128),
             TreeLayerNorm(),
@@ -32,6 +33,29 @@ class TreeDecoder(nn.Module):
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
             nn.Linear(1024, 4096),
+            nn.BatchNorm1d(4096),
+            nn.LeakyReLU(),
+            nn.Dropout(dropout_prob),
+        )
+        """
+
+        self.tree_conv = nn.Sequential(
+            BinaryTreeConv(32, 64),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(64, 128),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(128, 256),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(256, output_dim),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU())
+        )
+
+        self.linear = nn.Sequential(
+            nn.Linear(z_dim, 4096),
             nn.BatchNorm1d(4096),
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),

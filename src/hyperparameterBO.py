@@ -96,6 +96,8 @@ def do_hyperparameter_BO(
             'sort_values' : True
         })
 
+    torch.manual_seed(42)
+
     ax_client.create_experiment(
         name='tune_model',
         parameters=parameters,
