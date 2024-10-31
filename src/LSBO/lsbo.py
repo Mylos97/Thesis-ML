@@ -311,7 +311,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             line_str = line.rstrip().decode('utf-8')
             if line_str.startswith("Encoding while choices: "):
                 plan_out += line_str
-                #print(line_str)
+                print(line_str)
             elif plan_out != "":
                 break
 
@@ -329,7 +329,11 @@ def get_plan_latency(args, sampled_plan) -> float:
         PLAN_CACHE.add(plan_out)
         process.stdout.flush()
 
-        if process.wait(TIMEOUT) != 0:
+        out, err = process.communicate(timeout=TIMEOUT)
+        #if process.wait(TIMEOUT) != 0:
+        print(f"Out: {out}")
+        print(f"Err: {err}")
+        if err != b'':
             print("Error closing Wayang process!")
 
             exec_time = int(TIMEOUT * 100000)
