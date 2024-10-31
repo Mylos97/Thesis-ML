@@ -286,7 +286,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             args.namespace,
             args.args,
             str(args.query)
-        ], stdout=PIPE)
+        ], stdout=PIPE, stderr=PIPE)
 
 
         """
