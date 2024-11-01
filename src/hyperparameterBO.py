@@ -21,13 +21,21 @@ def do_hyperparameter_BO(
     epochs,
     trials,
     plots,
+    test_data = None,
+    val_data = None,
     weights:dict=None,
     best_parameters=None
     ):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
 
-        train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=batch_size)
+        train_loader, val_loader, test_loader = get_data_loaders(
+            data=data,
+            test_data=test_data,
+            val_data=val_data,
+            batch_size=batch_size
+        )
+
         if model_class == BVAE:
             l_function = loss_function(parameters.get('beta', 1.0))
         else:
@@ -123,7 +131,14 @@ def do_hyperparameter_BO(
             elem = data.__getitem__(i%len(data))
             data.append(elem)
 
-    train_loader, val_loader, test_loader = get_data_loaders(data=data, batch_size=best_parameters.get('batch_size', 32))
+    print(f"Test data: {test_data}")
+    print(f"Val data: {val_data}")
+    train_loader, val_loader, test_loader = get_data_loaders(
+        data=data,
+        test_data=test_data,
+        val_data=val_data,
+        batch_size=best_parameters.get('batch_size', 32),
+    )
 
     combined_train_valid_set = torch.utils.data.ConcatDataset([
         train_loader.dataset.dataset,

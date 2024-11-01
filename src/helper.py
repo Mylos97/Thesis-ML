@@ -58,6 +58,7 @@ def transformer(x: tuple) -> np.array:
 
 def make_dataloader(x: Dataset, batch_size: int) -> DataLoader:
     dataloader = DataLoader(x, batch_size=batch_size, drop_last=True, shuffle=True)
+
     return dataloader
 
 
@@ -98,7 +99,7 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
 
 def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_ops: int = 43, num_platfs: int = 9) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
-    path = get_relative_path('naive-lsbo.txt', 'Data') if path == None else path
+    path = get_relative_path('train.naive-lsbo.txt', 'Data') if path == None else path
 
     def platform_encodings(optimal_tree: str):
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
@@ -322,16 +323,26 @@ def set_weights(weights: dict, model: torch.nn.Module, device: str) -> torch.nn.
     return model
 
 
-def get_data_loaders(data, batch_size):
+def get_data_loaders(data, batch_size, test_data = None, val_data = None):
+    #if test_data is None and val_data is None:
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
         data, [0.8, 0.1, 0.1]
     )
+    """
+    else:
+        print("Actually using static splits of data")
+        train_dataset = data
+        val_dataset = val_data
+        test_dataset = test_data
+    """
+
     train_loader = make_dataloader(x=train_dataset, batch_size=batch_size)
     val_loader = make_dataloader(x=val_dataset, batch_size=batch_size)
     test_loader = make_dataloader(x=test_dataset, batch_size=batch_size)
     print(f"Train set len: {len(train_loader)}")
     print(f"Val set len: {len(val_loader)}")
     print(f"Test set len: {len(test_loader)}")
+
     return train_loader, val_loader, test_loader
 
 

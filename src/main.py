@@ -19,6 +19,8 @@ def main(args) -> None:
     data = None
     weights = None
     path = None
+    test_data = None
+    val_data = None
     lr = ast.literal_eval(args.lr)
     epochs = args.epochs
     trials = args.trials
@@ -35,6 +37,8 @@ def main(args) -> None:
 
     if args.model == 'bvae':
         data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.naive-lsbo.txt', 'Data'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validation.naive-lsbo.txt', 'Data'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
@@ -58,7 +62,22 @@ def main(args) -> None:
         with open(args.parameters) as file:
             best_parameters = json.load(file)
 
-        best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots, best_parameters=best_parameters)
+        best_model, x = do_hyperparameter_BO(
+                model_class=model_class,
+                data=data,
+                test_data=test_data,
+                val_data=val_data,
+                in_dim=in_dim,
+                out_dim=out_dim,
+                loss_function=loss_function,
+                device=device,
+                lr=lr,
+                weights=weights,
+                epochs=epochs,
+                trials=trials,
+                plots=args.plots,
+                best_parameters=best_parameters
+        )
 
         model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
 
@@ -66,7 +85,21 @@ def main(args) -> None:
             model=best_model, x=x, model_name=args.model_path
         )
     else:
-        best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
+        best_model, x = do_hyperparameter_BO(
+                model_class=model_class,
+                data=data,
+                test_data=test_data,
+                val_data=val_data,
+                in_dim=in_dim,
+                out_dim=out_dim,
+                loss_function=loss_function,
+                device=device,
+                lr=lr,
+                weights=weights,
+                epochs=epochs,
+                trials=trials,
+                plots=args.plots
+        )
 
         model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
 
