@@ -34,7 +34,7 @@ def main(args) -> None:
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
-        data, in_dim, out_dim = load_autoencoder_data(path=path, device=device)
+        data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
