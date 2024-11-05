@@ -110,13 +110,13 @@ def do_hyperparameter_BO(
 
     torch.manual_seed(42)
 
-    ax_client.create_experiment(
-        name='tune_model',
-        parameters=parameters,
-        objectives={'loss': ObjectiveProperties(minimize=True)},
-    )
-
     if best_parameters is None:
+        ax_client.create_experiment(
+            name='tune_model',
+            parameters=parameters,
+            objectives={'loss': ObjectiveProperties(minimize=True)},
+        )
+
         for _ in range(trials):
             parameters, trial_index = ax_client.get_next_trial()
             ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
@@ -146,15 +146,22 @@ def do_hyperparameter_BO(
     print(f"Test data: {test_loader}")
     print(f"Val data: {val_loader}")
 
-    combined_train_valid_set = torch.utils.data.ConcatDataset([
-        train_loader.dataset,
-        val_loader.dataset,
-    ])
-    combined_train_valid_loader = torch.utils.data.DataLoader(
-        combined_train_valid_set,
-        batch_size=best_parameters.get('batch_size', 32),
-        shuffle=True
-    )
+    if is_retraining:
+        combined_train_valid_loader = torch.utils.data.DataLoader(
+            train_loader.dataset,
+            batch_size=best_parameters.get('batch_size', 32),
+            shuffle=True
+        )
+    else:
+        combined_train_valid_set = torch.utils.data.ConcatDataset([
+            train_loader.dataset,
+            val_loader.dataset,
+        ])
+        combined_train_valid_loader = torch.utils.data.DataLoader(
+            combined_train_valid_set,
+            batch_size=best_parameters.get('batch_size', 32),
+            shuffle=True
+        )
 
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 

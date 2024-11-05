@@ -114,11 +114,14 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
 
     trees = []
     targets = []
+
     # structure tree -> (exec-plan, latency)
     tree_latency_map = generate_tree_latency_map(path)
 
     if retrain_path != "":
-        tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
+        #tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
+        tree_latency_map = generate_tree_latency_map(retrain_path)
+
 
     for tree, tup in tree_latency_map.items():
         optimal_tree = platform_encodings(tup[0])
@@ -364,8 +367,8 @@ class Beta_Vae_Loss(torch.nn.Module):
 
     def forward(self, prediction, target):
         recon_x, mu, logvar = prediction
-        #recon_loss = F.cross_entropy(recon_x, target)
-        recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
+        recon_loss = F.cross_entropy(recon_x, target)
+        #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
         loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
         total_kld = loss_reg * 0.0001
 

@@ -350,6 +350,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             TIMEOUT = exec_time
             print(f"Found better plan, updating timeout: {TIMEOUT}")
             best_plan_data = input, picked_plan, exec_time_str
+            print(f"Found better plan: {best_plan_data}")
 
         print(exec_time)
 

@@ -37,8 +37,8 @@ def main(args) -> None:
 
     if args.model == 'bvae':
         data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.naive-lsbo.txt', 'Data'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.naive-lsbo.txt', 'Data'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validation.naive-lsbo.txt', 'Data'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.naive-lsbo.txt', 'Data'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validation.naive-lsbo.txt', 'Data'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
@@ -59,8 +59,10 @@ def main(args) -> None:
 
     if args.retrain:
         # dont do shit
+        print("Retraining a model, not actually running hyperparameterBO")
         with open(args.parameters) as file:
             best_parameters = json.load(file)
+            best_parameters["batch_size"] = 7
 
         best_model, x = do_hyperparameter_BO(
                 model_class=model_class,
