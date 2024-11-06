@@ -116,16 +116,26 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
     targets = []
 
     # structure tree -> (exec-plan, latency)
-    tree_latency_map = generate_tree_latency_map(path)
+    #tree_latency_map = generate_tree_latency_map(path)
+    tree_latency_list = generate_tree_latency_list(path)
 
     if retrain_path != "":
         #tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
+        tree_latency_list = generate_tree_latency_list(retrain_path)
+        """
         tree_latency_map = generate_tree_latency_map(retrain_path)
 
 
     for tree, tup in tree_latency_map.items():
         optimal_tree = platform_encodings(tup[0])
         tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
+        trees.append(tree)
+        targets.append(optimal_tree)
+    """
+
+    for tup in tree_latency_list:
+        optimal_tree = platform_encodings(tup[1])
+        tree, optimal_tree = ast.literal_eval(tup[0]), ast.literal_eval(optimal_tree)
         trees.append(tree)
         targets.append(optimal_tree)
 
@@ -204,6 +214,20 @@ def generate_tree_latency_map(path):
             else:
                 tree_latency_map[tree] = (optimal_tree, latency)
     return tree_latency_map
+
+def generate_tree_latency_list(path):
+    tree_latency_list = []
+    with open(path, 'r') as f:
+        for l in f:
+            s = l.split(':')
+            tree, optimal_tree, latency = s[0], s[1], int(s[2].strip())
+            tree, optimal_tree = (
+                remove_operator_ids(tree.strip()),
+                remove_operator_ids(optimal_tree.strip()),
+            )
+            tree_latency_list.append((tree, optimal_tree, latency))
+
+    return tree_latency_list
 
 def generate_tree_latency_map_from_str(plans: str):
     tree_latency_map = {}
