@@ -116,13 +116,12 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
     targets = []
 
     # structure tree -> (exec-plan, latency)
-    #tree_latency_map = generate_tree_latency_map(path)
-    tree_latency_list = generate_tree_latency_list(path)
+    tree_latency_map = generate_tree_latency_map(path)
+    #tree_latency_list = generate_tree_latency_list(path)
 
     if retrain_path != "":
         #tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
-        tree_latency_list = generate_tree_latency_list(retrain_path)
-        """
+        #tree_latency_list = generate_tree_latency_list(retrain_path)
         tree_latency_map = generate_tree_latency_map(retrain_path)
 
 
@@ -131,13 +130,14 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
         tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
         trees.append(tree)
         targets.append(optimal_tree)
-    """
 
+    """
     for tup in tree_latency_list:
         optimal_tree = platform_encodings(tup[1])
         tree, optimal_tree = ast.literal_eval(tup[0]), ast.literal_eval(optimal_tree)
         trees.append(tree)
         targets.append(optimal_tree)
+    """
 
     print(f"Tree size: {len(trees)}")
     print(f"Targets size: {len(targets)}")

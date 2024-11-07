@@ -36,7 +36,7 @@ def main(args) -> None:
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.naive-lsbo.txt', 'Data'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('small.train.naive-lsbo.txt', 'Data'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.naive-lsbo.txt', 'Data'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         val_data, _, _ = load_autoencoder_data(path=get_relative_path('validation.naive-lsbo.txt', 'Data'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         model_class = BVAE

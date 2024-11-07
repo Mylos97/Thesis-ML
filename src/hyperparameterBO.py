@@ -146,6 +146,7 @@ def do_hyperparameter_BO(
     print(f"Test data: {test_loader}")
     print(f"Val data: {val_loader}")
 
+    """
     if is_retraining:
         combined_train_valid_loader = torch.utils.data.DataLoader(
             train_loader.dataset,
@@ -153,15 +154,16 @@ def do_hyperparameter_BO(
             shuffle=True
         )
     else:
-        combined_train_valid_set = torch.utils.data.ConcatDataset([
-            train_loader.dataset,
-            val_loader.dataset,
-        ])
-        combined_train_valid_loader = torch.utils.data.DataLoader(
-            combined_train_valid_set,
-            batch_size=best_parameters.get('batch_size', 32),
-            shuffle=True
-        )
+    """
+    combined_train_valid_set = torch.utils.data.ConcatDataset([
+        train_loader.dataset,
+        val_loader.dataset,
+    ])
+    combined_train_valid_loader = torch.utils.data.DataLoader(
+        combined_train_valid_set,
+        batch_size=best_parameters.get('batch_size', 32),
+        shuffle=True
+    )
 
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
