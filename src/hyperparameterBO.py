@@ -3,7 +3,7 @@ import datetime
 import torch.nn as nn
 import json
 from ax.service.ax_client import AxClient, ObjectiveProperties
-from helper import generate_latency_map_intersect, get_data_loaders, get_relative_path
+from helper import generate_latency_map_intersect, get_data_loaders, get_relative_path, make_dataloader
 from train import train, evaluate
 from ax.utils.notebook.plotting import render
 from OurModels.EncoderDecoder.bvae import BVAE
@@ -159,6 +159,7 @@ def do_hyperparameter_BO(
         train_loader.dataset,
         val_loader.dataset,
     ])
+
     combined_train_valid_loader = torch.utils.data.DataLoader(
         combined_train_valid_set,
         batch_size=best_parameters.get('batch_size', 32),
@@ -172,7 +173,7 @@ def do_hyperparameter_BO(
     else:
         l_function = loss_function()
 
-    best_model, tree = train(model_class=model_class, training_data_loader=combined_train_valid_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=l_function, device=device, parameters=best_parameters, epochs=epochs, weights=weights)
+    best_model, tree = train(model_class=model_class, training_data_loader=train_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=l_function, device=device, parameters=best_parameters, epochs=epochs, weights=weights)
     test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device)
 
     # write best parameters to file

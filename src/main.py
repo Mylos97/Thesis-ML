@@ -36,9 +36,9 @@ def main(args) -> None:
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('small.train.naive-lsbo.txt', 'Data'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('training.txt', 'Data/splits'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.naive-lsbo.txt', 'Data'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validation.naive-lsbo.txt', 'Data'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validation.txt', 'Data/splits'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
@@ -48,7 +48,9 @@ def main(args) -> None:
         loss_function = torch.nn.BCELoss
 
     if args.model == "cost":
-        data, in_dim, out_dim = load_costmodel_data(path=path, device=device)
+        data, in_dim, out_dim = load_costmodel_data(path=get_relative_path('training.txt', 'Data/splits'), device=device)
+        test_data, _, _ = load_costmodel_data(path=get_relative_path('test.naive-lsbo.txt', 'Data'), device=device)
+        val_data, _, _ = load_costmodel_data(path=get_relative_path('validation.txt', 'Data/splits'), device=device)
         model_class = CostModel
         loss_function = torch.nn.L1Loss
 
