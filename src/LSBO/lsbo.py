@@ -235,7 +235,7 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 
     # set some defaults, highly WIP
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    model_path= f"{dir_path}/../Models/bvae.onnx"
+    model_path= f"{dir_path}/../Models/bvae-backup.onnx"
     parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
