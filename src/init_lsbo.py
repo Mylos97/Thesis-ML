@@ -35,7 +35,8 @@ def main(args) -> None:
 
     # add best plan to trainset
     with open(args.trainset, 'a') as training_file:
-        training_file.write(f"{plan_data[0]}:{plan_data[1]}:{plan_data[2]}\n")
+        #training_file.write(f"{plan_data[0]}:{plan_data[1]}:{plan_data[2]}\n")
+        training_file.write(f"{plan_data[1]}:{plan_data[0]}:{plan_data[2]}\n")
         print(f"Successfully appended best sampled plan to {args.trainset}")
     """
 
