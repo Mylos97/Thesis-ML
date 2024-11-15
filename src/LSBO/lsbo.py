@@ -235,7 +235,7 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 
     # set some defaults, highly WIP
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    model_path= f"{dir_path}/../Models/bvae-backup.onnx"
+    model_path= f"{dir_path}/../Models/bvae-surrogate.onnx"
     parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -309,6 +309,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         plan_out = ""
         for line in iter(process.stdout.readline, b''):
             line_str = line.rstrip().decode('utf-8')
+            print(line_str)
             if line_str.startswith("Encoding while choices: "):
                 plan_out += line_str
                 print(line_str)
@@ -333,7 +334,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         #if process.wait(TIMEOUT) != 0:
         print(f"Out: {out}")
         print(f"Err: {err}")
-        if err != b'':
+        if err != b'' and err.decode('utf-8').split(' ', 1)[0] != 'WARNING:':
             print("Error closing Wayang process!")
 
             exec_time = int(TIMEOUT * 100000)
@@ -350,7 +351,6 @@ def get_plan_latency(args, sampled_plan) -> float:
             TIMEOUT = exec_time
             print(f"Found better plan, updating timeout: {TIMEOUT}")
             best_plan_data = input, picked_plan, exec_time_str
-            print(f"Found better plan: {best_plan_data}")
 
         print(exec_time)
 

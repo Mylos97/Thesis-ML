@@ -51,7 +51,7 @@ class TreeDecoder(nn.Module):
             TreeActivation(nn.LeakyReLU()),
             BinaryTreeConv(256, output_dim),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.LeakyReLU())
         )
 
         self.linear = nn.Sequential(
@@ -60,7 +60,6 @@ class TreeDecoder(nn.Module):
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
         )
-
 
     def forward(self, trees, indexes):
         x = self.linear(trees)
