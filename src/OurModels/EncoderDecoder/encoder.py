@@ -6,7 +6,6 @@ class TreeEncoder(nn.Module):
     def __init__(self, input_dim, dropout_prob, z_dim) -> None:
         super(TreeEncoder, self).__init__()
 
-        """
         self.binary_conv = nn.Sequential (
             BinaryTreeConv(input_dim, 256),
             TreeLayerNorm(),
@@ -30,8 +29,8 @@ class TreeEncoder(nn.Module):
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
         )
-        """
 
+        """
         self.binary_conv = nn.Sequential (
             BinaryTreeConv(input_dim, 256),
             TreeLayerNorm(),
@@ -54,6 +53,7 @@ class TreeEncoder(nn.Module):
             nn.LeakyReLU(),
             nn.Dropout(dropout_prob),
         )
+        """
 
     def forward(self, trees):
         x = self.binary_conv(trees)
