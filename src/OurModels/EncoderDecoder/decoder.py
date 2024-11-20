@@ -7,6 +7,9 @@ class TreeDecoder(nn.Module):
         super(TreeDecoder, self).__init__()
 
         self.tree_conv = nn.Sequential(
+            BinaryTreeConv(32, 64),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
             BinaryTreeConv(64, 128),
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU()),
@@ -14,7 +17,8 @@ class TreeDecoder(nn.Module):
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU()),
             BinaryTreeConv(256, output_dim),
-            TreeLayerNorm(), TreeActivation(nn.LeakyReLU()))
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()))
 
         self.linear = nn.Sequential(
             nn.Linear(z_dim, 64),

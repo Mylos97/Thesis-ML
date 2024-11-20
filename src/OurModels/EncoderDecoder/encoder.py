@@ -16,14 +16,13 @@ class TreeEncoder(nn.Module):
             BinaryTreeConv(128, 64),
             TreeLayerNorm(),
             TreeActivation(nn.LeakyReLU()),
+            BinaryTreeConv(64, 32),
+            TreeLayerNorm(),
+            TreeActivation(nn.LeakyReLU()),
         )
 
         self.linear = nn.Sequential(
             DynamicPooling(),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout_prob),
             nn.Linear(32, z_dim),
             nn.BatchNorm1d(z_dim),
             nn.LeakyReLU(),

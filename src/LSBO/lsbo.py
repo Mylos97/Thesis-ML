@@ -65,7 +65,7 @@ class LSBOResult:
         self.state_dict = state_dict
         self.best_values = best_values
 
-    def update(self, new_x, new_obj):
+    def update(self, new_x, new_obj, state_dict):
          # update training points
         self.train_x = torch.cat((self.train_x, new_x))
         self.train_obj = torch.cat((self.train_obj, new_obj))
@@ -74,7 +74,7 @@ class LSBOResult:
         best_value = self.train_obj.max().item()
         self.best_values.append(best_value)
 
-        self.state_dict = self.model.state_dict()
+        self.state_dict = state_dict
 
 def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     global initial_latency
@@ -95,16 +95,17 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         d = latent_vector.shape[1]
     #N_BATCH = 100
     BATCH_SIZE = 1
-    NUM_RESTARTS = 10
+    NUM_RESTARTS = 1
     RAW_SAMPLES = 256
-    MC_SAMPLES = 2000
+    MC_SAMPLES = 2048
     initial_latency = 0
     seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    bounds = torch.tensor([[-6.0] * d, [6.0] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6] * d, [6] * d], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
-    #bounds = torch.stack([-torch.ones(d), torch.ones(d)])
+    #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
 
     def get_latencies(plans) -> list[torch.Tensor]:
         global initial_latency
@@ -113,39 +114,40 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             if initial_latency == 0:
                 latency = get_plan_latency(args, plan)
             else:
-                latency = initial_latency - get_plan_latency(args, plan)
+                latency = max(initial_latency - get_plan_latency(args, plan), 0)
             results.append(latency)
 
         return results
 
     def objective_function(X):
-        with torch.no_grad():
-            # Move the prediction made in latent_vector by some random v
-            v_hat = [torch.add(v, latent_vector) for v in X]
-            model_results = []
+        #with torch.no_grad():
+        # Move the prediction made in latent_vector by some random v
+        v_hat = [torch.add(v, latent_vector) for v in X]
+        model_results = []
 
-            for v in v_hat:
-                decoded = ML_model.decoder(v.float(), indexes)
-                model_results.append([decoded[0].detach().numpy().tolist()[0], decoded[1].detach().numpy().tolist()[0]])
-            results = get_latencies(model_results)
+        for v in v_hat:
+            decoded = ML_model.decoder(v.float(), indexes)
+            model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
+        results = get_latencies(model_results)
 
-            return torch.tensor(results)
+        return torch.tensor(results)
 
-    def gen_initial_data(n: int = 1):
+    def gen_initial_data(plan, n: int = 5):
         global initial_latency
+        initial_latency = objective_function([plan]).unsqueeze(-1)
 
         train_x = unnormalize(
             torch.rand(n, d, device=device, dtype=dtype),
             bounds=bounds)
         train_obj = objective_function(train_x).unsqueeze(-1)
         best_observed_value = train_obj.max().item()
-        train_obj = torch.tensor([[0]])
+        #train_obj = torch.tensor([[0]])
 
-        initial_latency = best_observed_value
+        #initial_latency = best_observed_value
         print(f"Finished generating {n} initial samples")
         print(f"Initial latency: {initial_latency}")
 
-        return train_x, train_obj, train_obj
+        return train_x, train_obj, best_observed_value
 
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
@@ -179,9 +181,15 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         candidates = get_best_candidates(batch_candidates, batch_acq_values)
         """
 
+        x_center = previous.train_x[previous.train_obj.argmax(), :].clone()
+        weights = torch.ones_like(x_center)*8 # less than 4 stdevs on either side max
+        tr_lb = x_center - weights * 59 / 2.0
+        tr_ub = x_center + weights * 59 / 2.0
+
         # optimize
         candidates, _ = optimize_acqf(
             acq_function=acq_func,
+            #bounds=torch.stack([tr_lb, tr_ub]),
             bounds=bounds,
             q=BATCH_SIZE,
             num_restarts=NUM_RESTARTS,
@@ -197,7 +205,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     if previous is None:
         best_observed = []
-        train_x, train_obj, best_value = gen_initial_data()
+        train_x, train_obj, best_value = gen_initial_data(encoded_plan[0])
+        print(f"Train_x: {train_x}")
         best_observed.append(best_value)
         state_dict = None
         model_results = []
@@ -224,12 +233,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         qEI = qLogExpectedImprovement(
             model=model,
-            sampler=sampler,
+            #sampler=sampler,
             best_f=previous.train_obj.max()
         )
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
-        previous.update(new_x, new_obj)
+        previous.update(new_x, new_obj, model.state_dict())
 
     print('Finish Bayesian Optimization for latent space', flush=True)
 
