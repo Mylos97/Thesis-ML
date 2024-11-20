@@ -26,7 +26,6 @@ TOLERANCE = 1.25
 time_limit_reached = False
 
 def main(args) -> None:
-    """
     lsbo_result = None
     timeout = float(60 * 60 * 60)
 
@@ -38,7 +37,6 @@ def main(args) -> None:
         #training_file.write(f"{plan_data[0]}:{plan_data[1]}:{plan_data[2]}\n")
         training_file.write(f"{plan_data[1]}:{plan_data[0]}:{plan_data[2]}\n")
         print(f"Successfully appended best sampled plan to {args.trainset}")
-    """
 
     args.retrain = args.trainset
     retrain(args)

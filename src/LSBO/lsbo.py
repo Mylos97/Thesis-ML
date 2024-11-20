@@ -164,6 +164,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         return model
 
     def optimize_acqf_and_get_observation(acq_func):
+        """
         Xinit = gen_batch_initial_conditions(
             acq_func, bounds, q=BATCH_SIZE, num_restarts=NUM_RESTARTS, raw_samples=RAW_SAMPLES
         )
@@ -176,6 +177,16 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         )
 
         candidates = get_best_candidates(batch_candidates, batch_acq_values)
+        """
+
+        # optimize
+        candidates, _ = optimize_acqf(
+            acq_function=acq_func,
+            bounds=bounds,
+            q=BATCH_SIZE,
+            num_restarts=NUM_RESTARTS,
+            raw_samples=RAW_SAMPLES,
+        )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         new_obj = objective_function(new_x).unsqueeze(-1)
