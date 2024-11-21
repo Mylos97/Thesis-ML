@@ -102,8 +102,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    #bounds = torch.tensor([[-6] * d, [6] * d], device=device, dtype=dtype)
-    bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6] * d, [6] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
 
@@ -154,7 +154,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         model = SingleTaskGP(
             train_X=normalize(train_x, bounds),
             train_Y=train_obj,
-            input_transform=Normalize(d=d),
+            #input_transform=Normalize(d=d),
             outcome_transform=Standardize(m=1)
         )
         if state_dict is not None:
@@ -233,7 +233,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         qEI = qLogExpectedImprovement(
             model=model,
-            #sampler=sampler,
+            sampler=sampler,
             best_f=previous.train_obj.max()
         )
 

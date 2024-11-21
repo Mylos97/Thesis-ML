@@ -396,4 +396,6 @@ class Beta_Vae_Loss(torch.nn.Module):
         loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
         total_kld = loss_reg * 0.0001
 
+        #print(f"recon_x: {recon_x}, mu: {mu}, logvar: {logvar}, recon_loss: {recon_loss}, loss_reg: {loss_reg}, beta: {self.beta}")
+
         return recon_loss + total_kld * self.beta
