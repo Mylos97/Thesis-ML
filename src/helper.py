@@ -394,7 +394,8 @@ class Beta_Vae_Loss(torch.nn.Module):
         #recon_loss = F.cross_entropy(recon_x, target)
         recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
         loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
-        total_kld = loss_reg * 0.0001
+        #total_kld = loss_reg * 0.0001
+        total_kld = loss_reg
 
         #print(f"recon_x: {recon_x}, mu: {mu}, logvar: {logvar}, recon_loss: {recon_loss}, loss_reg: {loss_reg}, beta: {self.beta}")
 

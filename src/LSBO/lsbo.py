@@ -74,7 +74,7 @@ class LSBOResult:
         self.train_obj = torch.cat((self.train_obj, new_obj))
 
         # update progress
-        best_value = self.train_obj.max().item()
+        best_value = max(self.train_obj.max().item(), 0)
         self.best_values.append(best_value)
 
         self.state_dict = state_dict
@@ -105,8 +105,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    #bounds = torch.tensor([[-6] * d, [6] * d], device=device, dtype=dtype)
-    bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6] * d, [6] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
 
@@ -125,21 +125,22 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         model_results = []
 
         for v in v_hat:
-            print(f"V float: {v.float()}")
             decoded = ML_model.decoder(v.float(), indexes)
-            print(f"Decoded: {decoded}")
 
             softmaxed = ML_model.softmax(decoded[0])
-            print(f"Softmax: {softmaxed.tolist()}")
             #model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
             model_results.append([softmaxed.tolist()[0], decoded[1].tolist()[0]])
         latencies = get_latencies(model_results)
 
         improvements = get_improvements_from_latencies(latencies)
+        print(f"Improvements: {improvements}")
 
         return torch.tensor(improvements, dtype=dtype)
 
     def get_improvements_from_latencies(latencies: list) -> list:
+        if initial_latency == 0:
+            return latencies
+
         return list(map(lambda latency: initial_latency - latency, latencies))
 
 
@@ -152,7 +153,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             bounds=bounds)
         train_obj = objective_function(train_x).unsqueeze(-1)
         print(f"Train_obj: {train_obj}")
-        best_observed_value = train_obj.max().item()
+        best_observed_value = max(train_obj.max().item(), 0)
         #train_obj = torch.tensor([[0]])
 
         #initial_latency = best_observed_value
@@ -241,14 +242,14 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         previous = LSBOResult(ML_model, model, previous.model_results, tree, previous.train_x, previous.train_obj, previous.state_dict, previous.best_values)
 
-        print(f"Best f: {previous.train_obj.max()}")
+        print(f"Best f: {max(previous.train_obj.max(), 0)}")
 
         #sampler = StochasticSampler(sample_shape=torch.Size([MC_SAMPLES]))
 
         qEI = qLogExpectedImprovement(
             model=model,
             #sampler=sampler,
-            best_f=previous.train_obj.max()
+            best_f=max(previous.train_obj.max(), 0)
         )
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
@@ -269,7 +270,7 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 
     # set some defaults, highly WIP
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    model_path= f"{dir_path}/../Models/bvae-kld.onnx"
+    model_path= f"{dir_path}/../Models/bvae.onnx"
     parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
