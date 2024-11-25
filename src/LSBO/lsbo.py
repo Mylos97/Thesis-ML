@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import os
+import sys
 import torch
 import torch.onnx
 from torch.utils.data import DataLoader
@@ -97,16 +98,16 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         indexes = encoded_plan[1]
         d = latent_vector.shape[1]
     #N_BATCH = 100
-    BATCH_SIZE = 1
-    NUM_RESTARTS = 1
+    BATCH_SIZE = 3
+    NUM_RESTARTS = 10
     RAW_SAMPLES = 256
     MC_SAMPLES = 2048
     initial_latency = 0
     seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    #bounds = torch.tensor([[-6] * d, [6] * d], device=device, dtype=dtype)
-    bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6] * d, [6] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
 
@@ -204,10 +205,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         candidates, _ = optimize_acqf(
             acq_function=acq_func,
             #bounds=torch.stack([tr_lb, tr_ub]),
-            bounds=bounds,
+            #bounds=bounds,
+            bounds = torch.tensor([[0.], [1.]]),
             q=BATCH_SIZE,
             num_restarts=NUM_RESTARTS,
             raw_samples=RAW_SAMPLES,
+            return_best_only=True,
         )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
