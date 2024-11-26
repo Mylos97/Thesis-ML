@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import os
+import sys
 import torch
 import torch.onnx
 from torch.utils.data import DataLoader
@@ -74,7 +75,7 @@ class LSBOResult:
         self.train_obj = torch.cat((self.train_obj, new_obj))
 
         # update progress
-        best_value = max(self.train_obj.max().item(), 0)
+        best_value = self.train_obj.max().item()
         self.best_values.append(best_value)
 
         self.state_dict = state_dict
@@ -97,8 +98,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         indexes = encoded_plan[1]
         d = latent_vector.shape[1]
     #N_BATCH = 100
-    BATCH_SIZE = 1
-    NUM_RESTARTS = 1
+    BATCH_SIZE = 3
+    NUM_RESTARTS = 10
     RAW_SAMPLES = 256
     MC_SAMPLES = 2048
     initial_latency = 0
@@ -153,7 +154,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             bounds=bounds)
         train_obj = objective_function(train_x).unsqueeze(-1)
         print(f"Train_obj: {train_obj}")
-        best_observed_value = max(train_obj.max().item(), 0)
+        best_observed_value = train_obj.max().item()
         #train_obj = torch.tensor([[0]])
 
         #initial_latency = best_observed_value
@@ -165,8 +166,10 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
         model = SingleTaskGP(
-            train_X=normalize(train_x, bounds),
+            #train_X=normalize(train_x, bounds),
+            train_X=train_x,
             train_Y=train_obj,
+            input_transform=Normalize(d=d),
             outcome_transform=Standardize(m=1)
         )
         if state_dict is not None:
@@ -202,10 +205,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         candidates, _ = optimize_acqf(
             acq_function=acq_func,
             #bounds=torch.stack([tr_lb, tr_ub]),
-            bounds=bounds,
+            #bounds=bounds,
+            bounds = torch.tensor([[0.], [1.]]),
             q=BATCH_SIZE,
             num_restarts=NUM_RESTARTS,
             raw_samples=RAW_SAMPLES,
+            return_best_only=True,
         )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
@@ -242,14 +247,15 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         previous = LSBOResult(ML_model, model, previous.model_results, tree, previous.train_x, previous.train_obj, previous.state_dict, previous.best_values)
 
-        print(f"Best f: {max(previous.train_obj.max(), 0)}")
+        print(f"Best f: {previous.train_obj.max()}")
 
         #sampler = StochasticSampler(sample_shape=torch.Size([MC_SAMPLES]))
 
         qEI = qLogExpectedImprovement(
             model=model,
             #sampler=sampler,
-            best_f=max(previous.train_obj.max(), 0)
+            #best_f=max(previous.train_obj.max(), 0)
+            best_f=previous.train_obj.max()
         )
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
