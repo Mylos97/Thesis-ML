@@ -29,7 +29,8 @@ def main(args) -> None:
     lsbo_result = None
     timeout = float(60 * 60 * 60)
 
-    plan_data = request_wayang_plan(args, lsbo_result, timeout)
+    """
+    plan_data, initial_latency, plan_cache = request_wayang_plan(args, lsbo_result, timeout)
     print(f"Best plan data: {plan_data}")
 
     # add best plan to trainset
@@ -38,8 +39,15 @@ def main(args) -> None:
         training_file.write(f"{plan_data[1]}:{plan_data[0]}:{plan_data[2]}\n")
         print(f"Successfully appended best sampled plan to {args.trainset}")
 
+    with open(args.stats, 'a') as stats_file:
+        #training_file.write(f"{plan_data[0]}:{plan_data[1]}:{plan_data[2]}\n")
+        stats_file.write(f"{args.query}:{len(plan_cache)}:{initial_latency}:{plan_data[2]}\n")
+        print(f"Successfully appended statistics to {args.stats}")
+
+    """
     args.retrain = args.trainset
     retrain(args)
+
 
 
 if __name__ == '__main__':
@@ -50,7 +58,8 @@ if __name__ == '__main__':
     parser.add_argument('--namespace', type=str, default='org.apache.wayang.ml.benchmarks.LSBORunner')
     parser.add_argument('--args', type=str, default='java,spark,flink,giraph file:///var/www/html/data/')
     parser.add_argument('--query', type=int, default=1)
-    parser.add_argument('--trainset', type=str, default='./src/Data/splits/retrain.txt')
+    parser.add_argument('--trainset', type=str, default='./src/Data/splits/tpch/bvae/retrain-25.txt')
+    parser.add_argument('--stats', type=str, default='./src/Data/splits/tpch/bvae/stats.txt')
     parser.add_argument('--model-path', default='./src/Models/bvae.onnx')
     parser.add_argument('--parameters', default='./src/HyperparameterLogs/BVAE.json')
     parser.add_argument('--name', type=str, default='')

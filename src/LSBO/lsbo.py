@@ -122,7 +122,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     def objective_function(X):
         #with torch.no_grad():
         # Move the prediction made in latent_vector by some random v
-        v_hat = [torch.add(v, latent_vector) for v in X]
+        v_hat = [torch.add(latent_vector, v) for v in X]
         model_results = []
 
         for v in v_hat:
@@ -147,11 +147,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     def gen_initial_data(plan, n: int = 5):
         global initial_latency
-        initial_latency = objective_function([plan]).unsqueeze(-1)
+        initial_latency = objective_function([plan]).unsqueeze(-1).min().item()
 
         train_x = unnormalize(
             torch.rand(n, d, device=device, dtype=dtype),
             bounds=bounds)
+        print(f"Initial train_x: {train_x}")
         train_obj = objective_function(train_x).unsqueeze(-1)
         print(f"Train_obj: {train_obj}")
         best_observed_value = train_obj.max().item()
@@ -166,10 +167,10 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
         model = SingleTaskGP(
-            #train_X=normalize(train_x, bounds),
-            train_X=train_x,
+            train_X=normalize(train_x, bounds),
+            #train_X=train_x,
             train_Y=train_obj,
-            input_transform=Normalize(d=d),
+            #input_transform=Normalize(d=d),
             outcome_transform=Standardize(m=1)
         )
         if state_dict is not None:
@@ -204,9 +205,9 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         # optimize
         candidates, _ = optimize_acqf(
             acq_function=acq_func,
+            bounds=bounds,
             #bounds=torch.stack([tr_lb, tr_ub]),
-            #bounds=bounds,
-            bounds = torch.tensor([[0.], [1.]]),
+            #bounds = torch.tensor([[0.], [1.]]),
             q=BATCH_SIZE,
             num_restarts=NUM_RESTARTS,
             raw_samples=RAW_SAMPLES,
@@ -214,8 +215,16 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
+        #new_x = candidates.detach()
         print(f"new_x: {new_x}")
         new_obj = objective_function(new_x).unsqueeze(-1)
+
+        """
+        index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
+        best_plan = previous.train_x[index]
+        # recenter the latent vector
+        latent_vector = best_plan
+        """
 
         return new_x, new_obj
 
@@ -291,7 +300,7 @@ def run_lsbo(input, args, previous: LSBOResult = None):
         lr = parameters.get("lr", 0.001)
         gradient_norm = parameters.get("gradient_norm", 1.0)
         dropout = parameters.get("dropout", 0.1)
-        z_dim = parameters.get("z_dim", 16)
+        z_dim = parameters.get("z_dim", 31)
         weights = get_weights_of_model_by_path(model_path)
 
         #best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
@@ -363,7 +372,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             sock_file.close()
             sock.close()
 
-            exec_time = int(TIMEOUT * 100000)
+            exec_time = int(TIMEOUT * 10_000)
             return exec_time
 
         print("Sampling new plan")
@@ -438,7 +447,7 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3
 
     process.kill()
 
-    return best_plan_data
+    return best_plan_data, initial_latency, PLAN_CACHE
 
 def read_from_wayang(sock_file):
     udf_length = read_int(sock_file)
