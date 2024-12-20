@@ -57,7 +57,7 @@ def transformer(x: tuple) -> np.array:
 
 
 def make_dataloader(x: Dataset, batch_size: int) -> DataLoader:
-    dataloader = DataLoader(x, batch_size=batch_size, drop_last=True, shuffle=False)
+    dataloader = DataLoader(x, batch_size=batch_size, drop_last=True, shuffle=True)
 
     return dataloader
 

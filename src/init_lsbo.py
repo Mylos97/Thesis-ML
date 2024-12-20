@@ -29,7 +29,6 @@ def main(args) -> None:
     lsbo_result = None
     timeout = float(60 * 60 * 60)
 
-    """
     plan_data, initial_latency, plan_cache = request_wayang_plan(args, lsbo_result, timeout)
     print(f"Best plan data: {plan_data}")
 
@@ -47,6 +46,7 @@ def main(args) -> None:
     """
     args.retrain = args.trainset
     retrain(args)
+    """
 
 
 
@@ -62,6 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('--stats', type=str, default='./src/Data/splits/tpch/bvae/stats.txt')
     parser.add_argument('--model-path', default='./src/Models/bvae.onnx')
     parser.add_argument('--parameters', default='./src/HyperparameterLogs/BVAE.json')
+    parser.add_argument('--zdim', type=int, default=31)
     parser.add_argument('--name', type=str, default='')
     parser.add_argument('--lr', type=str, default='[1e-6, 0.1]')
     parser.add_argument('--epochs', type=int, default=100)

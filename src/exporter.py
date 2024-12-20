@@ -3,7 +3,6 @@ import torch.onnx
 import onnx
 import onnxruntime
 
-
 def export_model(model, x, model_name) -> None:
     ort_input = x
     if type(x[0]) == list:
@@ -11,6 +10,7 @@ def export_model(model, x, model_name) -> None:
     amount_inputs = len(ort_input)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
     axes = {f"input{i+1}": {0: "batch"} for i in range(amount_inputs)}
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if "vae" in model_name:
         model.training = False
@@ -29,6 +29,10 @@ def export_model(model, x, model_name) -> None:
         dynamic_axes=axes,
     )
     print("Finished exporting model", flush=True)
+    model = model.to("cpu")
+    for i in range(len(x)):
+        x[i] = x[i].to("cpu")
+
     torch_out = model(x)
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
@@ -40,9 +44,9 @@ def export_model(model, x, model_name) -> None:
 
     def to_numpy(tensor):
         return (
-            tensor.detach().cpu().numpy()
+            tensor.detach().to(device).cpu().numpy()
             if tensor.requires_grad
-            else tensor.cpu().numpy()
+            else tensor.to(device).cpu().numpy()
         )
 
     ort_inputs = {}

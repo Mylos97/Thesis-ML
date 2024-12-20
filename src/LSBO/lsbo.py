@@ -285,8 +285,11 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 
     # set some defaults, highly WIP
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    model_path= f"{dir_path}/../Models/bvae.onnx"
-    parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
+    model_path=args.model_path
+    parameters_path=args.parameters
+    z_dim = args.zdim
+    #model_path= f"{dir_path}/../Models/bvae.onnx"
+    #parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     data, in_dim, out_dim = load_autoencoder_data_from_str(
@@ -300,7 +303,6 @@ def run_lsbo(input, args, previous: LSBOResult = None):
         lr = parameters.get("lr", 0.001)
         gradient_norm = parameters.get("gradient_norm", 1.0)
         dropout = parameters.get("dropout", 0.1)
-        z_dim = parameters.get("z_dim", 31)
         weights = get_weights_of_model_by_path(model_path)
 
         #best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)

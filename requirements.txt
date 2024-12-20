@@ -74,7 +74,8 @@ numpy==1.24.4
 #nvidia-nvjitlink-cu12==12.4.127
 #nvidia-nvtx-cu12==12.1.105
 onnx==1.15.0
-onnxruntime==1.17.3
+#onnxruntime==1.17.3
+onnxruntime-gpu==1.20.0
 opt-einsum==3.3.0
 packaging==20.1
 pandas==1.5.3

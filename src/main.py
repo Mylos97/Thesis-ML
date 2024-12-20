@@ -96,6 +96,7 @@ def main(args) -> None:
         export_model(
             model=best_model, x=x, model_name=get_relative_path(model_name, "Models")
         )
+
     else:
         best_model, x = do_hyperparameter_BO(
                 model_class=model_class,

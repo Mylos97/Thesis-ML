@@ -9,58 +9,58 @@ class TreeDecoder(nn.Module):
         self.tree_conv = nn.Sequential(
             BinaryTreeConv(32, 64),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.Mish()),
             BinaryTreeConv(64, 128),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.Mish()),
             BinaryTreeConv(128, 256),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.Mish()),
             BinaryTreeConv(256, output_dim),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU())
+            TreeActivation(nn.Mish())
         )
 
         """
         self.linear = nn.Sequential(
             nn.Linear(z_dim, 64),
             nn.BatchNorm1d(64),
-            nn.LeakyReLU(),
+            nn.Mish(),
             nn.Dropout(dropout_prob),
             nn.Linear(64, 256),
             nn.BatchNorm1d(256),
-            nn.LeakyReLU(),
+            nn.Mish(),
             nn.Dropout(dropout_prob),
             nn.Linear(256, 1024),
             nn.BatchNorm1d(1024),
-            nn.LeakyReLU(),
+            nn.Mish(),
             nn.Dropout(dropout_prob),
             nn.Linear(1024, 4096),
             nn.BatchNorm1d(4096),
-            nn.LeakyReLU(),
+            nn.Mish(),
             nn.Dropout(dropout_prob),
         )
 
         self.tree_conv = nn.Sequential(
             BinaryTreeConv(32, 64),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.Mish()),
             BinaryTreeConv(64, 128),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.Mish()),
             BinaryTreeConv(128, 256),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU()),
+            TreeActivation(nn.Mish()),
             BinaryTreeConv(256, output_dim),
             TreeLayerNorm(),
-            TreeActivation(nn.LeakyReLU())
+            TreeActivation(nn.Mish())
         )
         """
 
         self.linear = nn.Sequential(
             nn.Linear(z_dim, 4096),
             nn.BatchNorm1d(4096),
-            nn.LeakyReLU(),
+            nn.Mish(),
             nn.Dropout(dropout_prob),
         )
 
