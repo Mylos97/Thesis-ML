@@ -24,6 +24,7 @@ from subprocess import PIPE, Popen
 import signal
 import threading
 import random
+import math
 
 from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str
 
@@ -98,7 +99,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         indexes = encoded_plan[1]
         d = latent_vector.shape[1]
     #N_BATCH = 100
-    BATCH_SIZE = 3
+    BATCH_SIZE = 1
     NUM_RESTARTS = 10
     RAW_SAMPLES = 256
     MC_SAMPLES = 2048
@@ -139,10 +140,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         return torch.tensor(improvements, dtype=dtype)
 
     def get_improvements_from_latencies(latencies: list) -> list:
+        global initial_latency
         if initial_latency == 0:
+            print(f"Set initial latency: {latencies}")
             return latencies
 
-        return list(map(lambda latency: initial_latency - latency, latencies))
+        return list(map(lambda latency: math.log(max(initial_latency - latency, 1)), latencies))
 
 
     def gen_initial_data(plan, n: int = 5):
@@ -167,10 +170,10 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
         model = SingleTaskGP(
-            train_X=normalize(train_x, bounds),
-            #train_X=train_x,
+            #train_X=normalize(train_x, bounds),
+            train_X=train_x,
             train_Y=train_obj,
-            #input_transform=Normalize(d=d),
+            input_transform=Normalize(d=d),
             outcome_transform=Standardize(m=1)
         )
         if state_dict is not None:
@@ -203,7 +206,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         tr_ub = x_center + weights * 59 / 2.0
 
         # optimize
-        candidates, _ = optimize_acqf(
+        candidates, expected = optimize_acqf(
             acq_function=acq_func,
             bounds=bounds,
             #bounds=torch.stack([tr_lb, tr_ub]),
@@ -217,6 +220,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         #new_x = candidates.detach()
         print(f"new_x: {new_x}")
+        print(f"expected improvements: {expected}")
         new_obj = objective_function(new_x).unsqueeze(-1)
 
         """
@@ -275,7 +279,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
 
     best_plan = previous.train_x[index]
-    best_latency = initial_latency - best_impr.item()
+    best_latency = initial_latency - math.pow(math.e ,best_impr.item())
+    print(f"{best_latency} = {initial_latency} - {math.pow(math.e, best_impr.item())}")
 
     return best_plan, best_latency
 
@@ -408,7 +413,8 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         return exec_time
 
-    except Exception:
+    except Exception as e:
+        print(f"Exception: {err}")
         print("Didnt finish fast enough")
         os.system("pkill -TERM -P %s"%process.pid)
         sock_file.close()
