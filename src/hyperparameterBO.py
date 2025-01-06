@@ -152,10 +152,6 @@ def do_hyperparameter_BO(
         batch_size=best_parameters.get('batch_size', 32),
     )
 
-    print(f"Train data: {train_loader}")
-    print(f"Test data: {test_loader}")
-    print(f"Val data: {val_loader}")
-
     """
     if is_retraining:
         combined_train_valid_loader = torch.utils.data.DataLoader(

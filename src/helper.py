@@ -55,8 +55,22 @@ def right_child(x: tuple) -> tuple:
 def transformer(x: tuple) -> np.array:
     return np.array(x[0])
 
+def collate(x):
+    trees = []
+    targets = []
+    indexes = []
+
+    for (tree, index), target in x:
+        trees.append(tree)
+        indexes.append(index)
+        targets.append(target)
+
+    #targets = torch.tensor(targets)
+    #return (trees, indexes ), targets
+    return (trees, indexes), targets
 
 def make_dataloader(x: Dataset, batch_size: int) -> DataLoader:
+    #dataloader = DataLoader(x, batch_size=batch_size, drop_last=True, shuffle=True, collate_fn=collate)
     dataloader = DataLoader(x, batch_size=batch_size, drop_last=True, shuffle=True)
 
     return dataloader
@@ -105,10 +119,11 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
 
         for match in matches_iterator:
-            find = match.group().strip('(').strip(')')
+            in_paranthesis = match.group()
+            find = in_paranthesis.strip('(').strip(')')
             values = [int(num.strip()) for num in find.split(',')]
             replacement = ','.join(map(str, values[num_ops:num_ops+num_platfs]))
-            optimal_tree = optimal_tree.replace(find, replacement)
+            optimal_tree = optimal_tree.replace(in_paranthesis, f"({replacement})")
 
         return optimal_tree
 
@@ -367,7 +382,6 @@ def get_data_loaders(data, batch_size, test_data = None, val_data = None):
     print(f"Train set len: {len(train_loader)}")
     print(f"Val set len: {len(val_loader)}")
     print(f"Test set len: {len(test_loader)}")
-    print(f"train_loader.dataset: {train_loader.dataset}")
 
     return train_loader, val_loader, test_loader
 

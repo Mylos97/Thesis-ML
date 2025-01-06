@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
                                   TreeActivation, TreeLayerNorm)
@@ -56,6 +57,7 @@ class TreeEncoder(nn.Module):
 
     def forward(self, trees):
         x = self.binary_conv(trees)
+        indexes = x[1]
         y = self.linear(x)
 
-        return y, x[1]
+        return y, indexes
