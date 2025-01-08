@@ -129,7 +129,10 @@ def do_hyperparameter_BO(
 
         for _ in range(trials):
             parameters, trial_index = ax_client.get_next_trial()
-            ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(parameters))
+            raw_data = train_evaluate(parameters)
+            print(f"Parameters: {parameters}")
+            print(f"raw_data: {raw_data}")
+            ax_client.complete_trial(trial_index=trial_index, raw_data=raw_data)
 
         best_parameters, _ = ax_client.get_best_parameters()
 

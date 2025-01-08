@@ -69,6 +69,7 @@ class TreeDecoder(nn.Module):
         next_pow_2 = 1<<(max_dim_tree-1).item().bit_length()
         x = self.linear(trees)
         x = x.view(x.shape[0], int(4096 / next_pow_2), next_pow_2)
+        #x = x.view(x.shape[0], 64, 64)
         r = self.tree_conv((x, indexes))
 
         return r
