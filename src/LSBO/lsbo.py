@@ -430,6 +430,8 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3
     global best_plan_data
     TIMEOUT = timeout
 
+    print(f"Requesting plan for query: {args.query}")
+
     process = Popen([
         args.exec,
         args.memory,

@@ -26,7 +26,7 @@ def main(args) -> None:
     trials = args.trials
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args_name = args.name if ".onnx" in args.name else f"{args.name}.onnx"
-    print(f"Started training model {args.model}", flush=True)
+    print(f"Started training model {args.model} at {args.model_path}", flush=True)
 
     if args.model == "vae":
         model_class = VAE
@@ -38,9 +38,9 @@ def main(args) -> None:
         #test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.naive-lsbo.txt', 'Data'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         #val_data, _, _ = load_autoencoder_data(path=get_relative_path('validation.txt', 'Data/splits'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/bqs'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/bqs/txt'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         test_data, _, _ = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/bqs'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/bqs/txt'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
@@ -71,7 +71,9 @@ def main(args) -> None:
         print("Retraining a model, not actually running hyperparameterBO")
         with open(args.parameters) as file:
             best_parameters = json.load(file)
-            best_parameters["batch_size"] = 7
+            #best_parameters["batch_size"] = 7
+
+        weights = get_weights_of_model_by_path(args.model_path)
 
         best_model, x = do_hyperparameter_BO(
                 model_class=model_class,
@@ -90,10 +92,14 @@ def main(args) -> None:
                 best_parameters=best_parameters
         )
 
-        model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+        if args.model_path is not None:
+            model_name = args.model_path
+        else:
+            model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+            model_name = get_relative_path(model_name, "Models")
 
         export_model(
-            model=best_model, x=x, model_name=get_relative_path(model_name, "Models")
+            model=best_model, x=x, model_name=model_name
         )
 
     else:
@@ -113,10 +119,14 @@ def main(args) -> None:
                 plots=args.plots
         )
 
-        model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+        if args.model_path is not None:
+            model_name = args.model_path
+        else:
+            model_name = f"{args.model}.onnx" if len(args_name) < 6 else args.name
+            model_name = get_relative_path(model_name, "Models")
 
         export_model(
-            model=best_model, x=x, model_name=get_relative_path(model_name, "Models/imdb/bqs")
+            model=best_model, x=x, model_name=model_name
         )
 
 

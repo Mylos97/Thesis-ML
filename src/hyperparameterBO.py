@@ -78,7 +78,7 @@ def do_hyperparameter_BO(
         {
             'name': 'patience',
             'type': 'range',
-            'bounds': [1, 50],
+            'bounds': [5, 50],
             'value_type': 'int'
         },
         {
