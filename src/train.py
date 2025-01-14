@@ -10,6 +10,7 @@ def train(
     model_class,
     training_data_loader,
     val_data_loader,
+    test_data_loader,
     in_dim,
     out_dim,
     loss_function,
@@ -37,6 +38,7 @@ def train(
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     best_val_loss = float("inf")
+    best_test_loss = float("inf")
     counter = 0
     patience = parameters.get("patience", 10)
     time = datetime.now().strftime("%H:%M:%S")
@@ -84,6 +86,37 @@ def train(
                 flush=True,
             )
             break
+
+    # measure models inference performance with test data
+    test_loss_accum = 0
+    model.train()
+
+    for tree, target in test_data_loader:
+        prediction = model(tree)
+        loss = loss_function(prediction, target.float())
+        test_loss_accum += loss.item()
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
+        optimizer.step()
+        # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
+
+    test_loss_accum /= len(test_data_loader)
+
+    print(f"Test loss: {test_loss_accum}", flush=True)
+    test_loss = evaluate(
+        model=model,
+        val_data_loader=test_data_loader,
+        loss_function=loss_function,
+        device=device,
+    )
+
+    if test_loss < best_test_loss:
+        print(
+            f"Got better test loss {test_loss} than {best_test_loss}",
+            flush=True,
+        )
+        best_test_loss = test_loss
 
     return model, tree
 

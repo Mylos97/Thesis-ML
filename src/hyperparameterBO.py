@@ -47,10 +47,21 @@ def do_hyperparameter_BO(
 
         print(f'Batch size: {batch_size}')
         print(f'Training batches: {len(train_loader)} Test batches: {len(test_loader)} Validation batches: {len(val_loader)} \n', flush=True)
-        model, _ = train(model_class=model_class, training_data_loader=train_loader, val_data_loader=val_loader,
-                      in_dim=in_dim, out_dim=out_dim, loss_function=l_function, device=device, parameters=params, epochs=epochs, weights=weights)
-        loss = evaluate(model=model, val_data_loader=val_loader, loss_function=l_function, device=device)
-        print(f'Validation loss for the model after training {loss}', flush=True)
+        model, _ = train(
+            model_class=model_class,
+            training_data_loader=train_loader,
+            test_data_loader=test_loader,
+            val_data_loader=val_loader,
+            in_dim=in_dim,
+            out_dim=out_dim,
+            loss_function=l_function,
+            device=device,
+            parameters=params,
+            epochs=epochs,
+            weights=weights
+        )
+        loss = evaluate(model=model, val_data_loader=test_loader, loss_function=l_function, device=device)
+        print(f'Test loss for the model after training {loss}', flush=True)
         return loss
 
     is_retraining = best_parameters is not None
@@ -127,14 +138,19 @@ def do_hyperparameter_BO(
             objectives={'loss': ObjectiveProperties(minimize=True)},
         )
 
+        trial_eval_map = {}
+
         for _ in range(trials):
             parameters, trial_index = ax_client.get_next_trial()
             raw_data = train_evaluate(parameters)
             print(f"Parameters: {parameters}")
             print(f"raw_data: {raw_data}")
             ax_client.complete_trial(trial_index=trial_index, raw_data=raw_data)
+            trial_eval_map[raw_data] = parameters
 
-        best_parameters, _ = ax_client.get_best_parameters()
+        best_parameters, best_loss = ax_client.get_best_parameters()
+        print(f"Trial eval map: {trial_eval_map}")
+        print(f"Best trial loss: {best_loss}")
 
 
     if best_parameters is not None and (model_class == BVAE or model_class == VAE):
@@ -182,7 +198,19 @@ def do_hyperparameter_BO(
     else:
         l_function = loss_function()
 
-    best_model, tree = train(model_class=model_class, training_data_loader=train_loader, val_data_loader=val_loader, in_dim=in_dim, out_dim=out_dim, loss_function=l_function, device=device, parameters=best_parameters, epochs=epochs, weights=weights)
+    best_model, tree = train(
+        model_class=model_class,
+        training_data_loader=train_loader,
+        test_data_loader=test_loader,
+        val_data_loader=val_loader,
+        in_dim=in_dim,
+        out_dim=out_dim,
+        loss_function=l_function,
+        device=device,
+        parameters=best_parameters,
+        epochs=epochs,
+        weights=weights
+    )
     test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device)
 
     # write best parameters to file
