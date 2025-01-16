@@ -41,7 +41,7 @@ def do_hyperparameter_BO(
         print(f"Val data: {val_loader}")
 
         if model_class == BVAE:
-            l_function = loss_function(parameters.get('beta', 1.0))
+            l_function = loss_function(parameters.get('beta'))
         else:
             l_function = loss_function()
 
@@ -60,7 +60,12 @@ def do_hyperparameter_BO(
             epochs=epochs,
             weights=weights
         )
-        loss = evaluate(model=model, val_data_loader=test_loader, loss_function=l_function, device=device)
+        loss = evaluate(
+            model=model,
+            val_data_loader=test_loader,
+            loss_function=l_function,
+            device=device
+        )
         print(f'Test loss for the model after training {loss}', flush=True)
         return loss
 
@@ -109,8 +114,8 @@ def do_hyperparameter_BO(
             "log_scale": True,
         })
 
+    """
     if model_class == VAE or model_class == BVAE:
-        """
         parameters.append({
             'name': 'z_dim',
             'type': 'choice',
@@ -127,7 +132,7 @@ def do_hyperparameter_BO(
             'is_ordered': True,
             'sort_values' : True
         })
-        """
+    """
 
     torch.manual_seed(42)
 
@@ -148,9 +153,9 @@ def do_hyperparameter_BO(
             ax_client.complete_trial(trial_index=trial_index, raw_data=raw_data)
             trial_eval_map[raw_data] = parameters
 
-        best_parameters, best_loss = ax_client.get_best_parameters()
-        print(f"Trial eval map: {trial_eval_map}")
-        print(f"Best trial loss: {best_loss}")
+        best_parameters, _ = ax_client.get_best_parameters()
+        print(f"Trial eval map: {sorted([key for key, value in trial_eval_map.items()])}")
+        print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
 
 
     if best_parameters is not None and (model_class == BVAE or model_class == VAE):
@@ -159,10 +164,10 @@ def do_hyperparameter_BO(
         print("Starting batch generation ", batch_size, " lenght of data: ", len(data))
         print("with samples needed: ", samples_needed)
 
-        for i in range(samples_needed+batch_size*10):
-            print("", i)
-            elem = data.__getitem__(i%len(data))
-            data.append(elem)
+        if samples_needed > 0:
+            for i in range(samples_needed+batch_size*10):
+                elem = data.__getitem__(i%len(data))
+                data.append(elem)
 
     train_loader, val_loader, test_loader = get_data_loaders(
         data=data,

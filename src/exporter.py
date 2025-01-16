@@ -7,6 +7,7 @@ def export_model(model, x, model_name) -> None:
     ort_input = x
     if type(x[0]) == list:
         ort_input = sum(x, [])
+
     amount_inputs = len(ort_input)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
     axes = {f"input{i+1}": {0: "batch"} for i in range(amount_inputs)}
@@ -18,6 +19,11 @@ def export_model(model, x, model_name) -> None:
 
     print(f"Now exporting {model_name}", flush=True)
     model.eval()
+
+    model = model.to("cpu")
+    for i in range(len(x)):
+        x[i] = x[i].to("cpu")
+
     torch.onnx.export(
         model,
         args=(x),
@@ -30,11 +36,8 @@ def export_model(model, x, model_name) -> None:
         dynamic_axes=axes,
     )
     print("Finished exporting model", flush=True)
-    model = model.to("cpu")
-    for i in range(len(x)):
-        x[i] = x[i].to("cpu")
 
-    torch_out = model(x)
+    torch_out = model(x).to("cpu")
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
     ort_session = onnxruntime.InferenceSession(
@@ -54,7 +57,7 @@ def export_model(model, x, model_name) -> None:
 
     ort_inputs = {}
     for i, input in enumerate(ort_session.get_inputs()):
-        ort_inputs[input.name] = to_numpy(ort_input[i])
+        ort_inputs[input.name] = to_numpy(x[i])
 
     print(f"Checking the output of the model {model_name}", flush=True)
     ort_outs = ort_session.run(None, ort_inputs)
