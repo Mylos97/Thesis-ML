@@ -7,13 +7,19 @@ class TreeDecoder(nn.Module):
         super(TreeDecoder, self).__init__()
 
         self.tree_conv = nn.Sequential(
+            BinaryTreeConv(32, 64),
+            TreeLayerNorm(),
+            TreeActivation(nn.Mish()),
             BinaryTreeConv(64, 128),
             TreeLayerNorm(),
             TreeActivation(nn.Mish()),
             BinaryTreeConv(128, 256),
             TreeLayerNorm(),
             TreeActivation(nn.Mish()),
-            BinaryTreeConv(256, output_dim),
+            BinaryTreeConv(256, 512),
+            TreeLayerNorm(),
+            TreeActivation(nn.Mish()),
+            BinaryTreeConv(512, output_dim),
             TreeLayerNorm(),
             TreeActivation(nn.Mish())
         )

@@ -400,7 +400,7 @@ def convert_to_json(plans) -> None:
         file.write(json_data)
 
 class Beta_Vae_Loss(torch.nn.Module):
-    def __init__(self, beta=1.0):
+    def __init__(self, beta=0.1):
         super(Beta_Vae_Loss, self).__init__()
         self.beta = beta
 
@@ -412,6 +412,6 @@ class Beta_Vae_Loss(torch.nn.Module):
         #total_kld = loss_reg * 0.0001
         total_kld = loss_reg
 
-        #print(f"recon_loss: {recon_loss}, loss_reg: {loss_reg}, beta: {self.beta}")
+        print(f"recon_loss: {recon_loss}, loss_reg: {loss_reg}, beta: {self.beta}")
 
         return recon_loss + total_kld * self.beta
