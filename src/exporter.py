@@ -19,8 +19,8 @@ def export_model(model, x, model_name) -> None:
 
     print(f"Now exporting {model_name}", flush=True)
     model.eval()
-
     model = model.to("cpu")
+
     for i in range(len(x)):
         x[i] = x[i].to("cpu")
 
@@ -40,6 +40,7 @@ def export_model(model, x, model_name) -> None:
     torch_out = model(x).to("cpu")
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
+
     ort_session = onnxruntime.InferenceSession(
         model_name, providers=["CPUExecutionProvider"]
     )

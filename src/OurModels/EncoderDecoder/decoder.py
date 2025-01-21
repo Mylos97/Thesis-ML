@@ -7,9 +7,6 @@ class TreeDecoder(nn.Module):
         super(TreeDecoder, self).__init__()
 
         self.tree_conv = nn.Sequential(
-            BinaryTreeConv(32, 64),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
             BinaryTreeConv(64, 128),
             TreeLayerNorm(),
             TreeActivation(nn.Mish()),
@@ -20,6 +17,14 @@ class TreeDecoder(nn.Module):
             TreeLayerNorm(),
             TreeActivation(nn.Mish())
         )
+
+        self.linear = nn.Sequential(
+            nn.Linear(z_dim, 4096),
+            nn.BatchNorm1d(4096),
+            nn.Mish(),
+            nn.Dropout(dropout_prob),
+        )
+
 
         """
         self.linear = nn.Sequential(
@@ -57,19 +62,13 @@ class TreeDecoder(nn.Module):
         )
         """
 
-        self.linear = nn.Sequential(
-            nn.Linear(z_dim, 4096),
-            nn.BatchNorm1d(4096),
-            nn.Mish(),
-            nn.Dropout(dropout_prob),
-        )
 
     def forward(self, trees, indexes):
         max_dim_tree = torch.max(indexes)
         next_pow_2 = 1<<(max_dim_tree-1).item().bit_length()
         x = self.linear(trees)
         x = x.view(x.shape[0], int(4096 / next_pow_2), next_pow_2)
-        #x = x.view(x.shape[0], 64, 64)
+        #x = x.view(x.shape[0], 4, 64)
         r = self.tree_conv((x, indexes))
 
         return r

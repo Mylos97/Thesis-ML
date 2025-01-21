@@ -60,6 +60,7 @@ def do_hyperparameter_BO(
             epochs=epochs,
             weights=weights
         )
+        print(f"Training on {device}")
         loss = evaluate(
             model=model,
             val_data_loader=test_loader,
@@ -101,6 +102,7 @@ def do_hyperparameter_BO(
             'name': 'batch_size',
             'type': 'range',
             'bounds': [32, 64],
+            #'bounds': [2, 64],
             'value_type': 'int'
         },
     ]
@@ -109,9 +111,18 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [1.0, 4.0],
+            'bounds': [0.1, 20.0],
             'value_type': 'float',
             "log_scale": True,
+        })
+
+        parameters.append({
+            'name': 'z_dim',
+            'type': 'range',
+            'bounds': [2, 31],
+            'value_type': 'int',
+            'is_ordered': True,
+            'sort_values' : True
         })
 
     """

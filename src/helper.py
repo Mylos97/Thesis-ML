@@ -123,7 +123,7 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
             find = in_paranthesis.strip('(').strip(')')
             values = [int(num.strip()) for num in find.split(',')]
             replacement = ','.join(map(str, values[num_ops:num_ops+num_platfs]))
-            optimal_tree = optimal_tree.replace(in_paranthesis, f"({replacement})")
+            optimal_tree = optimal_tree.replace(in_paranthesis, f"({replacement})", 1)
 
         return optimal_tree
 
@@ -178,10 +178,11 @@ def load_autoencoder_data_from_str(device: str, data: str, num_ops: int = 43, nu
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
 
         for match in matches_iterator:
-            find = match.group().strip('(').strip(')')
+            in_paranthesis = match.group()
+            find = in_paranthesis.strip('(').strip(')')
             values = [int(num.strip()) for num in find.split(',')]
             replacement = ','.join(map(str, values[num_ops:num_ops+num_platfs]))
-            optimal_tree = optimal_tree.replace(find, replacement)
+            optimal_tree = optimal_tree.replace(in_paranthesis, f"({replacement})", 1)
 
         return optimal_tree
 
@@ -411,6 +412,6 @@ class Beta_Vae_Loss(torch.nn.Module):
         #total_kld = loss_reg * 0.0001
         total_kld = loss_reg
 
-        #print(f"recon_x: {recon_x}, mu: {mu}, logvar: {logvar}, recon_loss: {recon_loss}, loss_reg: {loss_reg}, beta: {self.beta}")
+        #print(f"recon_loss: {recon_loss}, loss_reg: {loss_reg}, beta: {self.beta}")
 
         return recon_loss + total_kld * self.beta

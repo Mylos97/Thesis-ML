@@ -26,6 +26,7 @@ def main(args) -> None:
     trials = args.trials
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args_name = args.name if ".onnx" in args.name else f"{args.name}.onnx"
+    #torch.autograd.set_detect_anomaly(True)
     print(f"Started training model {args.model} at {args.model_path}", flush=True)
 
     if args.model == "vae":
@@ -34,13 +35,13 @@ def main(args) -> None:
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
-        #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('training.txt', 'Data/splits'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        #test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.naive-lsbo.txt', 'Data'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        #val_data, _, _ = load_autoencoder_data(path=get_relative_path('validation.txt', 'Data/splits'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/bqs/txt'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/bqs/txt'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/bqs/txt'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/bqs'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        #test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/bqs'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        #val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/bqs'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 

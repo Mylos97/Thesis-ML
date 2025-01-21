@@ -15,13 +15,14 @@ class BVAE(nn.Module):
         self.training = False
         self.softmax = nn.Softmax(dim=1)
 
+
     def forward(self, x):
         if not self.training:
             encoded, indexes = self.encoder(x)
             z = self.mu(encoded)
             decoded = self.decoder(z, indexes)
             x = decoded[0]
-            #x = self.softmax(decoded[0])
+            x = self.softmax(decoded[0])
 
             return x
         else:
@@ -33,6 +34,6 @@ class BVAE(nn.Module):
             z = mean + torch.exp(0.5 * log_var) * epsilon
             decoded = self.decoder(z, indexes)
             x = decoded[0]
-            #x = self.softmax(decoded[0])
+            x = self.softmax(decoded[0])
 
             return [x, mean, log_var]
