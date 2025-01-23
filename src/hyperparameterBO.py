@@ -41,8 +41,11 @@ def do_hyperparameter_BO(
         print(f"Val data: {val_loader}")
 
         if model_class == BVAE:
-            #l_function = loss_function(parameters.get('beta'))
-            l_function = loss_function(0.1)
+            l_function = loss_function(
+                #beta=parameters.get('beta', 1.0),
+                beta=4,
+            )
+            #l_function = loss_function(beta=1.5)
         else:
             l_function = loss_function()
 
@@ -84,7 +87,7 @@ def do_hyperparameter_BO(
         {
             'name': 'dropout',
             'type': 'range',
-            'bounds': [0.0, 0.5],
+            'bounds': [0.0, 0.4],
             'value_type': 'float'
         },
         {
@@ -92,12 +95,6 @@ def do_hyperparameter_BO(
             'type': 'range',
             'bounds': [0.5, 2.5],
             'value_type': 'float'
-        },
-        {
-            'name': 'patience',
-            'type': 'range',
-            'bounds': [5, 50],
-            'value_type': 'int'
         },
         {
             'name': 'batch_size',
@@ -108,25 +105,36 @@ def do_hyperparameter_BO(
         },
     ]
 
+    """
+    {
+        'name': 'patience',
+        'type': 'range',
+        'bounds': [5, 50],
+        'value_type': 'int'
+    },
+    """
+
     if model_class == BVAE:
         """
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [0.1, 20.0],
+            'bounds': [1, 50.0],
             'value_type': 'float',
             "log_scale": True,
         })
         """
 
+        """
         parameters.append({
             'name': 'z_dim',
             'type': 'range',
-            'bounds': [2, 31],
+            'bounds': [1, 128],
             'value_type': 'int',
             'is_ordered': True,
             'sort_values' : True
         })
+        """
 
     """
     if model_class == VAE or model_class == BVAE:
@@ -154,7 +162,10 @@ def do_hyperparameter_BO(
         ax_client.create_experiment(
             name='tune_model',
             parameters=parameters,
-            objectives={'loss': ObjectiveProperties(minimize=True)},
+            objectives={
+                'loss': ObjectiveProperties(minimize=True)
+                #'kld': ObjectiveProperties(minimize=False)
+            },
         )
 
         trial_eval_map = {}
@@ -213,8 +224,11 @@ def do_hyperparameter_BO(
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
     if model_class == BVAE:
-        #l_function = loss_function(best_parameters.get('beta', 0.1))
-        l_function = loss_function(0.1)
+        l_function = loss_function(
+            #beta=best_parameters.get('beta', 1.0),
+            beta=4,
+        )
+        #l_function = loss_function(beta=1.5)
     else:
         l_function = loss_function()
 

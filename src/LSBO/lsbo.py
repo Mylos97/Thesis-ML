@@ -113,7 +113,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-(latent_vector_sample * 25_000)] * d, [latent_vector_sample * 25_000] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
 
     def get_latencies(plans) -> list[torch.Tensor]:
@@ -136,21 +136,26 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         model_results = []
 
+        no_distinct_plans_before = len(distinct_choices)
+
         for new_plan in v_hat:
             decoded = ML_model.decoder(new_plan.float(), indexes)
 
-            #softmaxed = ML_model.softmax(decoded[0])
+            softmaxed = ML_model.softmax(decoded[0])
             #model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
-            platform_choices = list(map(lambda x: [int(v == max(x)) for v in x], decoded[0][0].detach().clone().transpose(0, 1)))
-            print(f"Disc latent vec: {platform_choices}")
-            discovered_latent_vector = [decoded[0].tolist()[0], decoded[1].tolist()[0]]
+            platform_choices = list(map(lambda x: [int(v == max(x)) for v in x], softmaxed[0].detach().clone().transpose(0, 1)))
+            discovered_latent_vector = [softmaxed.tolist()[0], decoded[1].tolist()[0]]
 
             # Only append and test new plans
             if platform_choices not in distinct_choices:
-                model_results.append(discovered_latent_vector)
                 distinct_choices.append(platform_choices)
 
-            assert platform_choices not in distinct_choices, "Generated plan that was seen before!"
+            model_results.append(discovered_latent_vector)
+
+
+        no_distinct_plans_after = len(distinct_choices)
+
+        assert no_distinct_plans_after > no_distinct_plans_before, f'No new plans generated, {len(distinct_choices)} total, aborting'
 
         latencies = get_latencies(model_results)
 

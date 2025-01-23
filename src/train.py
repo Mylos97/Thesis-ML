@@ -22,7 +22,7 @@ def train(
     lr = parameters.get("lr", 0.001)
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
-    z_dim = parameters.get("z_dim", 31)
+    z_dim = parameters.get("z_dim", 128)
     model = model_class(
         in_dim=in_dim, out_dim=out_dim, dropout_prob=dropout, z_dim=z_dim
     )
@@ -80,12 +80,14 @@ def train(
             best_val_loss = val_loss
             counter = 0
 
+        """
         if counter > patience:
             print(
                 f"Early stopping on Epoch {epoch} training loss: {loss} validation loss: {val_loss} model has not improved for {patience} epochs",
                 flush=True,
             )
             break
+        """
 
     # measure models inference performance with test data
     test_loss_accum = 0
