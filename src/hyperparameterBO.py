@@ -42,8 +42,8 @@ def do_hyperparameter_BO(
 
         if model_class == BVAE:
             l_function = loss_function(
-                #beta=parameters.get('beta', 1.0),
-                beta=4,
+                beta=parameters.get('beta', 1.0),
+                #beta=4,
             )
             #l_function = loss_function(beta=1.5)
         else:
@@ -103,38 +103,32 @@ def do_hyperparameter_BO(
             #'bounds': [2, 64],
             'value_type': 'int'
         },
+        {
+            'name': 'patience',
+            'type': 'range',
+            'bounds': [5, 50],
+            'value_type': 'int'
+        },
     ]
 
-    """
-    {
-        'name': 'patience',
-        'type': 'range',
-        'bounds': [5, 50],
-        'value_type': 'int'
-    },
-    """
 
     if model_class == BVAE:
-        """
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [1, 50.0],
+            'bounds': [10.0, 150.0],
             'value_type': 'float',
             "log_scale": True,
         })
-        """
 
-        """
         parameters.append({
             'name': 'z_dim',
             'type': 'range',
-            'bounds': [1, 128],
-            'value_type': 'int',
+            'bounds': [2, 31],
+           'value_type': 'int',
             'is_ordered': True,
             'sort_values' : True
         })
-        """
 
     """
     if model_class == VAE or model_class == BVAE:
@@ -163,8 +157,8 @@ def do_hyperparameter_BO(
             name='tune_model',
             parameters=parameters,
             objectives={
-                'loss': ObjectiveProperties(minimize=True)
-                #'kld': ObjectiveProperties(minimize=False)
+                'loss': ObjectiveProperties(minimize=True),
+                'kld': ObjectiveProperties(minimize=True)
             },
         )
 
@@ -176,10 +170,13 @@ def do_hyperparameter_BO(
             print(f"Parameters: {parameters}")
             print(f"raw_data: {raw_data}")
             ax_client.complete_trial(trial_index=trial_index, raw_data=raw_data)
-            trial_eval_map[raw_data] = parameters
+            #trial_eval_map[raw_data] = parameters
 
-        best_parameters, _ = ax_client.get_best_parameters()
-        print(f"Trial eval map: {sorted([key for key, value in trial_eval_map.items()])}")
+        #best_parameters, _ = ax_client.get_best_parameters()
+        print(f"Best parameters: {ax_client.get_pareto_optimal_parameters()}")
+        print(f"Best parameters: {list(ax_client.get_pareto_optimal_parameters().items())[0][1][0]}")
+        best_parameters, _ = list(ax_client.get_pareto_optimal_parameters().items())[0][1]
+        #print(f"Trial eval map: {sorted([key for key, value in trial_eval_map.items()])}")
         print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
 
 
@@ -225,8 +222,8 @@ def do_hyperparameter_BO(
 
     if model_class == BVAE:
         l_function = loss_function(
-            #beta=best_parameters.get('beta', 1.0),
-            beta=4,
+            beta=best_parameters.get('beta', 1.0),
+           # beta=4,
         )
         #l_function = loss_function(beta=1.5)
     else:

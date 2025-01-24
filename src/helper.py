@@ -405,13 +405,15 @@ class Beta_Vae_Loss(torch.nn.Module):
 
     def __init__(
         self,
-        beta=1.0,
-        gamma:float = 10.0,
-        max_capacity: int = 25,
+        loss_type: str = "B",
+        beta: float = 1.0,
+        gamma:float = 1000.0,
+        max_capacity: int = 55,
         Capacity_max_iter: int = 10_000,
-        kld_weight: float = 0.00025,
+        kld_weight: float = 1,
     ):
         super(Beta_Vae_Loss, self).__init__()
+        self.loss_type = loss_type
         self.beta = beta
         self.gamma = gamma
         self.C_max = torch.Tensor([max_capacity])
@@ -419,33 +421,38 @@ class Beta_Vae_Loss(torch.nn.Module):
         self.kld_weight = kld_weight
 
     def forward(self, prediction, target):
-        """
-        recon_x, mu, logvar = prediction
-        recon_loss = F.cross_entropy(recon_x, target)
-        #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
-        loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
-        #total_kld = loss_reg * 0.0001
-        total_kld = loss_reg
 
-        print(f"recon_loss: {recon_loss}, loss_reg: {loss_reg}, beta: {self.beta}")
 
-        return recon_loss + total_kld * self.beta
+        if self.loss_type == "B":
 
-        """
-        self.num_iter += 1
+            recon_x, mu, logvar = prediction
+            recon_loss = F.cross_entropy(recon_x, target)
+            #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
+            loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
+            #total_kld = loss_reg * 0.0001
+            total_kld = loss_reg
 
-        recon_x, mu, logvar = prediction
-        recon_loss = F.cross_entropy(recon_x, target)
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
-        self.C_max = self.C_max.to(prediction[0].device)
+            loss = recon_loss + self.kld_weight * total_kld * self.beta
 
-        C = torch.clamp(self.C_max/self.C_stop_iter * self.num_iter, 0, self.C_max.data[0])
-        loss = recon_loss + self.gamma * self.kld_weight * (kld_loss - C).abs()
+            return {
+                'loss': loss,
+                'recon_loss': recon_loss,
+                'kld': total_kld,
+                'beta': self.beta
+            }
+        else:
+            self.num_iter += 1
 
-        print(f"Num_iter: {self.num_iter}")
-        print(f"C: {C} nits")
-        print(f"KLD scaled: {self.gamma * self.kld_weight * (kld_loss - C).abs()}")
+            recon_x, mu, logvar = prediction
+            recon_loss = F.cross_entropy(recon_x, target)
+            kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
+            self.C_max = self.C_max.to(prediction[0].device)
 
-        return loss
+            C = torch.clamp(self.C_max/self.C_stop_iter * self.num_iter * 100, 0, self.C_max.data[0])
+            loss = recon_loss + self.gamma * self.kld_weight * (kld_loss - C).abs()
 
-        #return {'loss': loss, 'recon_loss': recon_loss, 'kld': kld_loss}
+            print(f"Num_iter: {self.num_iter}")
+            print(f"C: {C} nits")
+            print(f"KLD scaled: {self.gamma * self.kld_weight * (kld_loss - C).abs()}")
+
+            return {'loss': loss, 'recon_loss': recon_loss, 'kld': kld_loss, 'beta': self.beta}

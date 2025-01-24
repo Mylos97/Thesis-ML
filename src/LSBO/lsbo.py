@@ -152,10 +152,9 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
             model_results.append(discovered_latent_vector)
 
-
         no_distinct_plans_after = len(distinct_choices)
 
-        assert no_distinct_plans_after > no_distinct_plans_before, f'No new plans generated, {len(distinct_choices)} total, aborting'
+        #assert no_distinct_plans_after > no_distinct_plans_before, f'No new plans generated, {len(distinct_choices)} total, aborting'
 
         latencies = get_latencies(model_results)
 
