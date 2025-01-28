@@ -50,6 +50,7 @@ time_limit_reached = False
 best_plan_data = None
 z_dim = 31
 distinct_choices = []
+PLAN_SIZE = 0
 
 class LSBOResult:
     def __init__(
@@ -97,14 +98,15 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     with torch.no_grad():
         for tree,target in plan:
             encoded_plan = ML_model.encoder(tree)
+            #softmaxed = ML_model.enc_softmax(encoded_plan[0])
         latent_vector = encoded_plan[0]
         print(f"Tree shape : {tree[0].shape}")
         indexes = encoded_plan[1]
         print(f"Indexes: {indexes.shape}")
         d = latent_vector.shape[1]
     #N_BATCH = 100
-    BATCH_SIZE = 1
-    NUM_RESTARTS = 250
+    BATCH_SIZE = 3
+    NUM_RESTARTS = 10
     RAW_SAMPLES = 256
     MC_SAMPLES = 2048
     initial_latency = 0
@@ -112,15 +114,19 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     latent_vector_sample = latent_vector[0].max().item()
 
     bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-1] * z_dim, [1] * z_dim], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-7_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
 
     def get_latencies(plans) -> list[torch.Tensor]:
         results = []
         for plan in plans:
-            latency = get_plan_latency(args, plan)
-            results.append(latency)
+            if plan is not None:
+                latency = get_plan_latency(args, plan)
+                results.append(latency)
+            else:
+                results.append(initial_latency)
 
         return results
 
@@ -128,11 +134,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         #with torch.no_grad():
         # Move the prediction made in latent_vector by some random v
         global distinct_choices
+        global PLAN_SIZE
+
         if not initial:
             v_hat = [torch.add(latent_vector, torch.tensor(v)) for v in X]
         else:
             v_hat = [latent_vector]
-
 
         model_results = []
 
@@ -143,16 +150,28 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
             softmaxed = ML_model.softmax(decoded[0])
             #model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
-            platform_choices = list(map(lambda x: [int(v == max(x)) for v in x], softmaxed[0].detach().clone().transpose(0, 1)))
+
+            platform_choices = list(
+                map(
+                    lambda x: [int(v == max(x)) for v in x],
+                    softmaxed[0].detach().clone().transpose(0, 1)
+                )
+            )
+
+            if PLAN_SIZE > 0:
+                platform_choices = platform_choices[0:PLAN_SIZE+1]
+
             discovered_latent_vector = [softmaxed.tolist()[0], decoded[1].tolist()[0]]
 
             # Only append and test new plans
             if platform_choices not in distinct_choices:
                 distinct_choices.append(platform_choices)
-
-            model_results.append(discovered_latent_vector)
+                model_results.append(discovered_latent_vector)
+            else:
+                model_results.append(None)
 
         no_distinct_plans_after = len(distinct_choices)
+        print(f"Generated {no_distinct_plans_after - no_distinct_plans_before} new plans")
 
         #assert no_distinct_plans_after > no_distinct_plans_before, f'No new plans generated, {len(distinct_choices)} total, aborting'
 
@@ -169,10 +188,20 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             print(f"Set initial latency: {latencies}")
             return latencies
 
+        """
+        improvements = list(map(lambda latency: initial_latency - latency, latencies))
+
+        return list(
+                map(lambda improvement: math.log(improvement) if improvement >= 0 else -1 * math.log(abs(improvement)),
+                    improvements
+                )
+        )
+        """
+
         return list(map(lambda latency: math.log(max(initial_latency - latency, 1)), latencies))
 
 
-    def gen_initial_data(plan, n: int = 25):
+    def gen_initial_data(plan, n: int = 10):
         global initial_latency
         initial_latency = objective_function([plan], True).unsqueeze(-1).min().item()
 
@@ -238,7 +267,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             q=BATCH_SIZE,
             num_restarts=NUM_RESTARTS,
             raw_samples=RAW_SAMPLES,
-            return_best_only=True,
+            #return_best_only=True,
         )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
@@ -277,8 +306,6 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     #for iteration in range(N_BATCH):
     while not time_limit_reached:
-        print(f"Prev.train_x: {previous.train_x}")
-        print(f"Prev.train_obj: {previous.train_obj}")
 
         model = get_fitted_model(
             previous.train_x,
@@ -291,6 +318,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         print(f"Best f: {previous.train_obj.max()}")
 
         #sampler = StochasticSampler(sample_shape=torch.Size([MC_SAMPLES]))
+        #sampler = SobolQMCNormalSampler(torch.Size([MC_SAMPLES]))
 
         qEI = qLogExpectedImprovement(
             model=model,
@@ -324,7 +352,8 @@ def run_lsbo(input, args, previous: LSBOResult = None):
     z_dim = args.zdim
     #model_path= f"{dir_path}/../Models/bvae.onnx"
     #parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
 
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
@@ -363,6 +392,7 @@ def run_lsbo(input, args, previous: LSBOResult = None):
 def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
     global PLAN_CACHE
+    global PLAN_SIZE
     global best_plan_data
 
     try:
@@ -393,13 +423,17 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         #print(process.stdout.read())
         plan_out = ""
+        counter = 0
         for line in iter(process.stdout.readline, b''):
             line_str = line.rstrip().decode('utf-8')
             if line_str.startswith("Encoding while choices: "):
                 plan_out += line_str
                 print(line_str)
+                counter += 1
             elif plan_out != "":
                 break
+
+        PLAN_SIZE = counter
 
         if plan_out in PLAN_CACHE:
             print("Seen this plan before")

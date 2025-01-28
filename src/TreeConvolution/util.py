@@ -65,6 +65,7 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
     if _is_leaf(root, left_child, right_child):
         # leaf
         return idx
+        #return 0
 
     def rightmost(tree):
         if isinstance(tree, tuple):

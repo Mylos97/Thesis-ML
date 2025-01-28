@@ -17,6 +17,7 @@ def do_hyperparameter_BO(
     out_dim:int,
     loss_function:nn.Module,
     device: torch.device,
+    parameters_path: str,
     lr,
     epochs,
     trials,
@@ -116,7 +117,7 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [10.0, 150.0],
+            'bounds': [5.0, 150.0],
             'value_type': 'float',
             "log_scale": True,
         })
@@ -124,8 +125,8 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'z_dim',
             'type': 'range',
-            'bounds': [2, 31],
-           'value_type': 'int',
+            'bounds': [1, 31],
+            'value_type': 'int',
             'is_ordered': True,
             'sort_values' : True
         })
@@ -246,7 +247,8 @@ def do_hyperparameter_BO(
 
     # write best parameters to file
     if not is_retraining:
-        with open(get_relative_path(f"{type(best_model).__name__}.json", 'HyperparameterLogs'), 'w') as file:
+        #with open(get_relative_path(f"{type(best_model).__name__}.json", 'HyperparameterLogs'), 'w') as file:
+        with open(parameters_path, 'w') as file:
             json.dump(best_parameters, file)
 
     if plots:

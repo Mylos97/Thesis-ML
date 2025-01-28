@@ -92,7 +92,8 @@ def main(args) -> None:
                 epochs=epochs,
                 trials=trials,
                 plots=args.plots,
-                best_parameters=best_parameters
+                best_parameters=best_parameters,
+                parameters_path=args.parameters
         )
 
         if args.model_path is not None:
@@ -119,7 +120,8 @@ def main(args) -> None:
                 weights=weights,
                 epochs=epochs,
                 trials=trials,
-                plots=args.plots
+                plots=args.plots,
+                parameters_path=args.parameters
         )
 
         if args.model_path is not None:

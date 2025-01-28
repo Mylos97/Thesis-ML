@@ -47,6 +47,7 @@ def left_child(x: tuple) -> tuple:
 
 def right_child(x: tuple) -> tuple:
     assert isinstance(x, tuple)
+
     if len(x) == 1:
         return None
     return x[2]
