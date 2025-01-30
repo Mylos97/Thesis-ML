@@ -19,6 +19,7 @@ import sys
 import torch
 import torch.onnx
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 import json
 from subprocess import PIPE, Popen
 import signal
@@ -95,10 +96,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
+    latent_target = None
     with torch.no_grad():
         for tree,target in plan:
             encoded_plan = ML_model.encoder(tree)
             #softmaxed = ML_model.enc_softmax(encoded_plan[0])
+            latent_target = target
         latent_vector = encoded_plan[0]
         print(f"Tree shape : {tree[0].shape}")
         indexes = encoded_plan[1]
@@ -113,8 +116,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-1] * z_dim, [1] * z_dim], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
+    bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-7_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
@@ -136,16 +139,18 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         global distinct_choices
         global PLAN_SIZE
 
+        """
         if not initial:
             v_hat = [torch.add(latent_vector, torch.tensor(v)) for v in X]
         else:
             v_hat = [latent_vector]
+        """
 
         model_results = []
 
         no_distinct_plans_before = len(distinct_choices)
 
-        for new_plan in v_hat:
+        for new_plan in X:
             decoded = ML_model.decoder(new_plan.float(), indexes)
 
             softmaxed = ML_model.softmax(decoded[0])
@@ -162,6 +167,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
                 platform_choices = platform_choices[0:PLAN_SIZE+1]
 
             discovered_latent_vector = [softmaxed.tolist()[0], decoded[1].tolist()[0]]
+
+            #print(f"neg log likelihood: {-F.cross_entropy(softmaxed, latent_target)}")
 
             # Only append and test new plans
             if platform_choices not in distinct_choices:
@@ -208,8 +215,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         train_x = unnormalize(
             torch.rand(n, d, device=device, dtype=dtype),
             bounds=bounds)
-        print(f"Initial train_x: {train_x}")
-        train_obj = objective_function(train_x).unsqueeze(-1)
+
+        # Move the prediction made in latent_vector by some random x
+        candidates = [torch.add(latent_vector, torch.tensor(x)) for x in train_x]
+        print(f"Initial train_x: {candidates}")
+
+        train_obj = objective_function(candidates).unsqueeze(-1)
         print(f"Train_obj: {train_obj}")
         best_observed_value = train_obj.max().item()
         #train_obj = torch.tensor([[0]])
@@ -271,10 +282,11 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
+        candidates = [torch.tensor(x).unsqueeze(0) for x in new_x]
         #new_x = candidates.detach()
-        print(f"new_x: {new_x}")
+        print(f"new_x: {candidates}")
         print(f"expected improvements: {expected}")
-        new_obj = objective_function(new_x).unsqueeze(-1)
+        new_obj = objective_function(candidates).unsqueeze(-1)
 
         """
         index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
@@ -410,6 +422,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         """
 
         socket_port = int(process.stdout.readline().rstrip().decode("utf-8"))
+        print(f"Socket port {socket_port}")
         process.stdout.flush()
 
         sock_file, sock = open_connection(socket_port)
@@ -421,17 +434,19 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         sock_file.flush()
 
-        #print(process.stdout.read())
         plan_out = ""
         counter = 0
         for line in iter(process.stdout.readline, b''):
             line_str = line.rstrip().decode('utf-8')
+            print(line_str)
             if line_str.startswith("Encoding while choices: "):
                 plan_out += line_str
                 print(line_str)
                 counter += 1
             elif plan_out != "":
-                break
+                #break
+                print(line_str)
+        out, err = process.communicate(timeout=TIMEOUT)
 
         PLAN_SIZE = counter
 
@@ -508,6 +523,7 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3
 
     socket_port = int(process.stdout.readline().rstrip().decode("utf-8"))
     process.stdout.flush()
+    print(f"Socket on {socket_port}")
 
     sock_file, sock = open_connection(socket_port)
 

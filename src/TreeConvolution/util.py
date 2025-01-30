@@ -62,14 +62,30 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
             + "tree node to its child, or None"
         )
 
+    def contains_only_zeros(tup):
+        if isinstance(tup, int):  # Base case: if it's an integer
+            return tup == 0
+        if isinstance(tup, tuple):  # Recursive case: check all elements
+            return all(contains_only_zeros(sub) for sub in tup)
+        return True  # If any non-tuple, non-int value appears
+
+
     if _is_leaf(root, left_child, right_child):
         # leaf
+        print(f"Leaf: {root}")
+        print(f"Only zeros: {contains_only_zeros(root)}")
+        if contains_only_zeros(root):
+            return 0
+
         return idx
-        #return 0
 
     def rightmost(tree):
         if isinstance(tree, tuple):
+            if tree[2] == 0:
+                return rightmost(tree[1])
+
             return rightmost(tree[2])
+        print(f"rightmost: {tree}")
         return tree
 
     left_subtree = _preorder_indexes(
@@ -79,6 +95,7 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
     right_subtree = _preorder_indexes(
         right_child(root), left_child, right_child, idx=max_index_in_left + 1
     )
+
     return (idx, left_subtree, right_subtree)
 
 
@@ -96,6 +113,7 @@ def _tree_conv_indexes(root, left_child, right_child):
         )
 
     index_tree = _preorder_indexes(root, left_child, right_child)
+    print(f"Preordered: {index_tree}")
 
     def recurse(root):
         if isinstance(root, tuple):
@@ -144,9 +162,12 @@ def prepare_trees(trees, transformer, left_child, right_child, device='cpu'):
     flat_trees = torch.Tensor(flat_trees)
     flat_trees = flat_trees.transpose(1, 2)
     flat_trees = flat_trees.to(device)
+    print(f"Flat Trees: {flat_trees.shape}")
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
     indexes = _pad_and_combine(indexes)
+    #print(f"Padded indexes: {indexes}")
     indexes = torch.Tensor(indexes).long()
     indexes = indexes.to(device)
+
     return (flat_trees, indexes)
