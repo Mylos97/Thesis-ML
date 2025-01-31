@@ -59,9 +59,6 @@ class TreeEncoder(nn.Module):
         """
 
     def forward(self, trees):
-        for tree in trees:
-            print(f"Enc trees {tree.shape}")
-
         x = self.binary_conv(trees)
         indexes = x[1]
         y = self.linear(x)

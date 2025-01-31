@@ -117,7 +117,7 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [5.0, 150.0],
+            'bounds': [0.1, 150.0],
             'value_type': 'float',
             "log_scale": True,
         })
@@ -125,7 +125,7 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'z_dim',
             'type': 'range',
-            'bounds': [1, 31],
+            'bounds': [1, 128],
             'value_type': 'int',
             'is_ordered': True,
             'sort_values' : True

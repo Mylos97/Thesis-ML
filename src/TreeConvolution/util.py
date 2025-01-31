@@ -90,7 +90,6 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
         left_child(root), left_child, right_child, idx=idx + 1
     )
     max_index_in_left = rightmost(left_subtree)
-    print(f"Max index in left: {max_index_in_left}")
     right_subtree = _preorder_indexes(
         right_child(root), left_child, right_child, idx=max_index_in_left + 1
     )
@@ -166,10 +165,8 @@ def prepare_trees(trees, transformer, left_child, right_child, device='cpu'):
     flat_trees = torch.Tensor(flat_trees)
     flat_trees = flat_trees.transpose(1, 2)
     flat_trees = flat_trees.to(device)
-    print(f"Flat Trees: {flat_trees.shape}")
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
-    print(f"Prepare indexes: {indexes[0].shape}")
     indexes = _pad_and_combine(indexes)
     indexes = torch.Tensor(indexes).long()
     indexes = indexes.to(device)

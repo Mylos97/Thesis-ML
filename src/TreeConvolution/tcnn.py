@@ -17,16 +17,13 @@ class BinaryTreeConv(nn.Module):
         idxes = idxes.expand(-1, -1, self.__in_channels).transpose(1, 2)
         expanded = torch.gather(trees, 2, idxes)
 
-        print(f"Expanded: {expanded.shape}")
-        print(f"Input: {self.__in_channels}")
-        print(f"Output: {self.__out_channels}")
-        print(f"Orig_idxes: {orig_idxes}")
-
         results = self.weights(expanded)
 
         # add a zero vector back on
         zero_vec = torch.zeros((trees.shape[0], self.__out_channels)).unsqueeze(2)
+        zero_vec = zero_vec.to(results.device)
         results = torch.cat((zero_vec, results), dim=2)
+
         return (results, orig_idxes)
 
 class TreeActivation(nn.Module):

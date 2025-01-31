@@ -366,8 +366,8 @@ def run_lsbo(input, args, previous: LSBOResult = None):
     z_dim = args.zdim
     #model_path= f"{dir_path}/../Models/bvae.onnx"
     #parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cpu")
 
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
