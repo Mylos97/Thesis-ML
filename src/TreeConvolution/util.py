@@ -72,8 +72,6 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
 
     if _is_leaf(root, left_child, right_child):
         # leaf
-        print(f"Leaf: {root}")
-        print(f"Only zeros: {contains_only_zeros(root)}")
         if contains_only_zeros(root):
             return 0
 
@@ -82,16 +80,17 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
     def rightmost(tree):
         if isinstance(tree, tuple):
             if tree[2] == 0:
-                return rightmost(tree[1])
+                return max(tree[0], rightmost(tree[1]))
 
-            return rightmost(tree[2])
-        print(f"rightmost: {tree}")
+            return max(tree[0], rightmost(tree[1]), rightmost(tree[2]))
+
         return tree
 
     left_subtree = _preorder_indexes(
         left_child(root), left_child, right_child, idx=idx + 1
     )
     max_index_in_left = rightmost(left_subtree)
+    print(f"Max index in left: {max_index_in_left}")
     right_subtree = _preorder_indexes(
         right_child(root), left_child, right_child, idx=max_index_in_left + 1
     )
@@ -113,7 +112,6 @@ def _tree_conv_indexes(root, left_child, right_child):
         )
 
     index_tree = _preorder_indexes(root, left_child, right_child)
-    print(f"Preordered: {index_tree}")
 
     def recurse(root):
         if isinstance(root, tuple):
@@ -126,7 +124,13 @@ def _tree_conv_indexes(root, left_child, right_child):
             yield from recurse(root[1])
             yield from recurse(root[2])
         else:
-            yield [root, 0, 0]
+            """
+            TODO: This  step shouldn't really be needed,
+            wayang already appends 0s when needed
+            """
+            if root != 0:
+                yield [root, 0, 0]
+
 
     out = np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
     return out
@@ -165,8 +169,8 @@ def prepare_trees(trees, transformer, left_child, right_child, device='cpu'):
     print(f"Flat Trees: {flat_trees.shape}")
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
+    print(f"Prepare indexes: {indexes[0].shape}")
     indexes = _pad_and_combine(indexes)
-    #print(f"Padded indexes: {indexes}")
     indexes = torch.Tensor(indexes).long()
     indexes = indexes.to(device)
 

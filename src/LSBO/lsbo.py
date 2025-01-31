@@ -163,8 +163,10 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
                 )
             )
 
+            """
             if PLAN_SIZE > 0:
                 platform_choices = platform_choices[0:PLAN_SIZE+1]
+            """
 
             discovered_latent_vector = [softmaxed.tolist()[0], decoded[1].tolist()[0]]
 
@@ -396,7 +398,7 @@ def run_lsbo(input, args, previous: LSBOResult = None):
         model.to(device)
         model.eval()
 
-        dataloader = DataLoader(data, batch_size=1, drop_last=False, shuffle=True)
+        dataloader = DataLoader(data, batch_size=1, drop_last=False, shuffle=False)
         lsbo_result = latent_space_BO(model, device, dataloader, args, previous)
 
     return lsbo_result
@@ -444,8 +446,8 @@ def get_plan_latency(args, sampled_plan) -> float:
                 print(line_str)
                 counter += 1
             elif plan_out != "":
-                #break
-                print(line_str)
+                break
+
         out, err = process.communicate(timeout=TIMEOUT)
 
         PLAN_SIZE = counter
