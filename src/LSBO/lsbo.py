@@ -448,8 +448,6 @@ def get_plan_latency(args, sampled_plan) -> float:
             elif plan_out != "":
                 break
 
-        out, err = process.communicate(timeout=TIMEOUT)
-
         PLAN_SIZE = counter
 
         if plan_out in PLAN_CACHE:
