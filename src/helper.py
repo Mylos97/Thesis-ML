@@ -205,8 +205,8 @@ def load_autoencoder_data_from_str(device: str, data: str, num_ops: int = 43, nu
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
     x = []
     trees, indexes = build_trees(trees, device=device)
-    target_trees, _ = build_trees(trees, device=device)
-    #target_trees = trees
+    #target_trees, _ = build_trees(trees, device=device)
+    target_trees = trees
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
     for i, tree in enumerate(trees):

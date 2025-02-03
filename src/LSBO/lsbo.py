@@ -116,8 +116,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    #bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
-    bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-7_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
@@ -274,9 +274,15 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         # optimize
         candidates, expected = optimize_acqf(
             acq_function=acq_func,
-            bounds=bounds,
+            #bounds=bounds,
             #bounds=torch.stack([tr_lb, tr_ub]),
             #bounds = torch.tensor([[0.], [1.]]),
+            bounds=torch.stack(
+                [
+                    torch.zeros(d, dtype=dtype, device=device),
+                    torch.ones(d, dtype=dtype, device=device),
+                ]
+            ),
             q=BATCH_SIZE,
             num_restarts=NUM_RESTARTS,
             raw_samples=RAW_SAMPLES,
@@ -284,7 +290,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
-        candidates = [torch.tensor(x).unsqueeze(0) for x in new_x]
+        #candidates = [torch.tensor(x).unsqueeze(0) for x in new_x]
+        candidates = [torch.add(latent_vector, torch.tensor(x)) for x in new_x]
         #new_x = candidates.detach()
         print(f"new_x: {candidates}")
         print(f"expected improvements: {expected}")
