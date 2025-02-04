@@ -48,6 +48,7 @@ from Util.communication import read_int, UTF8Deserializer, dump_stream, open_con
 TIMEOUT = float(60 * 60 * 60)
 PLAN_CACHE = set()
 time_limit_reached = False
+improvement_threshhold_hit = False
 best_plan_data = None
 z_dim = 31
 distinct_choices = []
@@ -88,6 +89,7 @@ class LSBOResult:
 def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     global initial_latency
     global time_limit_reached
+    global improvement_threshhold_hit
 
     def set_time_limit_reached():
         global time_limit_reached
@@ -326,7 +328,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     t.start()
 
     #for iteration in range(N_BATCH):
-    while not time_limit_reached:
+    while not time_limit_reached or improvement_threshhold_hit:
 
         model = get_fitted_model(
             previous.train_x,
@@ -350,6 +352,9 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         new_x, new_obj = optimize_acqf_and_get_observation(qEI)
         previous.update(new_x, new_obj, model.state_dict())
+
+        index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
+        improvement_threshhold_hit = (math.pow(math.e ,best_impr.item()) / initial_latency) * 100 > 25
 
     print('Finish Bayesian Optimization for latent space', flush=True)
 
