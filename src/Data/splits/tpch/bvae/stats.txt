@@ -1,7 +1,0 @@
-902:1:20752.0:20752
-/var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/BaseQuerySplit/train/m_15a.sql:3:21600000000.0:207
-/var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/BaseQuerySplit/train/m_2a.sql:1:176.0:176
-10:2:23267.0:13216
-200:9:18154.0:18154
-10:17:22307.0:21827
-10:15:23343.0:13457

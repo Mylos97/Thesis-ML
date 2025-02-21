@@ -44,11 +44,10 @@ from botorch.generation.gen import get_best_candidates, gen_candidates_torch
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
+from LSBO.criteria import StoppingCriteria
 
 TIMEOUT = float(60 * 60 * 60)
 PLAN_CACHE = set()
-time_limit_reached = False
-improvement_threshhold_hit = False
 best_plan_data = None
 z_dim = 31
 distinct_choices = []
@@ -88,13 +87,6 @@ class LSBOResult:
 
 def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     global initial_latency
-    global time_limit_reached
-    global improvement_threshhold_hit
-
-    def set_time_limit_reached():
-        global time_limit_reached
-        time_limit_reached = True
-        print("Time limit reached, stopping LSBO loop")
 
     print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
@@ -199,20 +191,29 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             print(f"Set initial latency: {latencies}")
             return latencies
 
-        """
         improvements = list(map(lambda latency: initial_latency - latency, latencies))
 
+        def get_impr(improvement: float) -> float:
+            if improvement > 0:
+
+                return math.log(improvement)
+            elif improvement < 0:
+
+                return -1 * math.log(abs(improvement))
+            else:
+
+                return 0
+
         return list(
-                map(lambda improvement: math.log(improvement) if improvement >= 0 else -1 * math.log(abs(improvement)),
+                map(lambda improvement: get_impr(improvement),
                     improvements
                 )
         )
-        """
 
-        return list(map(lambda latency: math.log(max(initial_latency - latency, 1)), latencies))
+        #return list(map(lambda latency: math.log(max(initial_latency - latency, 1)), latencies))
 
 
-    def gen_initial_data(plan, n: int = 10):
+    def gen_initial_data(plan, n: int = 3):
         global initial_latency
         initial_latency = objective_function([plan], True).unsqueeze(-1).min().item()
 
@@ -221,7 +222,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             bounds=bounds)
 
         # Move the prediction made in latent_vector by some random x
-        candidates = [torch.add(latent_vector, torch.tensor(x)) for x in train_x]
+        candidates = [torch.add(latent_vector, x.clone().detach()) for x in train_x]
         print(f"Initial train_x: {candidates}")
 
         train_obj = objective_function(candidates).unsqueeze(-1)
@@ -288,12 +289,12 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             q=BATCH_SIZE,
             num_restarts=NUM_RESTARTS,
             raw_samples=RAW_SAMPLES,
-            #return_best_only=True,
+            return_best_only=True,
         )
 
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         #candidates = [torch.tensor(x).unsqueeze(0) for x in new_x]
-        candidates = [torch.add(latent_vector, torch.tensor(x)) for x in new_x]
+        candidates = [torch.add(latent_vector, x.clone().detach()) for x in new_x]
         #new_x = candidates.detach()
         print(f"new_x: {candidates}")
         print(f"expected improvements: {expected}")
@@ -324,11 +325,17 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         previous = LSBOResult(ML_model, None, model_results, tree, train_x, train_obj, state_dict, best_observed)
 
+    """
     t = threading.Timer(args.time * 60, set_time_limit_reached)
     t.start()
+    """
 
     #for iteration in range(N_BATCH):
-    while not time_limit_reached or improvement_threshhold_hit:
+    criteria = StoppingCriteria(args.time * 60, args.improvement, initial_latency)
+
+    criteria.start_timer()
+
+    while not criteria.is_met():
 
         model = get_fitted_model(
             previous.train_x,
@@ -354,7 +361,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         previous.update(new_x, new_obj, model.state_dict())
 
         index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
-        improvement_threshhold_hit = (math.pow(math.e ,best_impr.item()) / initial_latency) * 100 > 25
+        criteria.step(best_impr.item())
 
     print('Finish Bayesian Optimization for latent space', flush=True)
 
@@ -363,6 +370,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     best_plan = previous.train_x[index]
     best_latency = initial_latency - math.pow(math.e ,best_impr.item())
     print(f"{best_latency} = {initial_latency} - {math.pow(math.e, best_impr.item())}")
+
+    criteria.stop_timer()
 
     return best_plan, best_latency
 

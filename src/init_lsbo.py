@@ -55,7 +55,7 @@ if __name__ == '__main__':
     parser.add_argument('--exec', type=str, default='/var/www/html/wayang-assembly/target/wayang-0.7.1/bin/wayang-submit')
     parser.add_argument('--memory', type=str, default='-Xmx8g --illegal-access=permit')
     parser.add_argument('--namespace', type=str, default='org.apache.wayang.ml.benchmarks.LSBORunner')
-    parser.add_argument('--args', type=str, default='java,spark,flink,postgres file:///var/www/html/data/')
+    parser.add_argument('--args', type=str, default='java,spark,flink,postgres file:///opt/data/')
     parser.add_argument('--query', type=str, default="1")
     parser.add_argument('--trainset', type=str, default='./src/Data/splits/tpch/bvae/retrain-25.txt')
     parser.add_argument('--stats', type=str, default='./src/Data/splits/tpch/bvae/stats.txt')
@@ -71,6 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('--operators', type=int, default=43)
     # add a time in minutes for this process to run, otherwise stop it
     parser.add_argument('--time', type=int, default=1)
+    parser.add_argument('--improvement', type=float, default=25)
     args = parser.parse_args()
 
     main(args)

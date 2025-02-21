@@ -127,11 +127,13 @@ def _tree_conv_indexes(root, left_child, right_child):
             TODO: This  step shouldn't really be needed,
             wayang already appends 0s when needed
             """
+            print(f"root: {root}")
             if root != 0:
                 yield [root, 0, 0]
 
 
     out = np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
+    print(f"Indexes: {out}")
     return out
 
 
@@ -165,10 +167,13 @@ def prepare_trees(trees, transformer, left_child, right_child, device='cpu'):
     flat_trees = torch.Tensor(flat_trees)
     flat_trees = flat_trees.transpose(1, 2)
     flat_trees = flat_trees.to(device)
+    print(f"FlatTrees: {flat_trees.shape}")
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
     indexes = _pad_and_combine(indexes)
     indexes = torch.Tensor(indexes).long()
     indexes = indexes.to(device)
+
+    print(f"Indexes: {indexes.shape}")
 
     return (flat_trees, indexes)

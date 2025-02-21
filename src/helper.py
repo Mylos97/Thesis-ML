@@ -205,8 +205,8 @@ def load_autoencoder_data_from_str(device: str, data: str, num_ops: int = 43, nu
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
     x = []
     trees, indexes = build_trees(trees, device=device)
-    #target_trees, _ = build_trees(trees, device=device)
-    target_trees = trees
+    target_trees, _ = build_trees(targets, device=device)
+    #target_trees = trees
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
     for i, tree in enumerate(trees):
@@ -424,7 +424,6 @@ class Beta_Vae_Loss(torch.nn.Module):
 
     def forward(self, prediction, target):
 
-
         if self.loss_type == "B":
 
             recon_x, mu, logvar = prediction
@@ -439,7 +438,7 @@ class Beta_Vae_Loss(torch.nn.Module):
             return {
                 'loss': loss,
                 'recon_loss': recon_loss,
-                'kld': total_kld,
+                'kld': total_kld * self.beta,
                 'beta': self.beta
             }
         else:
