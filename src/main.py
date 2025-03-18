@@ -41,9 +41,9 @@ def main(args) -> None:
         val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         """
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/bqs/txt'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/bqs/txt'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/bqs/txt'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/loo'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/loo'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/loo'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 

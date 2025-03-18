@@ -117,7 +117,7 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [10, 150],
+            'bounds': [1, 150],
             'value_type': 'float',
             "log_scale": True,
         })
