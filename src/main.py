@@ -24,7 +24,8 @@ def main(args) -> None:
     lr = ast.literal_eval(args.lr)
     epochs = args.epochs
     trials = args.trials
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     args_name = args.name if ".onnx" in args.name else f"{args.name}.onnx"
     #torch.autograd.set_detect_anomaly(True)
     print(f"Started training model {args.model} at {args.model_path}", flush=True)

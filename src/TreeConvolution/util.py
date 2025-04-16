@@ -35,13 +35,15 @@ def _flatten(root, transformer, left_child, right_child):
     accum = []
 
     def recurse(x):
-        if _is_leaf(x, left_child, right_child):
-            accum.append(transformer(x))
+        if x is None:
             return
 
         accum.append(transformer(x))
-        recurse(left_child(x))
-        recurse(right_child(x))
+
+        if not _is_leaf(x, left_child, right_child):
+            recurse(left_child(x))
+            recurse(right_child(x))
+
 
     recurse(root)
     try:
@@ -51,8 +53,8 @@ def _flatten(root, transformer, left_child, right_child):
         raise TreeConvolutionError(
             "Output of transformer must have a .shape (e.g., numpy array)"
         )
-    return np.array(accum)
 
+    return np.array(accum)
 
 def _preorder_indexes(root, left_child, right_child, idx=1):
     """transforms a tree into a tree of preorder indexes"""
@@ -66,7 +68,14 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
         if isinstance(tup, int):  # Base case: if it's an integer
             return tup == 0
         if isinstance(tup, tuple):  # Recursive case: check all elements
-            return all(contains_only_zeros(sub) for sub in tup)
+                if isinstance(tup[0], int): # tuple of ints
+                    if len(tup) > 9: # Not for platform choices
+                        return sum(list(tup)) <= 1
+                    else:
+                        return sum(list(tup)) == 0
+                elif isinstance(tup[0], tuple): # Recursive case
+                    return all(contains_only_zeros(sub) for sub in tup)
+
         return True  # If any non-tuple, non-int value appears
 
 
@@ -89,11 +98,16 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
     left_subtree = _preorder_indexes(
         left_child(root), left_child, right_child, idx=idx + 1
     )
+
     max_index_in_left = rightmost(left_subtree)
+
+    assert max_index_in_left > 0
     right_subtree = _preorder_indexes(
         right_child(root), left_child, right_child, idx=max_index_in_left + 1
     )
 
+    if (left_subtree == 0):
+        print(f"{idx, left_subtree, right_subtree}")
     return (idx, left_subtree, right_subtree)
 
 
@@ -127,13 +141,12 @@ def _tree_conv_indexes(root, left_child, right_child):
             TODO: This  step shouldn't really be needed,
             wayang already appends 0s when needed
             """
-            print(f"root: {root}")
             if root != 0:
                 yield [root, 0, 0]
 
 
+
     out = np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
-    print(f"Indexes: {out}")
     return out
 
 
@@ -160,20 +173,20 @@ def _pad_and_combine(x):
 
     return np.array(vecs)
 
-
 def prepare_trees(trees, transformer, left_child, right_child, device='cpu'):
     flat_trees = [_flatten(x, transformer, left_child, right_child) for x in trees]
     flat_trees = _pad_and_combine(flat_trees)
     flat_trees = torch.Tensor(flat_trees)
     flat_trees = flat_trees.transpose(1, 2)
     flat_trees = flat_trees.to(device)
-    print(f"FlatTrees: {flat_trees.shape}")
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
     indexes = _pad_and_combine(indexes)
     indexes = torch.Tensor(indexes).long()
     indexes = indexes.to(device)
 
-    print(f"Indexes: {indexes.shape}")
+    for i, tree in enumerate(flat_trees):
+        assert tree.shape[1] >= max(list(idxes[0] for idxes in indexes[i]))
 
     return (flat_trees, indexes)
+
