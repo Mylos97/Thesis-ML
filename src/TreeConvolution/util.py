@@ -11,6 +11,7 @@ def _is_leaf(x, left_child, right_child):
     has_right = right_child(x) is not None
 
     if has_left != has_right:
+        print(f"{x}, {has_left}, {has_right}")
         raise TreeConvolutionError(
             "All nodes must have both a left and a right child or no children"
         )
@@ -131,19 +132,18 @@ def _tree_conv_indexes(root, left_child, right_child):
             my_id = root[0]
             left_id = root[1][0] if isinstance(root[1], tuple) else root[1]
             right_id = root[2][0] if isinstance(root[2], tuple) else root[2]
-            swag = [my_id, left_id, right_id]
-            yield swag
+            node = [my_id, left_id, right_id]
+            yield node
 
             yield from recurse(root[1])
             yield from recurse(root[2])
+        """
         else:
-            """
             TODO: This  step shouldn't really be needed,
             wayang already appends 0s when needed
-            """
             if root != 0:
                 yield [root, 0, 0]
-
+        """
 
 
     out = np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)

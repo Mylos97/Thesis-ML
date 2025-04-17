@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 class BinaryTreeConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -17,6 +18,7 @@ class BinaryTreeConv(nn.Module):
         idxes = idxes.expand(-1, -1, self.__in_channels).transpose(1, 2)
 
         print(f"[BTC] Indexes: {idxes[0][0]}")
+        print(f"[BTC] Indexes shape: {idxes.shape}")
         print(f"[BTC] Trees: {trees.shape}")
 
         expanded = torch.gather(trees, 2, idxes)
