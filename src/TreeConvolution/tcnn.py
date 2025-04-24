@@ -17,15 +17,9 @@ class BinaryTreeConv(nn.Module):
         orig_idxes = idxes
         idxes = idxes.expand(-1, -1, self.__in_channels).transpose(1, 2)
 
-        print(f"[BTC] Indexes: {idxes[0][0]}")
-        print(f"[BTC] Indexes shape: {idxes.shape}")
-        print(f"[BTC] Trees: {trees.shape}")
-
         expanded = torch.gather(trees, 2, idxes)
 
         results = self.weights(expanded)
-
-        print(f"[BTC] Results: {results.shape}")
 
         # add a zero vector back on
         zero_vec = torch.zeros((trees.shape[0], self.__out_channels)).unsqueeze(2)

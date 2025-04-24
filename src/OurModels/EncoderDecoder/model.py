@@ -7,8 +7,8 @@ from OurModels.EncoderDecoder.decoder import TreeDecoder
 class VAE(nn.Module):
     def __init__(self, in_dim, out_dim, dropout_prob, z_dim):
         super().__init__()
-        #self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.device = torch.device("cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        #self.device = torch.device("cpu")
         self.mu = nn.Linear(z_dim, z_dim)
         self.log_var = nn.Linear(z_dim, z_dim)
         self.encoder = TreeEncoder(in_dim, dropout_prob, z_dim)

@@ -48,7 +48,7 @@ def left_child(x: tuple) -> tuple:
 def right_child(x: tuple) -> tuple:
     assert isinstance(x, tuple)
 
-    if len(x) == 1:
+    if len(x) < 3:
         return None
     return x[2]
 
@@ -166,6 +166,7 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
     for i, tree in enumerate(trees):
+        print(f"Tree: {tree.shape}")
         x.append(((tree, indexes[i]), target_trees[i]))
 
     print(f'Succesfully loaded {len(x)} plans', flush=True)
@@ -426,7 +427,6 @@ class Beta_Vae_Loss(torch.nn.Module):
 
         if self.loss_type == "B":
 
-            print(f"target: {target[0][0]}")
             recon_x, mu, logvar = prediction
             recon_loss = F.cross_entropy(recon_x, target)
             #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')

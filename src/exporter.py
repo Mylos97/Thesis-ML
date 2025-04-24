@@ -11,8 +11,8 @@ def export_model(model, x, model_name) -> None:
     amount_inputs = len(ort_input)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
     axes = {f"input{i+1}": {0: "batch"} for i in range(amount_inputs)}
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cpu")
 
     if "vae" in model_name:
         model.training = False
