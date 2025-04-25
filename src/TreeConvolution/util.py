@@ -68,23 +68,34 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
             + "tree node to its child, or None"
         )
 
-    def contains_only_zeros(tup):
+    def is_null_operator(tup):
         if isinstance(tup, int):  # Base case: if it's an integer
             return tup == 0
         if isinstance(tup, tuple):  # Recursive case: check all elements
-                if isinstance(tup[0], int): # tuple of ints
-                    if len(tup) > 9: # Not for platform choices
-                        return sum(list(tup)) <= 1
-                    else:
-                        return sum(list(tup)) == 0
-                elif isinstance(tup[0], tuple): # Recursive case
-                    return all(contains_only_zeros(sub) for sub in tup)
+            if isinstance(tup[0], int): # tuple of ints
+                if len(tup) > 9: # Not for platform choices
+                    return sum(list(tup)) <= 1
+                else:
+                    return sum(list(tup)) == 0
+            elif isinstance(tup[0], tuple): # Recursive case
+                return all(is_null_operator(sub) for sub in tup)
+        return False
+
+    """
+    def is_null_operator(tup):
+        if isinstance(tup, int):  # Base case: if it's an integer
+            return tup == 0
+        if isinstance(tup, tuple):  # Recursive case: check all elements
+            return all(is_null_operator(sub) for sub in tup)
+        return True  # If any non-tuple, non-int value appears
+    """
 
     if _is_leaf(root, left_child, right_child):
         # leaf
-        if contains_only_zeros(root):
+        if is_null_operator(root):
             return 0
 
+        print(f"{root} not null but {idx}")
         return idx
 
     def rightmost(tree):
