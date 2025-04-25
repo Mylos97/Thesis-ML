@@ -166,7 +166,6 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
     for i, tree in enumerate(trees):
-        print(f"Tree: {tree.shape}")
         x.append(((tree, indexes[i]), target_trees[i]))
 
     print(f'Succesfully loaded {len(x)} plans', flush=True)

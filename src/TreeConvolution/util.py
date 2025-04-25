@@ -21,7 +21,8 @@ def _is_leaf(x, left_child, right_child):
 
 def _flatten(root, transformer, left_child, right_child):
     """turns a tree into a flattened vector, preorder"""
-
+    global count
+    count = 0
     if not callable(transformer):
         raise TreeConvolutionError(
             "Transformer must be a function mapping a tree node to a vector"
@@ -36,6 +37,8 @@ def _flatten(root, transformer, left_child, right_child):
     accum = []
 
     def recurse(x):
+        global count
+        count += 1
         if _is_leaf(x, left_child, right_child):
             accum.append(transformer(x))
             return
@@ -46,6 +49,7 @@ def _flatten(root, transformer, left_child, right_child):
 
     recurse(root)
     try:
+        #print(f"Count nodes: {count}")
         accum = [np.zeros(accum[0].shape, dtype=int)] + accum
 
     except:
@@ -53,15 +57,14 @@ def _flatten(root, transformer, left_child, right_child):
             "Output of transformer must have a .shape (e.g., numpy array)"
         )
 
-    print(f"Tree: {accum[0].shape}")
+    #print(f"Tree: {accum[0].shape}")
     return np.array(accum)
 
 
 def _preorder_indexes(root, left_child, right_child, idx=1):
     """transforms a tree into a tree of preorder indexes"""
     if not callable(left_child) or not callable(right_child):
-        raise TreeConvolutionError(
-            "left_child and right_child must be a function mapping a "
+        raise TreeConvolutionError( "left_child and right_child must be a function mapping a "
             + "tree node to its child, or None"
         )
 
@@ -69,9 +72,13 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
         if isinstance(tup, int):  # Base case: if it's an integer
             return tup == 0
         if isinstance(tup, tuple):  # Recursive case: check all elements
-            return all(contains_only_zeros(sub) for sub in tup)
-        return True  # If any non-tuple, non-int value appears
-
+                if isinstance(tup[0], int): # tuple of ints
+                    if len(tup) > 9: # Not for platform choices
+                        return sum(list(tup)) <= 1
+                    else:
+                        return sum(list(tup)) == 0
+                elif isinstance(tup[0], tuple): # Recursive case
+                    return all(contains_only_zeros(sub) for sub in tup)
 
     if _is_leaf(root, left_child, right_child):
         # leaf
@@ -171,6 +178,7 @@ def prepare_trees(trees, transformer, left_child, right_child, device='cpu'):
     flat_trees = flat_trees.transpose(1, 2)
     flat_trees = flat_trees.to(device)
     print(f"FlatTrees: {flat_trees.shape}")
+    print(f"A tree: {trees[0]}")
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
     indexes = _pad_and_combine(indexes)
