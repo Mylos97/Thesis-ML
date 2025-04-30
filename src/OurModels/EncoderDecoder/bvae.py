@@ -24,9 +24,15 @@ class BVAE(nn.Module):
 
     def forward(self, x):
         if not self.training:
-            # remove the padding from ONNX
+            #remove the padding from ONNX index structure
+            max_index = x[1].max()
+            max_index_size = max_index * 3
+            x[1] = x[1][:, :max_index_size, :]
+
+            #remove the padding from ONNX value structure
             if x[1].shape[1] < x[0].shape[2]:
                 x[0] = x[0][:, :, :x[1].shape[1]]
+
             print('BVAE started inference')
             encoded, indexes = self.encoder(x)
             z = self.mu(encoded)

@@ -29,7 +29,7 @@ def export_model(model, x, model_name) -> None:
         args=(x),
         f=model_name,
         export_params=True,
-        opset_version=11,
+        opset_version=17,
         do_constant_folding=True,
         input_names=inputs,
         output_names=["output"],
