@@ -98,6 +98,13 @@ def main(args):
         with torch.no_grad():
             for tree,target in dataloader:
                 torch.set_printoptions(profile="full")
+                print(f"padded tree: {tree[0].shape}")
+                if tree[1].shape[1] < tree[0].shape[2]:
+                    print(f"unpadded tree: {tree[0][:, :, tree[1].shape[1]].shape}")
+                else:
+                    print(f"No NEED TO REMOVE PADDING")
+                    tree[0] = F.pad(tree[0], (0, 30))
+                    print(f"padded tree: {tree[0].shape}")
                 print(f"Tree: {tree[0][0]}")
                 torch.set_printoptions(profile="default")
                 encoded_plan = model.encoder(tree)
@@ -125,6 +132,7 @@ def main(args):
                 softmaxed[0].detach().clone().transpose(0, 1)
             )
         )
+
 
         print(f"Platform choices: {platform_choices}")
         """

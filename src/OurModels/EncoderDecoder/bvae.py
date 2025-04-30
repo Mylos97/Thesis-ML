@@ -18,16 +18,20 @@ class BVAE(nn.Module):
         self.decoder = TreeDecoder(out_dim, dropout_prob, z_dim)
         self.training = False
         self.softmax = nn.Softmax(dim=1)
-        self.logger = logging.getLogger(__name__)
-        logging.basicConfig(filename='src/Logs/bvae.log', level=logging.INFO)
+        #self.logger = logging.getLogger(__name__)
+        #logging.basicConfig(filename='src/Logs/bvae.log', level=logging.INFO)
 
 
     def forward(self, x):
         if not self.training:
+            # remove the padding from ONNX
+            if x[1].shape[1] < x[0].shape[2]:
+                x[0] = x[0][:, :, :x[1].shape[1]]
             print('BVAE started inference')
             encoded, indexes = self.encoder(x)
             z = self.mu(encoded)
             decoded = self.decoder(z, indexes)
+            print(f"Indexes: {indexes[0].shape}")
 
             pad_upper = x[0].shape[2]
             pad_lower = decoded[0].shape[2]
@@ -45,6 +49,7 @@ class BVAE(nn.Module):
 
             return x
         else:
+            print('BVAE started training')
             encoded, indexes = self.encoder(x)
             print(f"Indexes: {indexes[0]}")
             mean = self.mu(encoded)
@@ -69,5 +74,7 @@ class BVAE(nn.Module):
 
 
             x = self.softmax(x)
+            print('BVAE finished training')
+
 
             return [x, mean, log_var]
