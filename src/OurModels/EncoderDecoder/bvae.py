@@ -32,6 +32,7 @@ class BVAE(nn.Module):
             #remove the padding from ONNX value structure
             if x[1].shape[1] < x[0].shape[2]:
                 x[0] = x[0][:, :, :x[1].shape[1]]
+
             encoded, indexes = self.encoder(x)
             z = self.mu(encoded)
             decoded = self.decoder(z, indexes)
