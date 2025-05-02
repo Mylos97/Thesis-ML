@@ -10,7 +10,8 @@ def export_model(model, x, model_name) -> None:
 
     amount_inputs = len(ort_input)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
-    axes = {f"input{i+1}": {0: "batch"} for i in range(amount_inputs)}
+    print(f"Inputs: {inputs}")
+    axes = {f"input{i+1}": {0: "batch_size"} for i in range(amount_inputs)}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
@@ -29,8 +30,8 @@ def export_model(model, x, model_name) -> None:
         args=(x),
         f=model_name,
         export_params=True,
-        opset_version=17,
-        do_constant_folding=True,
+        #opset_version=17,
+        #do_constant_folding=True,
         input_names=inputs,
         output_names=["output"],
         dynamic_axes=axes,
@@ -58,6 +59,7 @@ def export_model(model, x, model_name) -> None:
 
     ort_inputs = {}
     for i, input in enumerate(ort_session.get_inputs()):
+        print(f"ORT Input: {input}")
         ort_inputs[input.name] = to_numpy(x[i])
 
     print(f"Checking the output of the model {model_name}", flush=True)

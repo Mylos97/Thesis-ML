@@ -11,7 +11,6 @@ def _is_leaf(x, left_child, right_child):
     has_right = right_child(x) is not None
 
     if has_left != has_right:
-        print(f"{x}, {left_child(x)}, {right_child(x)}")
         raise TreeConvolutionError(
             "All nodes must have both a left and a right child or no children"
         )
@@ -49,7 +48,6 @@ def _flatten(root, transformer, left_child, right_child):
 
     recurse(root)
     try:
-        #print(f"Count nodes: {count}")
         accum = [np.zeros(accum[0].shape, dtype=int)] + accum
 
     except:
@@ -57,7 +55,6 @@ def _flatten(root, transformer, left_child, right_child):
             "Output of transformer must have a .shape (e.g., numpy array)"
         )
 
-    #print(f"Tree: {accum[0].shape}")
     return np.array(accum)
 
 
@@ -95,7 +92,6 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
         if is_null_operator(root):
             return 0
 
-        print(f"{root} not null but {idx}")
         return idx
 
     def rightmost(tree):
@@ -148,13 +144,12 @@ def _tree_conv_indexes(root, left_child, right_child):
             TODO: This  step shouldn't really be needed,
             wayang already appends 0s when needed
             """
-            #print(f"root: {root}")
             if root != 0:
                 yield [root, 0, 0]
 
 
     out = np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
-    #print(f"Indexes: {out}")
+
     return out
 
 
@@ -188,14 +183,10 @@ def prepare_trees(trees, transformer, left_child, right_child, device='cpu'):
     flat_trees = torch.Tensor(flat_trees)
     flat_trees = flat_trees.transpose(1, 2)
     flat_trees = flat_trees.to(device)
-    print(f"FlatTrees: {flat_trees.shape}")
-    print(f"A tree: {trees[0]}")
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
     indexes = _pad_and_combine(indexes)
     indexes = torch.Tensor(indexes).long()
     indexes = indexes.to(device)
-
-    print(f"Indexes: {indexes.shape}")
 
     return (flat_trees, indexes)
