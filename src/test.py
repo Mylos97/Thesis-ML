@@ -64,8 +64,9 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
-    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('tpch0.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('tpch0.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
     #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('g0.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('m_15a.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
 
     # find model parameters
     weights = get_weights_of_model_by_path(model_path)
@@ -178,8 +179,9 @@ def main_onnx(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
-    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('tpch0.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('tpch0.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
     #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('g0.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('m_15a.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
 
     # find model parameters
     weights = get_weights_of_model_by_path(model_path)
@@ -222,9 +224,11 @@ def main_onnx(args):
                     """
                     tree[0] = F.pad(tree[0], (0, 60))
                     tree[1] = F.pad(tree[1], (0,0,0, 90))
-                    """
                     tree[0] = F.pad(tree[0], (0, 30))
                     tree[1] = F.pad(tree[1], (0,0,0, 45))
+                    """
+                    tree[0] = F.pad(tree[0], (0, 40))
+                    tree[1] = F.pad(tree[1], (0,0,0, 60))
                     print(f"padded tree: {tree[0].shape}")
                     print(f"padded indexes: {tree[1].shape}")
 
@@ -267,4 +271,4 @@ if __name__ == "__main__":
     parser.add_argument('--platforms', type=int, default=9)
     parser.add_argument('--operators', type=int, default=43)
     args = parser.parse_args()
-    main_onnx(args)
+    main(args)

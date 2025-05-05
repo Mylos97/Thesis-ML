@@ -11,7 +11,7 @@ class BinaryTreeConv(nn.Module):
         # we can think of the tree conv as a single dense layer
         # that we "drag" across the tree.
         self.weights = nn.Conv1d(in_channels, out_channels, stride=3, kernel_size=3)
-        torch.nn.init.xavier_uniform_(self.weights.weight)
+        #torch.nn.init.xavier_uniform_(self.weights.weight)
 
     def forward(self, flat_data):
         trees, idxes = flat_data
