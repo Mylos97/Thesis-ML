@@ -29,7 +29,6 @@ def main(args) -> None:
     lsbo_result = None
     timeout = float(60 * 60 * 120)
 
-    """
     plan_data, initial_latency, plan_cache = request_wayang_plan(args, lsbo_result, timeout)
     print(f"Best plan data: {plan_data}")
 
@@ -43,10 +42,11 @@ def main(args) -> None:
         #training_file.write(f"{plan_data[0]}:{plan_data[1]}:{plan_data[2]}\n")
         stats_file.write(f"{args.query}:{len(plan_cache)}:{initial_latency}:{plan_data[2]}\n")
         print(f"Successfully appended statistics to {args.stats}")
+
     """
     args.retrain = args.trainset
     retrain(args)
-
+    """
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

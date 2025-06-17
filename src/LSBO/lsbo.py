@@ -489,7 +489,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         #if process.wait(TIMEOUT) != 0:
         print(f"Out: {out}")
         print(f"Err: {err}")
-        if err != b'' and err.decode('utf-8').split(' ', 1)[0] != 'WARNING:':
+        if err != b'' and err.decode('utf-8').split(' ', 1)[0] != 'WARNING:' and err.decode('utf-8').split(' ', 1)[0] != 'SLF4J:':
             print("Error closing Wayang process!")
 
             exec_time = int(TIMEOUT * 100000)
