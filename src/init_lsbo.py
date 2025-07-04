@@ -29,7 +29,6 @@ def main(args) -> None:
     lsbo_result = None
     timeout = float(60 * 60 * 120)
 
-    """
     plan_data, initial_latency, plan_cache = request_wayang_plan(args, lsbo_result, timeout)
     print(f"Best plan data: {plan_data}")
 
@@ -47,6 +46,7 @@ def main(args) -> None:
     """
     args.retrain = args.trainset
     retrain(args)
+    """
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

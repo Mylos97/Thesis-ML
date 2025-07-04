@@ -27,7 +27,7 @@ class StoppingCriteria:
     __improvement_threshhold_reached: bool = False
 
     # Iterations left after improvement is hit
-    __iterations_left: int = 5
+    __iterations_left: int = 2
 
     # Initial latency to be given in the start of the loop
     __initial_latency: int
