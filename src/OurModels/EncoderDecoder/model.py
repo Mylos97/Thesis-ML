@@ -18,6 +18,7 @@ class VAE(nn.Module):
 
     def forward(self, x):
         if not self.training:
+            assert not self.training
             encoded, indexes = self.encoder(x)
             z = self.mu(encoded)
             decoded = self.decoder(z, indexes)
@@ -26,6 +27,7 @@ class VAE(nn.Module):
 
             return x
         else:
+            assert self.training
             encoded, indexes = self.encoder(x)
             mean = self.mu(encoded)
             log_var = self.log_var(encoded)

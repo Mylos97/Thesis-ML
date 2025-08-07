@@ -102,7 +102,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         print(f"Indexes: {indexes.shape}")
         d = latent_vector.shape[1]
     #N_BATCH = 100
-    BATCH_SIZE = 3
+    BATCH_SIZE = 1
     NUM_RESTARTS = 10
     RAW_SAMPLES = 256
     MC_SAMPLES = 2048
@@ -112,15 +112,16 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
     bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-7_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
-    #bounds = torch.stack([torch.zeros(d), torch.ones(d)])
+    #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
 
     def get_latencies(plans) -> list[torch.Tensor]:
         results = []
         for plan in plans:
             if plan is not None:
                 latency = get_plan_latency(args, plan)
+                #latency = random.randrange(1,100000)
                 results.append(latency)
             else:
                 results.append(initial_latency)
@@ -223,10 +224,10 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         # Move the prediction made in latent_vector by some random x
         candidates = [torch.add(latent_vector, x.clone().detach()) for x in train_x]
-        print(f"Initial train_x: {candidates}")
+        #print(f"Initial train_x: {candidates}")
 
         train_obj = objective_function(candidates).unsqueeze(-1)
-        print(f"Train_obj: {train_obj}")
+        #print(f"Train_obj: {train_obj}")
         best_observed_value = train_obj.max().item()
         #train_obj = torch.tensor([[0]])
 
@@ -277,16 +278,16 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         # optimize
         candidates, expected = optimize_acqf(
             acq_function=acq_func,
-            #bounds=bounds,
+            bounds=bounds,
             #bounds=torch.stack([tr_lb, tr_ub]),
             #bounds = torch.tensor([[0.], [1.]]),
-            bounds=torch.stack(
-                [
-                    torch.zeros(d, dtype=dtype, device=device),
-                    torch.ones(d, dtype=dtype, device=device),
-                ]
-            ),
-            q=BATCH_SIZE,
+            #bounds=torch.stack(
+            #    [
+            #        torch.zeros(d, dtype=dtype, device=device),
+            #        torch.ones(d, dtype=dtype, device=device),
+            #    ]
+            #),
+            q=100,
             num_restarts=NUM_RESTARTS,
             raw_samples=RAW_SAMPLES,
             return_best_only=True,
@@ -429,6 +430,7 @@ def get_plan_latency(args, sampled_plan) -> float:
     global PLAN_CACHE
     global PLAN_SIZE
     global best_plan_data
+    global initial_latency
 
     try:
         process = Popen([
@@ -464,7 +466,6 @@ def get_plan_latency(args, sampled_plan) -> float:
             print(line_str)
             if line_str.startswith("Encoding while choices: "):
                 plan_out += line_str
-                print(line_str)
                 counter += 1
             elif plan_out != "":
                 break
@@ -477,8 +478,8 @@ def get_plan_latency(args, sampled_plan) -> float:
             sock_file.close()
             sock.close()
 
-            exec_time = int(TIMEOUT * 10_000)
-            return exec_time
+            #exec_time = int(TIMEOUT * 10_000)
+            return initial_latency
 
         print("Sampling new plan")
 
@@ -489,7 +490,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         #if process.wait(TIMEOUT) != 0:
         print(f"Out: {out}")
         print(f"Err: {err}")
-        if err != b'' and err.decode('utf-8').split(' ', 1)[0] != 'WARNING:':
+        if err != b'' and err.decode('utf-8').split(' ', 1)[0] != 'WARNING:' and err.decode('utf-8').split(' ', 1)[0] != 'SLF4J:':
             print("Error closing Wayang process!")
 
             exec_time = int(TIMEOUT * 100000)
