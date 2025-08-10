@@ -26,6 +26,7 @@ import signal
 import threading
 import random
 import math
+import datetime
 
 from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str
 
@@ -46,7 +47,8 @@ from OurModels.EncoderDecoder.bvae import BVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
 from LSBO.criteria import StoppingCriteria
 
-TIMEOUT = float(60 * 60 * 60)
+# Set to 10min (600 seconds)
+TIMEOUT = float(60 * 10)
 PLAN_CACHE = set()
 best_plan_data = None
 z_dim = 31
@@ -463,17 +465,19 @@ def get_plan_latency(args, sampled_plan) -> float:
         counter = 0
         for line in iter(process.stdout.readline, b''):
             line_str = line.rstrip().decode('utf-8')
-            print(line_str)
             if line_str.startswith("Encoding while choices: "):
                 plan_out += line_str
                 counter += 1
+            elif line_str.startswith("DECODED"):
+                print(f"[{datetime.datetime.now()}] Decoded WayangPlan received on Java side")
+                break
             elif plan_out != "":
                 break
 
         PLAN_SIZE = counter
 
         if plan_out in PLAN_CACHE:
-            print("Seen this plan before")
+            print(f"[{datetime.datetime.now()}] Seen this plan before")
             os.system("pkill -TERM -P %s"%process.pid)
             sock_file.close()
             sock.close()
@@ -481,11 +485,12 @@ def get_plan_latency(args, sampled_plan) -> float:
             #exec_time = int(TIMEOUT * 10_000)
             return initial_latency
 
-        print("Sampling new plan")
+        print(f"[{datetime.datetime.now()}] Sampling new plan")
 
         PLAN_CACHE.add(plan_out)
         process.stdout.flush()
 
+        print(f"[{datetime.datetime.now()}] Starting execution with {TIMEOUT} seconds max.")
         out, err = process.communicate(timeout=TIMEOUT)
         #if process.wait(TIMEOUT) != 0:
         print(f"Out: {out}")
@@ -497,15 +502,16 @@ def get_plan_latency(args, sampled_plan) -> float:
             return exec_time
 
         input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
-
         sock_file.close()
         sock.close()
 
         exec_time = int(exec_time_str)
 
-        if TIMEOUT > exec_time:
-            TIMEOUT = exec_time
-            print(f"Found better plan, updating timeout: {TIMEOUT}")
+        # Calculate the current set timeout in ms (convert from sec to ms)
+        ms_timeout = TIMEOUT * 1000
+        if ms_timeout > exec_time:
+            TIMEOUT = int(exec_time / 1000)
+            print(f"[{datetime.datetime.now()}] Found better plan, updating timeout: {TIMEOUT} sec")
             best_plan_data = input, picked_plan, exec_time_str
 
         print(exec_time)
@@ -513,11 +519,15 @@ def get_plan_latency(args, sampled_plan) -> float:
         return exec_time
 
     except Exception as e:
-        print(f"Exception: {err}")
+        print(f"Exception: {e}")
         print("Didnt finish fast enough")
-        os.system("pkill -TERM -P %s"%process.pid)
         sock_file.close()
         sock.close()
+        process.kill()
+        out, err = process.communicate()
+        #os.system("pkill -TERM -P %s"%process.pid)
+        #os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        #process.wait()
 
         exec_time = int(TIMEOUT * 100000)
 
@@ -527,7 +537,7 @@ def get_plan_latency(args, sampled_plan) -> float:
 def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3600):
     global TIMEOUT
     global best_plan_data
-    TIMEOUT = timeout
+    #TIMEOUT = timeout
 
     print(f"Requesting plan for query: {args.query}")
 
@@ -563,5 +573,9 @@ def read_from_wayang(sock_file):
     udf_length = read_int(sock_file)
     serialized_udf = sock_file.read(udf_length)
     iterator = UTF8Deserializer().load_stream(sock_file)
-    return next(iterator)
+    next_val = next(iterator, None)
+    if next_val is None:
+        print("None return from read_from_wayang")
+    else:
+        return next(iterator)
 
