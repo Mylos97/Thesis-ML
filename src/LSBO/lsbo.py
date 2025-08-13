@@ -21,7 +21,7 @@ import torch.onnx
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 import json
-from subprocess import PIPE, Popen
+from subprocess import PIPE, Popen, TimeoutExpired
 import signal
 import threading
 import random
@@ -278,6 +278,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         tr_ub = x_center + weights * 59 / 2.0
 
         # optimize
+        print(f"[{datetime.datetime.now()}] Starting gen candidates")
         candidates, expected = optimize_acqf(
             acq_function=acq_func,
             bounds=bounds,
@@ -289,19 +290,23 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             #        torch.ones(d, dtype=dtype, device=device),
             #    ]
             #),
-            q=100,
-            num_restarts=NUM_RESTARTS,
+            q=10,
+            #num_restarts=NUM_RESTARTS,
+            num_restarts=1,
             raw_samples=RAW_SAMPLES,
-            return_best_only=True,
+            #return_best_only=True,
         )
 
+        print(f"[{datetime.datetime.now()}] Finished gen candidates")
         new_x = unnormalize(candidates.detach(), bounds=bounds)
         #candidates = [torch.tensor(x).unsqueeze(0) for x in new_x]
         candidates = [torch.add(latent_vector, x.clone().detach()) for x in new_x]
         #new_x = candidates.detach()
         print(f"new_x: {candidates}")
         print(f"expected improvements: {expected}")
+        print(f"[{datetime.datetime.now()}] Starting objective_function on candidates")
         new_obj = objective_function(candidates).unsqueeze(-1)
+        print(f"[{datetime.datetime.now()}] Finished objective_function on candidates")
 
         """
         index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
@@ -441,7 +446,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             args.namespace,
             args.args,
             str(args.query)
-        ], stdout=PIPE, stderr=PIPE)
+        ], stdout=PIPE, stderr=PIPE, start_new_session=True)
 
 
         """
@@ -450,14 +455,17 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         socket_port = int(process.stdout.readline().rstrip().decode("utf-8"))
         print(f"Socket port {socket_port}")
-        process.stdout.flush()
+        #process.stdout.flush()
 
+        print(f"[{datetime.datetime.now()}] Opening socket connection")
         sock_file, sock = open_connection(socket_port)
 
+        print(f"[{datetime.datetime.now()}] Reading from wayang")
         _ = read_from_wayang(sock_file)
 
         input_plan = sampled_plan
         dump_stream(iterator=[input_plan], stream=sock_file)
+        print(f"[{datetime.datetime.now()}] Wrote to wayang")
 
         sock_file.flush()
 
@@ -478,9 +486,19 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         if plan_out in PLAN_CACHE:
             print(f"[{datetime.datetime.now()}] Seen this plan before")
-            os.system("pkill -TERM -P %s"%process.pid)
+            #os.system("pkill -TERM -P %s"%process.pid)
+            print(f"[{datetime.datetime.now()}] Closing sock_file")
             sock_file.close()
+            print(f"[{datetime.datetime.now()}] Closing sock")
             sock.close()
+            print(f"[{datetime.datetime.now()}] Killing process")
+            process.stdout.close()
+            process.stderr.close()
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            process.kill()
+            print(f"[{datetime.datetime.now()}] Awaiting process.wait")
+            process.wait(timeout=5)
+            print(f"[{datetime.datetime.now()}] process.wait finished")
 
             #exec_time = int(TIMEOUT * 10_000)
             return initial_latency
@@ -488,15 +506,25 @@ def get_plan_latency(args, sampled_plan) -> float:
         print(f"[{datetime.datetime.now()}] Sampling new plan")
 
         PLAN_CACHE.add(plan_out)
-        process.stdout.flush()
+        #process.stdout.flush()
 
         print(f"[{datetime.datetime.now()}] Starting execution with {TIMEOUT} seconds max.")
-        out, err = process.communicate(timeout=TIMEOUT)
-        #if process.wait(TIMEOUT) != 0:
-        print(f"Out: {out}")
-        print(f"Err: {err}")
-        if err != b'' and err.decode('utf-8').split(' ', 1)[0] != 'WARNING:' and err.decode('utf-8').split(' ', 1)[0] != 'SLF4J:':
+        #out, err = process.communicate(timeout=TIMEOUT)
+        #if err != b'' and err.decode('utf-8').split(' ', 1)[0] != 'WARNING:' and err.decode('utf-8').split(' ', 1)[0] != 'SLF4J:':
+        if process.wait(timeout=TIMEOUT) != 0:
             print("Error closing Wayang process!")
+            print(f"[{datetime.datetime.now()}] Closing sock_file")
+            sock_file.close()
+            print(f"[{datetime.datetime.now()}] Closing sock")
+            sock.close()
+            print(f"[{datetime.datetime.now()}] Killing process")
+            process.stdout.close()
+            process.stderr.close()
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            process.kill()
+            print(f"[{datetime.datetime.now()}] Awaiting process.wait")
+            process.wait(timeout=5)
+            print(f"[{datetime.datetime.now()}] process.wait finished")
 
             exec_time = int(TIMEOUT * 100000)
             return exec_time
@@ -518,13 +546,23 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         return exec_time
 
-    except Exception as e:
+    except TimeoutExpired as e:
         print(f"Exception: {e}")
         print("Didnt finish fast enough")
+
+        print(f"[{datetime.datetime.now()}] Seen this plan before")
+        #os.system("pkill -TERM -P %s"%process.pid)
+        print(f"[{datetime.datetime.now()}] Closing sock_file")
         sock_file.close()
+        print(f"[{datetime.datetime.now()}] Closing sock")
         sock.close()
-        process.kill()
-        out, err = process.communicate()
+        print(f"[{datetime.datetime.now()}] Killing process")
+        process.stdout.close()
+        process.stderr.close()
+        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        print(f"[{datetime.datetime.now()}] Awaiting process.wait")
+        process.wait(timeout=5)
+        print(f"[{datetime.datetime.now()}] process.wait finished")
         #os.system("pkill -TERM -P %s"%process.pid)
         #os.killpg(os.getpgid(process.pid), signal.SIGTERM)
         #process.wait()
@@ -547,7 +585,7 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3
         args.namespace,
         args.args,
         str(args.query)
-    ], stdout=PIPE)
+    ], stdout=PIPE, stderr=PIPE, start_new_session=True)
 
     """
     The first message received in the stdout should be the socket_port
@@ -557,14 +595,17 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3
     process.stdout.flush()
     print(f"Socket on {socket_port}")
 
+    print(f"[{datetime.datetime.now()}] Opening socket connection")
     sock_file, sock = open_connection(socket_port)
 
+    print(f"[{datetime.datetime.now()}] Reading plan from wayang")
     plan = read_from_wayang(sock_file)
 
     # This holds plenty of metadata for multiple runs
     # and updating the actual latency of plans
     lsbo_result = run_lsbo([plan], args, lsbo_result)
 
+    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
     process.kill()
 
     return best_plan_data, initial_latency, PLAN_CACHE
@@ -577,5 +618,5 @@ def read_from_wayang(sock_file):
     if next_val is None:
         print("None return from read_from_wayang")
     else:
-        return next(iterator)
+        return next_val
 
