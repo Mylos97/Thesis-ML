@@ -26,6 +26,7 @@ TOLERANCE = 1.25
 time_limit_reached = False
 
 def main(args) -> None:
+    """
     lsbo_result = None
     timeout = float(60 * 10)
 
@@ -46,7 +47,6 @@ def main(args) -> None:
     """
     args.retrain = args.trainset
     retrain(args)
-    """
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -64,11 +64,16 @@ def export_model(model, x, model_name) -> None:
         # might need padding:
         if input.name == 'input1':
             if input.shape[2] > x[i].shape[2]:
-                x[i] = F.pad(x[i], (0, input.shape[2] - x[i].shape[1]))
+                pad_len = input.shape[2] - x[i].shape[2]
+                print(f"Padding {x[i].shape} to {input.shape}")
+                x[i] = F.pad(x[i], (0, pad_len))  # pad last dim
+                print(f"Padded {x[i].shape}")
 
         if input.name == 'input2':
             if input.shape[1] > x[i].shape[1]:
-                x[i] = F.pad(x[i], (0, 0, 0, input.shape[1] - x[i].shape[1]))
+                pad_len = input.shape[1] - x[i].shape[1]
+                x[i] = F.pad(x[i], (0, 0, 0, pad_len))  # pad middle dim
+                print(f"Padded again {x[i].shape}")
         ort_inputs[input.name] = to_numpy(x[i])
 
     print(f"Checking the output of the model {model_name}", flush=True)
