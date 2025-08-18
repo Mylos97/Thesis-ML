@@ -50,6 +50,7 @@ from LSBO.criteria import StoppingCriteria
 # Set to 10min (600 seconds)
 TIMEOUT = float(60 * 10)
 PLAN_CACHE = set()
+EXECUTABLE_PLANS = set()
 best_plan_data = None
 z_dim = 31
 distinct_choices = []
@@ -311,7 +312,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             #        torch.ones(d, dtype=dtype, device=device),
             #    ]
             #),
-            q=100,
+            q=10,
             num_restarts=NUM_RESTARTS,
             #num_restarts=1,
             raw_samples=RAW_SAMPLES,
@@ -457,6 +458,7 @@ def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
     global PLAN_CACHE
     global PLAN_SIZE
+    global EXECUTABLE_PLANS
     global best_plan_data
     global initial_latency
 
@@ -505,7 +507,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             elif plan_out != "":
                 break
 
-        print(f"[{datetime.datetime.now()}] {plan_out}")
+        #print(f"[{datetime.datetime.now()}] {plan_out}")
         PLAN_SIZE = counter
 
         if plan_out in PLAN_CACHE:
@@ -524,8 +526,8 @@ def get_plan_latency(args, sampled_plan) -> float:
             process.wait(timeout=5)
             print(f"[{datetime.datetime.now()}] process.wait finished")
 
-            #return int(TIMEOUT * 10_000)
-            return initial_latency
+            return int(TIMEOUT * 10_000)
+            #return initial_latency
 
         print(f"[{datetime.datetime.now()}] Sampling new plan")
 
@@ -558,6 +560,8 @@ def get_plan_latency(args, sampled_plan) -> float:
         sock.close()
 
         exec_time = int(exec_time_str)
+        if exec_time < sys.maxsize:
+            EXECUTABLE_PLANS.add(plan_out)
 
         # Calculate the current set timeout in ms (convert from sec to ms)
         ms_timeout = TIMEOUT * 1000
@@ -591,6 +595,13 @@ def get_plan_latency(args, sampled_plan) -> float:
         #os.killpg(os.getpgid(process.pid), signal.SIGTERM)
         #process.wait()
 
+        exec_time = int(TIMEOUT * 100000)
+
+        return exec_time
+
+    except Exception as e:
+        # In case the underlying process died
+        print(f"Exception: {e}")
         exec_time = int(TIMEOUT * 100000)
 
         return exec_time
@@ -632,7 +643,7 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3
     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
     process.kill()
 
-    return best_plan_data, initial_latency, PLAN_CACHE
+    return best_plan_data, initial_latency, EXECUTABLE_PLANS
 
 def read_from_wayang(sock_file):
     udf_length = read_int(sock_file)
