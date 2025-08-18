@@ -26,7 +26,6 @@ TOLERANCE = 1.25
 time_limit_reached = False
 
 def main(args) -> None:
-    """
     lsbo_result = None
     timeout = float(60 * 10)
 
@@ -47,6 +46,7 @@ def main(args) -> None:
     """
     args.retrain = args.trainset
     retrain(args)
+    """
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -71,6 +71,7 @@ if __name__ == '__main__':
     # add a time in minutes for this process to run, otherwise stop it
     parser.add_argument('--time', type=int, default=1)
     parser.add_argument('--improvement', type=float, default=25)
+    parser.add_argument('--init', type=str, default="random")
     args = parser.parse_args()
 
     main(args)

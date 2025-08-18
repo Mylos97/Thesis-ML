@@ -4,3 +4,4 @@
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:5:66689.0:11558
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:6:19203.0:8333
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:6:30954.0:9071
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:3:38696.0:7865

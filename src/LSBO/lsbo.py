@@ -28,7 +28,7 @@ import random
 import math
 import datetime
 
-from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str
+from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str, load_autoencoder_data
 
 from botorch.models import SingleTaskGP
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
@@ -136,22 +136,28 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         global distinct_choices
         global PLAN_SIZE
 
-        """
         if not initial:
-            v_hat = [torch.add(latent_vector, torch.tensor(v)) for v in X]
+            v_hat = [torch.add(latent_vector, v.clone().detach()) for v in X]
         else:
             v_hat = [latent_vector]
-        """
 
         model_results = []
 
         no_distinct_plans_before = len(distinct_choices)
 
-        for new_plan in X:
+        for new_plan in v_hat:
             decoded = ML_model.decoder(new_plan.float(), indexes)
+
 
             softmaxed = ML_model.softmax(decoded[0])
             #model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
+
+            debug_decoded = list(
+                map(
+                    lambda x: [float(v) for v in x],
+                    softmaxed[0].detach().clone().transpose(0, 1)
+                )
+            )
 
             platform_choices = list(
                 map(
@@ -159,6 +165,13 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
                     softmaxed[0].detach().clone().transpose(0, 1)
                 )
             )
+
+            """
+            print(f"Decoded: {debug_decoded}")
+            print(f"Platforms: {platform_choices}")
+            print(f"Indexes: {indexes}")
+            """
+
 
             """
             if PLAN_SIZE > 0:
@@ -216,10 +229,11 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         #return list(map(lambda latency: math.log(max(initial_latency - latency, 1)), latencies))
 
 
-    def gen_initial_data(plan, n: int = 3):
+    def gen_initial_data(plan, init: str,n: int = 10):
         global initial_latency
         initial_latency = objective_function([plan], True).unsqueeze(-1).min().item()
 
+        #if init == "random":
         train_x = unnormalize(
             torch.rand(n, d, device=device, dtype=dtype),
             bounds=bounds)
@@ -272,17 +286,24 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         candidates = get_best_candidates(batch_candidates, batch_acq_values)
         """
 
+        #state_length = args.zdim
+        state_length = 2
         x_center = previous.train_x[previous.train_obj.argmax(), :].clone()
-        weights = torch.ones_like(x_center)*8 # less than 4 stdevs on either side max
-        tr_lb = x_center - weights * 59 / 2.0
-        tr_ub = x_center + weights * 59 / 2.0
+        x_range = previous.train_x.max().item() - previous.train_x.min().item()
+        x_range = max(x_range, 8)
+        weights = torch.ones_like(x_center)
+        weights = weights * x_range # less than 4 stdevs on either side max
+        #tr_lb = x_center - weights * 59 / 2.0
+        #tr_ub = x_center + weights * 59 / 2.0
+        tr_lb = x_center - weights * state_length / 2.0
+        tr_ub = x_center + weights * state_length / 2.0
 
         # optimize
         print(f"[{datetime.datetime.now()}] Starting gen candidates")
         candidates, expected = optimize_acqf(
             acq_function=acq_func,
-            bounds=bounds,
-            #bounds=torch.stack([tr_lb, tr_ub]),
+            #bounds=bounds,
+            bounds=torch.stack([tr_lb, tr_ub]),
             #bounds = torch.tensor([[0.], [1.]]),
             #bounds=torch.stack(
             #    [
@@ -290,9 +311,9 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             #        torch.ones(d, dtype=dtype, device=device),
             #    ]
             #),
-            q=10,
-            #num_restarts=NUM_RESTARTS,
-            num_restarts=1,
+            q=100,
+            num_restarts=NUM_RESTARTS,
+            #num_restarts=1,
             raw_samples=RAW_SAMPLES,
             #return_best_only=True,
         )
@@ -325,7 +346,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         print(f"Intial encoded plan dims: {len(encoded_plan[0][0])}")
         latent_space_vector = encoded_plan[0][0]
         assert len(latent_space_vector) == z_dim
-        train_x, train_obj, best_value = gen_initial_data(encoded_plan[0])
+        train_x, train_obj, best_value = gen_initial_data(encoded_plan[0], args.init)
         print(f"Train_x: {train_x}")
         best_observed.append(best_value)
         state_dict = None
@@ -473,6 +494,8 @@ def get_plan_latency(args, sampled_plan) -> float:
         counter = 0
         for line in iter(process.stdout.readline, b''):
             line_str = line.rstrip().decode('utf-8')
+            if line_str.startswith("Nulling psql choice"):
+                print(line_str)
             if line_str.startswith("Encoding while choices: "):
                 plan_out += line_str
                 counter += 1
@@ -482,6 +505,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             elif plan_out != "":
                 break
 
+        print(f"[{datetime.datetime.now()}] {plan_out}")
         PLAN_SIZE = counter
 
         if plan_out in PLAN_CACHE:
@@ -500,7 +524,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             process.wait(timeout=5)
             print(f"[{datetime.datetime.now()}] process.wait finished")
 
-            #exec_time = int(TIMEOUT * 10_000)
+            #return int(TIMEOUT * 10_000)
             return initial_latency
 
         print(f"[{datetime.datetime.now()}] Sampling new plan")

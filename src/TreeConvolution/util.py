@@ -166,8 +166,8 @@ def _pad_and_combine(x):
     second_dim = x[0].shape[1]
     for itm in x[1:]:
         assert itm.shape[1] == second_dim
-    #max_first_dim = max(arr.shape[0] for arr in x)
-    max_first_dim = 500
+    max_first_dim = max(arr.shape[0] for arr in x)
+    #max_first_dim = 500
 
     print(f"max_first_dim: {max_first_dim}")
     print(f"second_dim: {second_dim}")
