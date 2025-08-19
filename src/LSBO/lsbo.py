@@ -119,10 +119,11 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
 
-    def get_latencies(plans) -> list[torch.Tensor]:
+    def get_latencies(plans, duplicates: list) -> list[torch.Tensor]:
         results = []
         for plan in plans:
-            if plan is not None:
+            #if plan is not None:
+            if plan not in duplicates:
                 latency = get_plan_latency(args, plan)
                 #latency = random.randrange(1,100000)
                 results.append(latency)
@@ -136,6 +137,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         # Move the prediction made in latent_vector by some random v
         global distinct_choices
         global PLAN_SIZE
+
+        duplicate_plans = []
 
         if not initial:
             v_hat = [torch.add(latent_vector, v.clone().detach()) for v in X]
@@ -186,16 +189,18 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
             # Only append and test new plans
             if platform_choices not in distinct_choices:
                 distinct_choices.append(platform_choices)
-                model_results.append(discovered_latent_vector)
             else:
-                model_results.append(None)
+                #model_results.append(None)
+                duplicate_plans.append(discovered_latent_vector)
+
+            model_results.append(discovered_latent_vector)
 
         no_distinct_plans_after = len(distinct_choices)
         print(f"Generated {no_distinct_plans_after - no_distinct_plans_before} new plans")
 
         #assert no_distinct_plans_after > no_distinct_plans_before, f'No new plans generated, {len(distinct_choices)} total, aborting'
 
-        latencies = get_latencies(model_results)
+        latencies = get_latencies(model_results, duplicate_plans)
 
         improvements = get_improvements_from_latencies(latencies)
         print(f"Improvements: {improvements}")
@@ -230,7 +235,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         #return list(map(lambda latency: math.log(max(initial_latency - latency, 1)), latencies))
 
 
-    def gen_initial_data(plan, init: str,n: int = 10):
+    def gen_initial_data(plan, n: int = 10):
         global initial_latency
         initial_latency = objective_function([plan], True).unsqueeze(-1).min().item()
 
@@ -256,10 +261,25 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
+        # Mask rows where X has NaNs
+        x_mask = torch.isnan(train_x).any(dim=tuple(range(1, train_x.ndim)))
+
+# Mask rows where Y has NaNs
+        y_mask = torch.isnan(train_obj).any(dim=tuple(range(1, train_obj.ndim)))
+
+# Combine masks: keep only rows that are valid in both
+        valid_mask = ~(x_mask | y_mask)
+
+# Filter both X and Y consistently
+        x_filtered = train_x.cpu()[valid_mask]
+        y_filtered = train_obj.cpu()[valid_mask]
+
+        x_filtered = x_filtered.to(device)
+        y_filtered = y_filtered.to(device)
         model = SingleTaskGP(
             #train_X=normalize(train_x, bounds),
-            train_X=train_x,
-            train_Y=train_obj,
+            train_X=x_filtered,
+            train_Y=y_filtered,
             input_transform=Normalize(d=d),
             outcome_transform=Standardize(m=1)
         )
@@ -291,7 +311,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         state_length = 2
         x_center = previous.train_x[previous.train_obj.argmax(), :].clone()
         x_range = previous.train_x.max().item() - previous.train_x.min().item()
-        x_range = max(x_range, 8)
+        x_range = min(max(x_range, 8.0), 1e6)  # upper cap
         weights = torch.ones_like(x_center)
         weights = weights * x_range # less than 4 stdevs on either side max
         #tr_lb = x_center - weights * 59 / 2.0
@@ -299,12 +319,16 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         tr_lb = x_center - weights * state_length / 2.0
         tr_ub = x_center + weights * state_length / 2.0
 
+        new_bounds = torch.stack([tr_lb, tr_ub])
+        if not torch.isfinite(new_bounds).all():
+            new_bounds = bounds
+
         # optimize
         print(f"[{datetime.datetime.now()}] Starting gen candidates")
         candidates, expected = optimize_acqf(
             acq_function=acq_func,
             #bounds=bounds,
-            bounds=torch.stack([tr_lb, tr_ub]),
+            bounds=new_bounds,
             #bounds = torch.tensor([[0.], [1.]]),
             #bounds=torch.stack(
             #    [
@@ -347,7 +371,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         print(f"Intial encoded plan dims: {len(encoded_plan[0][0])}")
         latent_space_vector = encoded_plan[0][0]
         assert len(latent_space_vector) == z_dim
-        train_x, train_obj, best_value = gen_initial_data(encoded_plan[0], args.init)
+        train_x, train_obj, best_value = gen_initial_data(encoded_plan[0])
         print(f"Train_x: {train_x}")
         best_observed.append(best_value)
         state_dict = None
@@ -361,7 +385,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     """
 
     #for iteration in range(N_BATCH):
-    criteria = StoppingCriteria(args.time * 60, args.improvement, initial_latency)
+    criteria = StoppingCriteria(args.time * 60, args.improvement, initial_latency, args.steps)
 
     criteria.start_timer()
 
@@ -391,7 +415,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         previous.update(new_x, new_obj, model.state_dict())
 
         index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
-        criteria.step(best_impr.item())
+        criteria.step(best_impr.item(), new_x.shape[1])
 
     print('Finish Bayesian Optimization for latent space', flush=True)
 
@@ -417,8 +441,8 @@ def run_lsbo(input, args, previous: LSBOResult = None):
     z_dim = args.zdim
     #model_path= f"{dir_path}/../Models/bvae.onnx"
     #parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #device = torch.device("cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
 
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,

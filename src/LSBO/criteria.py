@@ -35,33 +35,49 @@ class StoppingCriteria:
     # Timer needs to be stopped eventually
     __timer: threading.Timer = None
 
+    # Total number of steps taken in lsbo process
+    steps_taken: int = 0
+
+    """
+    Maximum number of steps to be taken in general (default 0)
+    Setting this to > 0 will make the time_limit useless,
+    as we only care about steps then
+    """
+    max_steps: int = 0
+
     def __init__(
         self,
         time_limit: int,
         improvement_threshhold: float,
         initial_latency: int,
+        max_steps: int,
     ):
         self.time_limit = time_limit
         self.improvement_threshhold = improvement_threshhold
         self.__initial_latency = initial_latency
+        self.max_steps = max_steps
 
     # Global timer that fulfills the criteria after some time
     def start_timer(self):
-        def set_reached():
-            self.__time_limit_reached = True
-            print("Time limit reached, stopping LSBO loop")
+        if self.max_steps == 0:
+            def set_reached():
+                self.__time_limit_reached = True
+                print("Time limit reached, stopping LSBO loop")
 
-        self.__timer = threading.Timer(self.time_limit, set_reached)
-        self.__timer.start()
+            self.__timer = threading.Timer(self.time_limit, set_reached)
+            self.__timer.start()
 
     def stop_timer(self):
-        if not self.__time_limit_reached:
-            self.__timer.cancel()
+        if self.max_steps == 0:
+            if not self.__time_limit_reached:
+                self.__timer.cancel()
 
     def __improvement_rate(self, improvement: float) -> float:
         return (math.pow(math.e, improvement) / self.__initial_latency) * 100
 
-    def step(self, improvement: float):
+    def step(self, improvement: float, num_steps: int):
+        self.steps_taken += num_steps
+
         if self.__iterations_left <= 0:
             print("Canceling timer, no iterations left")
             self.__timer.cancel()
@@ -69,7 +85,7 @@ class StoppingCriteria:
 
         if self.__improvement_threshhold_reached:
             self.__iterations_left -= 1
-            print(f"Improvement threshhold hit, {self.__iterations_left} steps left")
+            print(f"Improvement threshhold hit, {self.__iterations_left} steps left, {self.steps_taken} steps taken")
 
             return
 
@@ -77,6 +93,10 @@ class StoppingCriteria:
             self.__improvement_threshhold_reached = True
             print("Improvement threshhold hit")
 
+        if self.max_steps > 0 and self.steps_taken >= self.max_steps:
+            print(f"{self.steps_taken}/{self.max_steps} taken, stopping")
+
+
     def is_met(self) -> bool:
-        return self.__time_limit_reached or (self.__improvement_threshhold_reached and self.__iterations_left <= 0)
+        return self.__time_limit_reached or (self.__improvement_threshhold_reached and self.__iterations_left <= 0) or (self.max_steps > 0 and self.steps_taken >= self.max_steps)
 
