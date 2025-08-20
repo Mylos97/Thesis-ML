@@ -117,7 +117,7 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [1, 128],
+            'bounds': [0.1, 10],
             'value_type': 'float',
             "log_scale": True,
         })
@@ -219,16 +219,23 @@ def do_hyperparameter_BO(
         shuffle=True
     )
 
+    """
+    with open(get_relative_path("BVAE-B-1.json", "HyperparameterLogs/imdb"), 'r') as param_file:
+        best_parameters = json.load(param_file)
+        best_parameters["beta"] = 5
+    """
+
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
     if model_class == BVAE:
         l_function = loss_function(
             beta=best_parameters.get('beta', 1.0),
-           # beta=4,
+            #beta=2,
         )
         #l_function = loss_function(beta=1.5)
     else:
         l_function = loss_function()
+
 
     best_model, tree = train(
         model_class=model_class,
