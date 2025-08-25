@@ -29,6 +29,9 @@ import math
 import datetime
 
 from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str, load_autoencoder_data
+from .state import State
+
+from torch.quasirandom import SobolEngine
 
 from botorch.models import SingleTaskGP
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
@@ -40,6 +43,7 @@ from botorch.acquisition.logei import qLogExpectedImprovement
 from botorch.acquisition.monte_carlo import qExpectedImprovement
 from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.sampling.stochastic_samplers import StochasticSampler
+from botorch.generation.sampling import MaxPosteriorSampling
 from botorch.optim import optimize_acqf, gen_batch_initial_conditions
 from botorch.generation.gen import get_best_candidates, gen_candidates_torch
 from OurModels.EncoderDecoder.model import VAE
@@ -51,45 +55,18 @@ from LSBO.criteria import StoppingCriteria
 TIMEOUT = float(60 * 10)
 PLAN_CACHE = set()
 EXECUTABLE_PLANS = set()
+VALID_X = set()
 best_plan_data = None
 z_dim = 31
 distinct_choices = []
 PLAN_SIZE = 0
 
-class LSBOResult:
-    def __init__(
-        self,
-        ml_model,
-        model,
-        model_results,
-        tree,
-        train_x,
-        train_obj,
-        state_dict,
-        best_values
-    ):
-        self.ml_model = ml_model
-        self.model = model
-        self.model_results = model_results
-        self.tree = tree
-        self.train_x = train_x
-        self.train_obj = train_obj
-        self.state_dict = state_dict
-        self.best_values = best_values
+seed = 42
+torch.manual_seed(seed)
 
-    def update(self, new_x, new_obj, state_dict):
-         # update training points
-        self.train_x = torch.cat((self.train_x, new_x))
-        self.train_obj = torch.cat((self.train_obj, new_obj))
-
-        # update progress
-        best_value = self.train_obj.max().item()
-        self.best_values.append(best_value)
-
-        self.state_dict = state_dict
-
-def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
+def latent_space_BO(ML_model, device, plan, args, state: State = None):
     global initial_latency
+    global VALID_X
 
     print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
@@ -110,21 +87,26 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     RAW_SAMPLES = 256
     MC_SAMPLES = 2048
     initial_latency = 0
-    seed = 42
     latent_vector_sample = latent_vector[0].max().item()
 
-    #bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
-    bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
 
     def get_latencies(plans, duplicates: list) -> list[torch.Tensor]:
+        global EXECUTABLE_PLANS
+        global VALID_X
         results = []
-        for plan in plans:
+
+        for i, plan in enumerate(plans):
             #if plan is not None:
+            len_executables_before = len(EXECUTABLE_PLANS)
             if plan not in duplicates:
                 latency = get_plan_latency(args, plan)
+                if len_executables_before < len(EXECUTABLE_PLANS): # plan was valid
+                    VALID_X.add(i)
                 #latency = random.randrange(1,100000)
                 results.append(latency)
             else:
@@ -291,7 +273,8 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
 
         return model
 
-    def optimize_acqf_and_get_observation(acq_func):
+    def optimize_acqf_and_get_observation(acq_func, args):
+        global initial_latency
         """
         Xinit = gen_batch_initial_conditions(
             acq_func, bounds, q=BATCH_SIZE, num_restarts=NUM_RESTARTS, raw_samples=RAW_SAMPLES
@@ -308,40 +291,62 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         """
 
         #state_length = args.zdim
-        state_length = 2
-        x_center = previous.train_x[previous.train_obj.argmax(), :].clone()
-        x_range = previous.train_x.max().item() - previous.train_x.min().item()
-        x_range = min(max(x_range, 8.0), 1e6)  # upper cap
+        #state_length = 0.8 # 2 = Effectively, the entire region
+        x_center = state.train_x[state.train_obj.argmax(), :].clone()
+        x_range = state.train_x.max().item() - state.train_x.min().item()
+        x_range = max(x_range, 8.0)
         weights = torch.ones_like(x_center)
         weights = weights * x_range # less than 4 stdevs on either side max
         #tr_lb = x_center - weights * 59 / 2.0
         #tr_ub = x_center + weights * 59 / 2.0
-        tr_lb = x_center - weights * state_length / 2.0
-        tr_ub = x_center + weights * state_length / 2.0
+        tr_lb = x_center - weights * state.length / 2.0
+        tr_ub = x_center + weights * state.length / 2.0
 
         new_bounds = torch.stack([tr_lb, tr_ub])
+        """
         if not torch.isfinite(new_bounds).all():
             new_bounds = bounds
+        """
 
-        # optimize
-        print(f"[{datetime.datetime.now()}] Starting gen candidates")
-        candidates, expected = optimize_acqf(
-            acq_function=acq_func,
-            #bounds=bounds,
-            bounds=new_bounds,
-            #bounds = torch.tensor([[0.], [1.]]),
-            #bounds=torch.stack(
-            #    [
-            #        torch.zeros(d, dtype=dtype, device=device),
-            #        torch.ones(d, dtype=dtype, device=device),
-            #    ]
-            #),
-            q=10,
-            num_restarts=NUM_RESTARTS,
-            #num_restarts=1,
-            raw_samples=RAW_SAMPLES,
-            #return_best_only=True,
-        )
+        if args.acqf == "ei":
+            # optimize
+            print(f"[{datetime.datetime.now()}] Starting gen candidates")
+            candidates, expected = optimize_acqf(
+                acq_function=acq_func,
+                #bounds=bounds,
+                bounds=new_bounds,
+                #bounds = torch.tensor([[0.], [1.]]),
+                #bounds=torch.stack(
+                #    [
+                #        torch.zeros(d, dtype=dtype, device=device),
+                #        torch.ones(d, dtype=dtype, device=device),
+                #    ]
+                #),
+                q=10,
+                num_restarts=NUM_RESTARTS,
+                #num_restarts=1,
+                raw_samples=RAW_SAMPLES,
+                #return_best_only=True,
+            )
+        elif args.acqf == "ts":
+            sobol = SobolEngine(args.zdim, scramble=True)
+            pert = sobol.draw(10).to(dtype=dtype)
+            pert = tr_lb + (tr_ub - tr_lb) * pert
+            # Create a perturbation mask
+            prob_perturb = min(20.0 / args.zdim, 1.0)
+            mask = torch.rand(10, args.zdim, dtype=dtype, device=device) <= prob_perturb
+            ind = torch.where(mask.sum(dim=1) == 0)[0]
+            mask[ind, torch.randint(0, args.zdim - 1, size=(len(ind),), device=device)] = 1
+
+            # Create candidate points from the perturbations and the mask
+            X_cand = x_center.expand(10, args.zdim).clone()
+            X_cand[mask] = pert[mask]
+            try:
+                with torch.no_grad():
+                    candidates = acqf(X_cand, num_samples=10)
+            except:  # noqa: E722
+                # Sampling entirely failed, return first candidate
+                candidates = X_cand[0].unsqueeze(0)
 
         print(f"[{datetime.datetime.now()}] Finished gen candidates")
         new_x = unnormalize(candidates.detach(), bounds=bounds)
@@ -349,35 +354,33 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
         candidates = [torch.add(latent_vector, x.clone().detach()) for x in new_x]
         #new_x = candidates.detach()
         print(f"new_x: {candidates}")
-        print(f"expected improvements: {expected}")
+        #print(f"expected improvements: {expected}")
         print(f"[{datetime.datetime.now()}] Starting objective_function on candidates")
         new_obj = objective_function(candidates).unsqueeze(-1)
         print(f"[{datetime.datetime.now()}] Finished objective_function on candidates")
 
         """
-        index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
-        best_plan = previous.train_x[index]
+        index, best_impr = max(enumerate(state.train_obj), key=lambda x: x[1])
+        best_plan = state.train_x[index]
         # recenter the latent vector
         latent_vector = best_plan
         """
 
         return new_x, new_obj
 
-    torch.manual_seed(seed)
-
-    if previous is None:
+    if state is None:
         best_observed = []
         print(f"Intial encoded plan: {encoded_plan[0]}")
         print(f"Intial encoded plan dims: {len(encoded_plan[0][0])}")
         latent_space_vector = encoded_plan[0][0]
         assert len(latent_space_vector) == z_dim
         train_x, train_obj, best_value = gen_initial_data(encoded_plan[0])
-        print(f"Train_x: {train_x}")
         best_observed.append(best_value)
         state_dict = None
         model_results = []
 
-        previous = LSBOResult(ML_model, None, model_results, tree, train_x, train_obj, state_dict, best_observed)
+        state = State(initial_latency, ML_model, None, model_results, tree, train_x, train_obj, state_dict, best_observed)
+        VALID_X = set()
 
     """
     t = threading.Timer(args.time * 60, set_time_limit_reached)
@@ -392,36 +395,41 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     while not criteria.is_met():
 
         model = get_fitted_model(
-            previous.train_x,
-            previous.train_obj,
-            previous.state_dict,
+            state.train_x,
+            state.train_obj,
+            state.state_dict,
         )
 
-        previous = LSBOResult(ML_model, model, previous.model_results, tree, previous.train_x, previous.train_obj, previous.state_dict, previous.best_values)
+        print("Overwriting state")
+        #state = State(initial_latency, ML_model, model, state.model_results, tree, state.train_x, state.train_obj, state.state_dict, state.best_values)
+        state.update_model(model)
 
-        print(f"Best f: {previous.train_obj.max()}")
+        print(f"Best f: {state.train_obj.max()}")
 
         #sampler = StochasticSampler(sample_shape=torch.Size([MC_SAMPLES]))
-        #sampler = SobolQMCNormalSampler(torch.Size([MC_SAMPLES]))
+        if args.acqf == "ei":
+            acqf = qLogExpectedImprovement(
+                model=model,
+                #sampler=sampler,
+                #best_f=max(state.train_obj.max(), 0)
+                best_f=state.train_obj.max()
+            )
+        elif args.acqf == "ts":
+            acqf = MaxPosteriorSampling(model=model, replacement=False,)
 
-        qEI = qLogExpectedImprovement(
-            model=model,
-            #sampler=sampler,
-            #best_f=max(previous.train_obj.max(), 0)
-            best_f=previous.train_obj.max()
-        )
+        new_x, new_obj = optimize_acqf_and_get_observation(acqf, args)
+        state.update(new_x, new_obj, model.state_dict(), VALID_X)
+        # reset the global set
+        VALID_X = set()
 
-        new_x, new_obj = optimize_acqf_and_get_observation(qEI)
-        previous.update(new_x, new_obj, model.state_dict())
-
-        index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
+        index, best_impr = max(enumerate(state.train_obj), key=lambda x: x[1])
         criteria.step(best_impr.item(), new_x.shape[1])
 
     print('Finish Bayesian Optimization for latent space', flush=True)
 
-    index, best_impr = max(enumerate(previous.train_obj), key=lambda x: x[1])
+    index, best_impr = max(enumerate(state.train_obj), key=lambda x: x[1])
 
-    best_plan = previous.train_x[index]
+    best_plan = state.train_x[index]
     best_latency = initial_latency - math.pow(math.e ,best_impr.item())
     print(f"{best_latency} = {initial_latency} - {math.pow(math.e, best_impr.item())}")
 
@@ -430,7 +438,7 @@ def latent_space_BO(ML_model, device, plan, args, previous: LSBOResult = None):
     return best_plan, best_latency
 
 
-def run_lsbo(input, args, previous: LSBOResult = None):
+def run_lsbo(input, args, state: State = None):
     global z_dim
     print(f"Starting LSBO from python")
 
@@ -441,8 +449,8 @@ def run_lsbo(input, args, previous: LSBOResult = None):
     z_dim = args.zdim
     #model_path= f"{dir_path}/../Models/bvae.onnx"
     #parameters_path = f"{dir_path}/../HyperparameterLogs/BVAE.json"
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cpu")
 
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
@@ -474,9 +482,9 @@ def run_lsbo(input, args, previous: LSBOResult = None):
         model.eval()
 
         dataloader = DataLoader(data, batch_size=1, drop_last=False, shuffle=False)
-        lsbo_result = latent_space_BO(model, device, dataloader, args, previous)
+        state = latent_space_BO(model, device, dataloader, args, state)
 
-    return lsbo_result
+    return state
 
 def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
@@ -585,6 +593,7 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         exec_time = int(exec_time_str)
         if exec_time < sys.maxsize:
+            print("Add an executable plan")
             EXECUTABLE_PLANS.add(plan_out)
 
         # Calculate the current set timeout in ms (convert from sec to ms)
@@ -631,7 +640,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         return exec_time
 
 
-def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3600):
+def request_wayang_plan(args, state: State = None, timeout: float = 3600):
     global TIMEOUT
     global best_plan_data
     #TIMEOUT = timeout
@@ -662,7 +671,7 @@ def request_wayang_plan(args, lsbo_result: LSBOResult = None, timeout: float = 3
 
     # This holds plenty of metadata for multiple runs
     # and updating the actual latency of plans
-    lsbo_result = run_lsbo([plan], args, lsbo_result)
+    state = run_lsbo([plan], args, state)
 
     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
     process.kill()

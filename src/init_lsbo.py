@@ -17,7 +17,8 @@
 
 import argparse
 
-from LSBO.lsbo import LSBOResult, request_wayang_plan
+from LSBO.state import State
+from LSBO.lsbo import request_wayang_plan
 from main import main as retrain
 
 # Default should be 10 min
@@ -26,10 +27,10 @@ TOLERANCE = 1.25
 time_limit_reached = False
 
 def main(args) -> None:
-    lsbo_result = None
+    state = None
     timeout = float(60 * 10)
 
-    plan_data, initial_latency, plan_cache = request_wayang_plan(args, lsbo_result, timeout)
+    plan_data, initial_latency, plan_cache = request_wayang_plan(args, state, timeout)
     print(f"Best plan data: {plan_data}")
 
     # add best plan to trainset
@@ -72,6 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--time', type=int, default=1)
     parser.add_argument('--improvement', type=float, default=25)
     parser.add_argument('--steps', type=int, default=0)
+    parser.add_argument('--acqf', type=str, default='ts')
     args = parser.parse_args()
 
     main(args)
