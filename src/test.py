@@ -1,74 +1,47 @@
-#
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+import re
 import os
-import sys
-import torch
-import torch.onnx
-from torch.utils.data import DataLoader
-import torch.nn.functional as F
-import json
-from subprocess import PIPE, Popen, TimeoutExpired
-import signal
-import threading
-import random
-import math
-import argparse
-import datetime
+
+from helper import get_relative_path
+
+def clean_duplicate_platforms(file_path: str):
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+    lines = []
+
+    print(file_path)
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    fixes = 0
+    for position, line in enumerate(lines):
+        input, exec_plan, latency = line.split(":")
+        matches_iterator = re.finditer(regex_pattern, exec_plan)
+
+        for match in matches_iterator:
+            in_paranthesis = match.group()
+            find = in_paranthesis.strip('(').strip(')')
+            values = [int(num.strip()) for num in find.split(',')]
+            platform_choices = values[43:43+9]
+            if sum(platform_choices) > 1:
+                print(f"Before: {platform_choices}")
+                if platform_choices[5] == 1:
+                    for i in range(len(platform_choices)):
+                        if i != 5:
+                            platform_choices[i] = 0
+                print(f"After: {platform_choices}")
+                assert sum(platform_choices) <= 1
+                values[43:43+9] = platform_choices
+                replacement = ','.join(map(str, values))
+                new_exec_plan = exec_plan.replace(in_paranthesis, f"({replacement})")
+                lines[position] = f"{input}:{new_exec_plan}:{latency}"
+                fixes += 1
+
+    with open(file_path, 'w') as file:
+        print(fixes)
+        file.writelines(lines)
 
 def main():
-    timeout = 5
-
-    try:
-        print(f"[{datetime.datetime.now()}] Starting sleep for {timeout * 2} seconds")
-        process = Popen([
-            "sleep",
-            str(timeout * 10),
-        ],
-        stdout=PIPE, stderr=PIPE, start_new_session=True)
-
-        #print(f"[stdout] {process.stdout.readline()}")
-        #out, err = process.communicate(timeout=timeout)
-        process.wait(timeout=timeout)
-    except TimeoutExpired:
-        print(f"[{datetime.datetime.now()}] Timeout after {timeout} seconds")
-        #os.system("pkill -TERM -P %s"%process.pid)
-        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-        process.kill()
-        process.wait(timeout=1)
-
-
-        try:
-            print(f"[{datetime.datetime.now()}] Starting 2nd sleep for {timeout * 2} seconds")
-            process = Popen([
-                "sleep",
-                str(timeout * 10),
-            ],
-            stdout=PIPE, stderr=PIPE, start_new_session=True)
-
-            process.stdout.flush()
-            #out, err= process.communicate(timeout=timeout)
-            print(process.wait(timeout=timeout))
-        except TimeoutExpired as e:
-            print(f"Exception: {e}")
-            print(f"[{datetime.datetime.now()}] Timeout after {timeout} seconds")
-            #os.system("pkill -TERM -P %s"%process.pid)
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            process.kill()
-            process.wait(timeout=1)
+    file_path = get_relative_path("retrain-2.txt", "Data/splits/imdb/training/")
+    clean_duplicate_platforms(file_path)
 
 if __name__ == "__main__":
     main()
