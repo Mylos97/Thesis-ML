@@ -107,7 +107,7 @@ def do_hyperparameter_BO(
         {
             'name': 'patience',
             'type': 'range',
-            'bounds': [50, 250],
+            'bounds': [5, 50],
             'value_type': 'int'
         },
     ]
@@ -119,7 +119,7 @@ def do_hyperparameter_BO(
             'type': 'range',
             'bounds': [0.1, 10],
             'value_type': 'float',
-            "log_scale": True,
+            "log_scale": False,
         })
 
         parameters.append({
@@ -129,6 +129,15 @@ def do_hyperparameter_BO(
             'value_type': 'int',
             'is_ordered': True,
             'sort_values' : True
+        })
+
+        parameters.append({
+            'name': 'weight_decay',
+            'type': 'range',
+            'bounds': [0, 0.1],
+            'value_type': 'int',
+            'value_type': 'float',
+            "log_scale": False
         })
 
     """

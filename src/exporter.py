@@ -39,7 +39,7 @@ def export_model(model, x, model_name) -> None:
     )
     print("Finished exporting model", flush=True)
 
-    torch_out = model(x).to("cpu")
+    torch_out = model(x)[0].to("cpu")
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
 

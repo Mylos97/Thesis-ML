@@ -81,7 +81,7 @@ def make_dataloader(x: Dataset, batch_size: int) -> DataLoader:
 def build_trees(
     feature: list[tuple[torch.Tensor, torch.Tensor]], device: str
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    return prepare_trees(feature, transformer, left_child, right_child, device=device)
+    return prepare_trees(feature, transformer, left_child, right_child)
 
 
 def remove_operator_ids(tree: str):
@@ -427,27 +427,33 @@ class Beta_Vae_Loss(torch.nn.Module):
 
         recon_x, mu, logvar = prediction
 
-        for i, recon in enumerate(recon_x):
-            # Get indices of max per column
-            idx = recon.argmax(dim=0, keepdim=True)  # shape [1, 62]
-
-            # Compute max values for each column
-            max_vals = recon.detach().clone().gather(0, idx)  # shape [1, 62]
-
-            # Create one-hot normally
+        """
+        one_hots = []
+        for recon in recon_x:
+            # One-hot along dim=0
+            idx = recon.argmax(dim=0, keepdim=True)  # [1, 62]
             one_hot = torch.zeros_like(recon).scatter_(0, idx, 1.0)
 
-            # Apply mask: keep column zero if max value == 0
-            mask = (max_vals > 0).float()  # shape [1, 62]
-            one_hot = one_hot * mask       # broadcasting works
+            # Compute max per column
+            max_vals = recon.max(dim=0, keepdim=True).values  # [1, 62]
 
-            recon_x[i] = one_hot
+            # Detect columns where all values == max (padded columns)
+            all_equal_max = (recon == max_vals).all(dim=0, keepdim=True)  # [1, 62]
+
+            # Build mask: keep only columns that are NOT all equal to max
+            mask = (~all_equal_max).float()
+
+            # Apply mask
+            one_hot = one_hot * mask
+            one_hots.append(one_hot)
+
+        recon_x = torch.stack(one_hots, dim=0)  # [B, 9, 62]
+        """
 
         if self.loss_type == "B":
             recon_loss = F.cross_entropy(recon_x, target)
             #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
-            #loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
-            loss_reg = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1),dim=0)
+            loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
             #total_kld = loss_reg * 0.0001
             total_kld = loss_reg
 

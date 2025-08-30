@@ -1,5 +1,6 @@
 import torch
 import sys
+import math
 from torch.utils.data import DataLoader
 from torch import Tensor
 from helper import set_weights
@@ -25,6 +26,7 @@ def train(
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
     z_dim = parameters.get("z_dim", 128)
+    weight_decay = parameters.get("weight_decay", 0.001) #bounds between 0, 0.1
     model = model_class(
         in_dim=in_dim, out_dim=out_dim, dropout_prob=dropout, z_dim=z_dim
     )
@@ -38,7 +40,7 @@ def train(
         print("Setting model to training mode", flush=True)
         model.training = True
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     best_val_loss = float(sys.maxsize)
     best_test_loss = float(sys.maxsize)
     counter = 0
@@ -62,7 +64,7 @@ def train(
             #kld = annealing_agent(loss["kld"])
             optimizer.zero_grad()
             #(loss["loss"] + loss["kld"]).backward()
-            #(loss["loss"]).backward()
+            loss["loss"].backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
             #annealing_agent.step()
@@ -105,7 +107,7 @@ def train(
         test_loss_accum += loss["loss"].item()
         test_loss_accum = min(test_loss_accum, sys.maxsize)
         optimizer.zero_grad()
-        #loss["loss"].backward()
+        loss["loss"].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
         optimizer.step()
         # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
@@ -147,9 +149,12 @@ def evaluate(
         prediction = model(tree)
         loss = loss_function(prediction, target.float())
         print(f"val loss cand {loss['loss'].item()}")
-        val_loss += loss["loss"].item()
-        val_loss = min(val_loss, sys.maxsize)
-        #(loss["loss"]).backward()
+        if math.isnan(loss['loss'].item()):
+            val_loss = sys.maxsize
+        else:
+            val_loss += min(loss["loss"].item(), sys.maxsize)
+            val_loss = min(val_loss, sys.maxsize)
+        loss["loss"].backward()
         #val_kld += loss["kld"].item()
 
     print(f"val_loss accum: {val_loss}")
@@ -157,6 +162,7 @@ def evaluate(
     assert len(val_data_loader) != 0
     val_loss /= len(val_data_loader)
     #val_kld /= len(val_data_loader)
+    val_loss = min(val_loss, sys.maxsize)
 
     return {
         "loss": val_loss
