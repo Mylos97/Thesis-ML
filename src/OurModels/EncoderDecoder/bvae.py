@@ -41,12 +41,10 @@ class BVAE(nn.Module):
             pad_lower = decoded[0].shape[2]
             x = decoded[0]
 
-            """
             if pad_lower < pad_upper:
                 pad_size = pad_upper - pad_lower
 
                 x = F.pad(decoded[0], (0, pad_size))
-            """
 
             x = self.softmax(x)
 
@@ -56,8 +54,8 @@ class BVAE(nn.Module):
             mean = self.mu(encoded)
             log_var = self.log_var(encoded)
             batch, dim = mean.shape
-            epsilon = torch.randn(batch, dim).to(self.device)
-            z = mean + torch.exp(0.5 * log_var) * epsilon
+            #epsilon = torch.randn(batch, dim).to(self.device)
+            z = mean + torch.exp(0.5 * log_var)
             decoded = self.decoder(z, indexes)
 
             pad_upper = x[0].shape[2]

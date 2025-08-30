@@ -1,4 +1,5 @@
 import torch
+import sys
 from torch.utils.data import DataLoader
 from torch import Tensor
 from helper import set_weights
@@ -38,8 +39,8 @@ def train(
         model.training = True
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    best_val_loss = float("inf")
-    best_test_loss = float("inf")
+    best_val_loss = float(sys.maxsize)
+    best_test_loss = float(sys.maxsize)
     counter = 0
     patience = parameters.get("patience", 10)
     time = datetime.now().strftime("%H:%M:%S")
@@ -57,14 +58,17 @@ def train(
             prediction = model(tree)
             loss = loss_function(prediction, target.float())
             loss_accum += loss["loss"].item()
-            kld = annealing_agent(loss["kld"])
+            loss_accum = min(loss_accum, sys.maxsize)
+            #kld = annealing_agent(loss["kld"])
             optimizer.zero_grad()
-            (loss["loss"] + loss["kld"]).backward()
+            #(loss["loss"] + loss["kld"]).backward()
+            #(loss["loss"]).backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
-            annealing_agent.step()
+            #annealing_agent.step()
             # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
 
+        assert len(training_data_loader) != 0
         loss_accum /= len(training_data_loader)
 
         print(f"Epoch  {epoch} training loss: {loss_accum}", flush=True)
@@ -99,12 +103,14 @@ def train(
         prediction = model(tree)
         loss = loss_function(prediction, target.float())
         test_loss_accum += loss["loss"].item()
+        test_loss_accum = min(test_loss_accum, sys.maxsize)
         optimizer.zero_grad()
-        loss["loss"].backward()
+        #loss["loss"].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
         optimizer.step()
         # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
 
+    assert len(test_data_loader) != 0
     test_loss_accum /= len(test_data_loader)
 
     print(f"Test loss: {test_loss_accum}", flush=True)
@@ -137,17 +143,22 @@ def evaluate(
     if isinstance(model, VAE) or isinstance(model, BVAE):
         model.training = True
 
-    with torch.no_grad():
-        for tree, target in val_data_loader:
-            prediction = model(tree)
-            loss = loss_function(prediction, target.float())
-            val_loss += loss["loss"].item()
-            val_kld += loss["kld"].item()
+    for tree, target in val_data_loader:
+        prediction = model(tree)
+        loss = loss_function(prediction, target.float())
+        print(f"val loss cand {loss['loss'].item()}")
+        val_loss += loss["loss"].item()
+        val_loss = min(val_loss, sys.maxsize)
+        #(loss["loss"]).backward()
+        #val_kld += loss["kld"].item()
 
+    print(f"val_loss accum: {val_loss}")
+    print(f"val_loss len: {len(val_data_loader)}")
+    assert len(val_data_loader) != 0
     val_loss /= len(val_data_loader)
-    val_kld /= len(val_data_loader)
+    #val_kld /= len(val_data_loader)
 
     return {
-        "loss": val_loss,
-        "kld": val_kld
+        "loss": val_loss
+        #"kld": val_kld
     }

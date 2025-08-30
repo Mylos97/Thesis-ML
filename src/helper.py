@@ -16,6 +16,7 @@ from TreeConvolution.util import prepare_trees
 from onnx import numpy_helper
 from torch.utils.data import DataLoader, Dataset
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class TreeVectorDataset(Dataset):
     def __init__(self, data):
@@ -424,12 +425,29 @@ class Beta_Vae_Loss(torch.nn.Module):
 
     def forward(self, prediction, target):
 
-        if self.loss_type == "B":
+        recon_x, mu, logvar = prediction
 
-            recon_x, mu, logvar = prediction
+        for i, recon in enumerate(recon_x):
+            # Get indices of max per column
+            idx = recon.argmax(dim=0, keepdim=True)  # shape [1, 62]
+
+            # Compute max values for each column
+            max_vals = recon.detach().clone().gather(0, idx)  # shape [1, 62]
+
+            # Create one-hot normally
+            one_hot = torch.zeros_like(recon).scatter_(0, idx, 1.0)
+
+            # Apply mask: keep column zero if max value == 0
+            mask = (max_vals > 0).float()  # shape [1, 62]
+            one_hot = one_hot * mask       # broadcasting works
+
+            recon_x[i] = one_hot
+
+        if self.loss_type == "B":
             recon_loss = F.cross_entropy(recon_x, target)
             #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
-            loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
+            #loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
+            loss_reg = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1),dim=0)
             #total_kld = loss_reg * 0.0001
             total_kld = loss_reg
 
@@ -438,22 +456,17 @@ class Beta_Vae_Loss(torch.nn.Module):
             return {
                 'loss': loss,
                 'recon_loss': recon_loss,
-                'kld': total_kld * self.beta,
+                #'kld': total_kld * self.beta,
                 'beta': self.beta
             }
         else:
             self.num_iter += 1
 
-            recon_x, mu, logvar = prediction
             recon_loss = F.cross_entropy(recon_x, target)
             kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
             self.C_max = self.C_max.to(prediction[0].device)
 
             C = torch.clamp(self.C_max/self.C_stop_iter * self.num_iter * 100, 0, self.C_max.data[0])
             loss = recon_loss + self.gamma * self.kld_weight * (kld_loss - C).abs()
-
-            print(f"Num_iter: {self.num_iter}")
-            print(f"C: {C} nits")
-            print(f"KLD scaled: {self.gamma * self.kld_weight * (kld_loss - C).abs()}")
 
             return {'loss': loss, 'recon_loss': recon_loss, 'kld': kld_loss, 'beta': self.beta}

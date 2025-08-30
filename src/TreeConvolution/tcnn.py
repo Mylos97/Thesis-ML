@@ -42,6 +42,7 @@ class TreeLayerNorm(nn.Module):
         data, idxes = x
         mean = torch.mean(data, dim=(1, 2)).unsqueeze(1).unsqueeze(1)
         std = torch.std(data, dim=(1, 2)).unsqueeze(1).unsqueeze(1)
+        assert torch.all((std + 0.00001) != 0)
         normd = (data - mean) / (std + 0.00001)
         return (normd, idxes)
 
