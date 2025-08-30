@@ -24,6 +24,7 @@ def train(
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
     z_dim = parameters.get("z_dim", 128)
+    weight_decay = parameters.get("weight_decay", 0.001) #bounds between 0, 0.1
     model = model_class(
         in_dim=in_dim, out_dim=out_dim, dropout_prob=dropout, z_dim=z_dim
     )
@@ -37,7 +38,7 @@ def train(
         print("Setting model to training mode", flush=True)
         model.training = True
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     best_val_loss = float("inf")
     best_test_loss = float("inf")
     counter = 0
@@ -57,7 +58,6 @@ def train(
             prediction = model(tree)
             loss = loss_function(prediction, target.float())
             loss_accum += loss["loss"].item()
-            kld = annealing_agent(loss["kld"])
             optimizer.zero_grad()
             (loss["loss"] + loss["kld"]).backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
