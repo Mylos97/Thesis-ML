@@ -83,7 +83,7 @@ def do_hyperparameter_BO(
             'type': 'range',
             'bounds': lr,
             'value_type': 'float',
-            "log_scale": True,
+            "log_scale": False,
         },
         {
             'name': 'dropout',
@@ -135,7 +135,6 @@ def do_hyperparameter_BO(
             'name': 'weight_decay',
             'type': 'range',
             'bounds': [0, 0.1],
-            'value_type': 'int',
             'value_type': 'float',
             "log_scale": False
         })

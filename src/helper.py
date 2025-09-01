@@ -427,29 +427,6 @@ class Beta_Vae_Loss(torch.nn.Module):
 
         recon_x, mu, logvar = prediction
 
-        """
-        one_hots = []
-        for recon in recon_x:
-            # One-hot along dim=0
-            idx = recon.argmax(dim=0, keepdim=True)  # [1, 62]
-            one_hot = torch.zeros_like(recon).scatter_(0, idx, 1.0)
-
-            # Compute max per column
-            max_vals = recon.max(dim=0, keepdim=True).values  # [1, 62]
-
-            # Detect columns where all values == max (padded columns)
-            all_equal_max = (recon == max_vals).all(dim=0, keepdim=True)  # [1, 62]
-
-            # Build mask: keep only columns that are NOT all equal to max
-            mask = (~all_equal_max).float()
-
-            # Apply mask
-            one_hot = one_hot * mask
-            one_hots.append(one_hot)
-
-        recon_x = torch.stack(one_hots, dim=0)  # [B, 9, 62]
-        """
-
         if self.loss_type == "B":
             recon_loss = F.cross_entropy(recon_x, target)
             #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')

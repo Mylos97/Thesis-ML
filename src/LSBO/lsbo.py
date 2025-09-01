@@ -135,20 +135,19 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             decoded = ML_model.decoder(new_plan.float(), indexes)
 
 
-            softmaxed = ML_model.softmax(decoded[0])
             #model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
 
             debug_decoded = list(
                 map(
                     lambda x: [float(v) for v in x],
-                    softmaxed[0].detach().clone().transpose(0, 1)
+                    decoded[0][0].detach().clone().transpose(0, 1)
                 )
             )
 
             platform_choices = list(
                 map(
                     lambda x: [int(v == max(x)) for v in x],
-                    softmaxed[0].detach().clone().transpose(0, 1)
+                    decoded[0][0].detach().clone().transpose(0, 1)
                 )
             )
 
@@ -164,7 +163,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
                 platform_choices = platform_choices[0:PLAN_SIZE+1]
             """
 
-            discovered_latent_vector = [softmaxed.tolist()[0], decoded[1].tolist()[0]]
+            discovered_latent_vector = [decoded[0].tolist()[0], decoded[1].tolist()[0]]
 
             #print(f"neg log likelihood: {-F.cross_entropy(softmaxed, latent_target)}")
 
@@ -244,17 +243,17 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
         # Mask rows where X has NaNs
-        x_mask = torch.isnan(train_x).any(dim=tuple(range(1, train_x.ndim)))
+        x_mask = torch.isnan(train_x).any(dim=tuple(range(1, train_x.ndim))).to(device)
 
 # Mask rows where Y has NaNs
-        y_mask = torch.isnan(train_obj).any(dim=tuple(range(1, train_obj.ndim)))
+        y_mask = torch.isnan(train_obj).any(dim=tuple(range(1, train_obj.ndim))).to(device)
 
 # Combine masks: keep only rows that are valid in both
-        valid_mask = ~(x_mask | y_mask)
+        valid_mask = ~(x_mask | y_mask).to(device)
 
 # Filter both X and Y consistently
-        x_filtered = train_x.cpu()[valid_mask]
-        y_filtered = train_obj.cpu()[valid_mask]
+        x_filtered = train_x.to(device)[valid_mask]
+        y_filtered = train_obj.to(device)[valid_mask]
 
         x_filtered = x_filtered.to(device)
         y_filtered = y_filtered.to(device)
@@ -299,8 +298,10 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         weights = weights * x_range # less than 4 stdevs on either side max
         #tr_lb = x_center - weights * 59 / 2.0
         #tr_ub = x_center + weights * 59 / 2.0
-        tr_lb = x_center - weights * state.length / 2.0
-        tr_ub = x_center + weights * state.length / 2.0
+        tr_lb = x_center - weights
+        tr_ub = x_center + weights
+        #tr_lb = x_center - weights * state.length / 2.0
+        #tr_ub = x_center + weights * state.length / 2.0
 
         new_bounds = torch.stack([tr_lb, tr_ub])
         """
@@ -330,7 +331,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             )
         elif args.acqf == "ts":
             sobol = SobolEngine(args.zdim, scramble=True)
-            pert = sobol.draw(10).to(dtype=dtype)
+            pert = sobol.draw(10).to(dtype=dtype).to(device)
             pert = tr_lb + (tr_ub - tr_lb) * pert
             # Create a perturbation mask
             prob_perturb = min(20.0 / args.zdim, 1.0)
@@ -558,8 +559,8 @@ def get_plan_latency(args, sampled_plan) -> float:
             process.wait(timeout=5)
             print(f"[{datetime.datetime.now()}] process.wait finished")
 
-            return int(TIMEOUT * 10_000)
-            #return initial_latency
+            #return int(TIMEOUT * 10_000)
+            return initial_latency
 
         print(f"[{datetime.datetime.now()}] Sampling new plan")
 
@@ -628,7 +629,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         #os.killpg(os.getpgid(process.pid), signal.SIGTERM)
         #process.wait()
 
-        exec_time = int(TIMEOUT * 100000)
+        exec_time = initial_latency
 
         return exec_time
 

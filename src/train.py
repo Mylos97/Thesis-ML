@@ -148,7 +148,6 @@ def evaluate(
     for tree, target in val_data_loader:
         prediction = model(tree)
         loss = loss_function(prediction, target.float())
-        print(f"val loss cand {loss['loss'].item()}")
         if math.isnan(loss['loss'].item()):
             val_loss = sys.maxsize
         else:
@@ -157,8 +156,6 @@ def evaluate(
         loss["loss"].backward()
         #val_kld += loss["kld"].item()
 
-    print(f"val_loss accum: {val_loss}")
-    print(f"val_loss len: {len(val_data_loader)}")
     assert len(val_data_loader) != 0
     val_loss /= len(val_data_loader)
     #val_kld /= len(val_data_loader)

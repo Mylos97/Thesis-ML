@@ -21,6 +21,7 @@ def export_model(model, x, model_name) -> None:
 
     print(f"Now exporting {model_name}", flush=True)
     model.eval()
+    model.training = False
     model = model.to("cpu")
 
     for i in range(len(x)):
@@ -39,7 +40,7 @@ def export_model(model, x, model_name) -> None:
     )
     print("Finished exporting model", flush=True)
 
-    torch_out = model(x)[0].to("cpu")
+    torch_out = model(x).to("cpu")
     onnx_model = onnx.load(model_name)
     onnx.checker.check_model(onnx_model)
 
@@ -80,3 +81,14 @@ def export_model(model, x, model_name) -> None:
     ort_outs = ort_session.run(None, ort_inputs)
     np.testing.assert_allclose(to_numpy(torch_out), ort_outs[0], rtol=1e-03, atol=1e-05)
     print("All good!")
+    print(f"Final inference: {ort_outs[0][0]}")
+
+    platform_choices = list(
+        map(
+            lambda x: [int(v == max(x)) for v in x],
+            torch_out[0].detach().clone().transpose(0, 1)
+        )
+    )
+
+
+    print(f"Platform choices: {platform_choices}")

@@ -8,3 +8,6 @@
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:14:9.223372036854776e+18:487
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:15:9.223372036854776e+18:14281
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:23:9.223372036854776e+18:4585
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:2:9.223372036854776e+18:59779
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:1:9.223372036854776e+18:9087
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:5:9.223372036854776e+18:6672
