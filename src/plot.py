@@ -96,9 +96,10 @@ def main(args):
 
         # load model
         model.to(device)
-        model.eval()
+        model.train()
+        model.isTraining = True
 
-        dataloader = DataLoader(data, batch_size=1, drop_last=False, shuffle=False)
+        dataloader = DataLoader(data, batch_size=parameters.get("batch_size", 1), drop_last=False, shuffle=False)
 
         dtype = torch.float64
         latent_target = None
@@ -108,25 +109,23 @@ def main(args):
         labels = []
         #model = model.to("cpu")
         with torch.no_grad():
-            for tree,target in dataloader:
+            for i, (tree,target) in enumerate(dataloader):
                 torch.set_printoptions(profile="full")
-                model.training = False
-                model.eval()
-                encoded_plan, indexes = model.encoder(tree)
-                print(encoded_plan.shape)
-                latent_target = target
-                latent_vector = encoded_plan
-                d = latent_vector.shape[1]
+                model.train()
+                model.isTraining = True
+                predictions, targets = model.encoder(tree)
+                print(predictions)
+                latent_vectors.append(predictions.detach().cpu().numpy())
+                labels.append([i for i in range(len(predictions))])
+                print(labels)
+                break
 
-        latent_vectors.append(latent_vector.detach().cpu().numpy())
-        labels.append(target.cpu().numpy())
-
-        latent_vectors = np.array(latent_vector)
-        labels = np.array(labels)
+        print(len(latent_vectors))
+        latent_vectors = np.concatenate(latent_vectors)
         #latent_vectors = np.concatenate(latent_vectors)
-        #labels = np.concatenate(labels)
+        print(f"Latent vector.shape {latent_vectors.shape}")
 
-        reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean')
+        reducer = umap.UMAP(n_neighbors=15, min_dist=0.3, metric='euclidean')
         embedding = reducer.fit_transform(latent_vectors)
 
         plt.figure(figsize=(10, 8))
@@ -136,6 +135,8 @@ def main(args):
         plt.xlabel("UMAP-1")
         plt.ylabel("UMAP-2")
         plt.show()
+        plt.savefig("./umap_plot.png", dpi=300)
+        print("Plot saved as umap_plot.png")
 
 
 

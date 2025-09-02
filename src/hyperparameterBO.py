@@ -83,7 +83,7 @@ def do_hyperparameter_BO(
             'type': 'range',
             'bounds': lr,
             'value_type': 'float',
-            "log_scale": False,
+            "log_scale": True,
         },
         {
             'name': 'dropout',
