@@ -25,6 +25,22 @@ import torch
 class TreeConvolutionError(Exception):
     pass
 
+# leaf
+def is_null_operator(tup):
+    if isinstance(tup, tuple):
+        if isinstance(tup[0], tuple):
+            return all(is_null_operator(sub) for sub in tup)
+        else:
+            # Features
+            if len(tup) > 9:
+                return sum(list(tup)) <= 1
+
+            # Platform choices
+            return sum(list(tup)) == 0
+    else:
+        return tup == 0
+
+
 def _is_leaf(x, left_child, right_child):
     has_left = left_child(x) is not None
     has_right = right_child(x) is not None
@@ -55,6 +71,10 @@ def _flatten(root, transformer, left_child, right_child):
 
     def recurse(x):
         if _is_leaf(x, left_child, right_child):
+            if is_null_operator(x):
+                accum.append(np.zeros(transformer(x).shape))
+                return
+
             accum.append(transformer(x))
             return
 
@@ -130,7 +150,7 @@ def _tree_conv_indexes(root, left_child, right_child):
 
     return np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
 
-def _pad_and_combine(x):
+def _pad_and_combine(x, max_first_dim):
     assert len(x) >= 1
     assert len(x[0].shape) == 2
 
@@ -145,7 +165,7 @@ def _pad_and_combine(x):
     for itm in x[1:]:
         assert itm.shape[1] == second_dim
 
-    max_first_dim = max(arr.shape[0] for arr in x)
+    #max_first_dim = max(arr.shape[0] for arr in x)
 
     vecs = []
     for arr in x:
@@ -158,7 +178,7 @@ def _pad_and_combine(x):
 def prepare_trees(trees, transformer, left_child, right_child):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     flat_trees = [_flatten(x, transformer, left_child, right_child) for x in trees]
-    flat_trees = _pad_and_combine(flat_trees)
+    flat_trees = _pad_and_combine(flat_trees, 116)
     flat_trees = torch.Tensor(flat_trees)
 
     # flat trees is now batch x max tree nodes x channels
@@ -166,7 +186,7 @@ def prepare_trees(trees, transformer, left_child, right_child):
     flat_trees = flat_trees.to(device)
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
-    indexes = _pad_and_combine(indexes)
+    indexes = _pad_and_combine(indexes, 345)
     indexes = torch.Tensor(indexes).long().to(device)
     indexes = indexes.to(device)
 

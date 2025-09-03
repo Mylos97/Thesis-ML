@@ -64,7 +64,7 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
-    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('10a.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('testing.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
     #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('g0.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
 
     # find model parameters
@@ -148,7 +148,7 @@ def main(args):
             )
         )
 
-        #print(f"Platform choices: {platform_choices}")
+        print(f"Platform choices: {platform_choices}")
 
 def main_onnx(args):
     # set some defaults, highly WIP
@@ -232,7 +232,6 @@ def main_onnx(args):
         )
 
         print(f"Platform choices: {platform_choices}")
-        print(f"Platform choices: {len(platform_choices), len(platform_choices[0]), 1}")
 
 
 if __name__ == "__main__":

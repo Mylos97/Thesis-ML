@@ -82,13 +82,3 @@ def export_model(model, x, model_name) -> None:
     np.testing.assert_allclose(to_numpy(torch_out), ort_outs[0], rtol=1e-03, atol=1e-05)
     print("All good!")
     print(f"Final inference: {ort_outs[0][0]}")
-
-    platform_choices = list(
-        map(
-            lambda x: [int(v == max(x)) for v in x],
-            torch_out[0].detach().clone().transpose(0, 1)
-        )
-    )
-
-
-    print(f"Platform choices: {platform_choices}")

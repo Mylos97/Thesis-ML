@@ -27,6 +27,8 @@ import threading
 import random
 import math
 import datetime
+import onnx
+import onnxruntime
 
 from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str, load_autoencoder_data
 from .state import State
@@ -71,15 +73,17 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     print('Running latent space Bayesian Optimization', flush=True)
     dtype = torch.float64
     latent_target = None
+
     with torch.no_grad():
         for tree,target in plan:
+            print(f"Input: {tree[0].shape}")
             encoded_plan = ML_model.encoder(tree)
             #softmaxed = ML_model.enc_softmax(encoded_plan[0])
             latent_target = target
         latent_vector = encoded_plan[0]
         print(f"Tree shape : {tree[0].shape}")
         indexes = encoded_plan[1]
-        print(f"Indexes: {indexes.shape}")
+        print(f"Indexes python: {indexes.shape}")
         d = latent_vector.shape[1]
     #N_BATCH = 100
     BATCH_SIZE = 1
@@ -153,8 +157,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
             """
             print(f"Decoded: {debug_decoded}")
+            print(f"Indexes python: {indexes}")
             print(f"Platforms: {platform_choices}")
-            print(f"Indexes: {indexes}")
             """
 
 
@@ -525,6 +529,7 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         sock_file.flush()
 
+        print(input_plan)
         plan_out = ""
         counter = 0
         for line in iter(process.stdout.readline, b''):
@@ -592,7 +597,9 @@ def get_plan_latency(args, sampled_plan) -> float:
         sock_file.close()
         sock.close()
 
+
         exec_time = int(exec_time_str)
+
         if exec_time < sys.maxsize:
             print("Add an executable plan")
             EXECUTABLE_PLANS.add(plan_out)
