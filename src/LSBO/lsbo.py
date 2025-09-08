@@ -302,10 +302,10 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         weights = weights * x_range # less than 4 stdevs on either side max
         #tr_lb = x_center - weights * 59 / 2.0
         #tr_ub = x_center + weights * 59 / 2.0
-        tr_lb = x_center - weights
-        tr_ub = x_center + weights
-        #tr_lb = x_center - weights * state.length / 2.0
-        #tr_ub = x_center + weights * state.length / 2.0
+        #tr_lb = x_center - weights
+        #tr_ub = x_center + weights
+        tr_lb = x_center - weights * state.length / 2.0
+        tr_ub = x_center + weights * state.length / 2.0
 
         new_bounds = torch.stack([tr_lb, tr_ub])
         """
@@ -529,7 +529,6 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         sock_file.flush()
 
-        print(input_plan)
         plan_out = ""
         counter = 0
         for line in iter(process.stdout.readline, b''):
@@ -635,6 +634,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         #os.system("pkill -TERM -P %s"%process.pid)
         #os.killpg(os.getpgid(process.pid), signal.SIGTERM)
         #process.wait()
+        EXECUTABLE_PLANS.add(plan_out)
 
         exec_time = initial_latency
 

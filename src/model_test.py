@@ -211,6 +211,9 @@ def main_onnx(args):
                     print(f"Tree print: {tree[0]}")
 
                 #print(f"Tree: {tree[0][0]}")
+                for i, input in enumerate(ort_session.get_inputs()):
+                    print(f"ORT Input: {input}")
+                """
                 input_value_name = ort_session.get_inputs()[0].name
                 input_index_name = ort_session.get_inputs()[1].name
                 output_name = ort_session.get_outputs()[0].name
@@ -232,6 +235,7 @@ def main_onnx(args):
         )
 
         print(f"Platform choices: {platform_choices}")
+        """
 
 
 if __name__ == "__main__":
@@ -248,4 +252,4 @@ if __name__ == "__main__":
     parser.add_argument('--platforms', type=int, default=9)
     parser.add_argument('--operators', type=int, default=43)
     args = parser.parse_args()
-    main(args)
+    main_onnx(args)
