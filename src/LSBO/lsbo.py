@@ -53,8 +53,8 @@ from OurModels.EncoderDecoder.bvae import BVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
 from LSBO.criteria import StoppingCriteria
 
-# Set to 10min (600 seconds)
-TIMEOUT = float(60 * 10)
+# Set to 30min (1800 seconds)
+TIMEOUT = float(60 * 30)
 PLAN_CACHE = set()
 EXECUTABLE_PLANS = set()
 VALID_X = set()

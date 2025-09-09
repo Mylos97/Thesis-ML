@@ -1,0 +1,12 @@
+/work/lsbo-paper/data/JOBenchmark/queries/11a.sql:3:9.223372036854776e+18:8627
+/work/lsbo-paper/data/JOBenchmark/queries/13a.sql:36:9.223372036854776e+18:10734
+/work/lsbo-paper/data/JOBenchmark/queries/13a.sql:24:9.223372036854776e+18:11832
+/work/lsbo-paper/data/JOBenchmark/queries/14a.sql:8:9.223372036854776e+18:24840
+/work/lsbo-paper/data/JOBenchmark/queries/16a.sql:33:9.223372036854776e+18:19316
+/work/lsbo-paper/data/JOBenchmark/queries/23a.sql:7:9.223372036854776e+18:16366
+/work/lsbo-paper/data/JOBenchmark/queries/27a.sql:6:9.223372036854776e+18:7867
+/work/lsbo-paper/data/JOBenchmark/queries/32a.sql:1:9.223372036854776e+18:15890
+/work/lsbo-paper/data/JOBenchmark/queries/3a.sql:337:11600.0:7228
+/work/lsbo-paper/data/JOBenchmark/queries/6a.sql:314:88909.0:6447
+/work/lsbo-paper/data/JOBenchmark/queries/8a.sql:2:9.223372036854776e+18:112185
+/work/lsbo-paper/data/JOBenchmark/queries/9a.sql:172:9.223372036854776e+18:14378
