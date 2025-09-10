@@ -140,3 +140,4 @@ websockets==7.0
 widgetsnbextension==4.0.10
 yarl==1.9.4
 html5lib==1.1
+umap-learn==0.5.5
