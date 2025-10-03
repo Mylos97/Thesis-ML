@@ -81,7 +81,7 @@ class StoppingCriteria:
     def step(self, improvement: float, num_steps: int):
         self.steps_taken += num_steps
 
-        if self.__iterations_left <= 0:
+        if self.__iterations_left <= 0 and self.max_steps == 0:
             print("Canceling timer, no iterations left")
             self.__timer.cancel()
             return
@@ -102,7 +102,7 @@ class StoppingCriteria:
 
     def is_met(self) -> bool:
         # If the initial plan yielded a valid execution, prioritize improvement threshhold
-        if __initial_latency <= TIMEOUT:
+        if self.__initial_latency <= TIMEOUT:
             return self.__time_limit_reached or (self.__improvement_threshhold_reached and self.__iterations_left <= 0) or (self.max_steps > 0 and self.steps_taken >= self.max_steps)
         else:
             # If otherwise, improvement can't be a stopping criteria, as MAX_VALUE - real_latency will most like fulfill criteria instantly

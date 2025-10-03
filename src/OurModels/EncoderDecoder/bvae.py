@@ -24,33 +24,10 @@ class BVAE(nn.Module):
 
     def forward(self, x):
         if not self.training:
-            #remove the padding from ONNX index structure
-            """
-            max_index = x[1].max()
-            max_index_size = max_index * 3
-            x[1] = x[1][:, :max_index_size, :]
-
-            #remove the padding from ONNX value structure
-            if x[1].shape[1] < x[0].shape[2]:
-                x[0] = x[0][:, :, :x[1].shape[1]]
-            """
-
             encoded, indexes = self.encoder(x)
             z = self.mu(encoded)
             decoded = self.decoder(z, indexes)
             x = decoded[0]
-
-            """
-            pad_upper = x[0].shape[2]
-            pad_lower = decoded[0].shape[2]
-
-            if pad_lower < pad_upper:
-                pad_size = pad_upper - pad_lower
-
-                x = F.pad(decoded[0], (0, pad_size))
-            """
-
-            #x = self.softmax(x)
 
             return x
         else:
@@ -61,21 +38,6 @@ class BVAE(nn.Module):
             epsilon = torch.randn(batch, dim).to(self.device)
             z = mean + torch.exp(0.5 * log_var) * epsilon
             decoded = self.decoder(z, indexes)
-
-            """
-            pad_upper = x[0].shape[2]
-            pad_lower = decoded[0].shape[2]
-            """
-
             x = decoded[0]
-
-            """
-            if pad_lower < pad_upper:
-                pad_size = pad_upper - pad_lower
-
-                x = F.pad(decoded[0], (0, pad_size))
-            """
-
-            #x = self.softmax(x)
 
             return [x, mean, log_var]

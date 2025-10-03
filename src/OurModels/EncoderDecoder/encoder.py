@@ -23,11 +23,14 @@ class TreeEncoder(nn.Module):
             BinaryTreeConv(64, 32),
             TreeLayerNorm(),
             TreeActivation(nn.Mish()),
+            BinaryTreeConv(32, 16),
+            TreeLayerNorm(),
+            TreeActivation(nn.Mish()),
         )
 
         self.linear = nn.Sequential(
             DynamicPooling(),
-            nn.Linear(32, z_dim),
+            nn.Linear(16, z_dim),
             nn.BatchNorm1d(z_dim),
             nn.Mish(),
             nn.Dropout(dropout_prob),
