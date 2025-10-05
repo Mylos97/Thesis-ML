@@ -150,7 +150,7 @@ def _tree_conv_indexes(root, left_child, right_child):
 
     return np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
 
-def _pad_and_combine(x, max_first_dim):
+def _pad_and_combine(x, max_first_dim: int = None):
     assert len(x) >= 1
     assert len(x[0].shape) == 2
 
@@ -165,7 +165,8 @@ def _pad_and_combine(x, max_first_dim):
     for itm in x[1:]:
         assert itm.shape[1] == second_dim
 
-    #max_first_dim = max(arr.shape[0] for arr in x)
+    if max_first_dim is None:
+        max_first_dim = max(arr.shape[0] for arr in x)
     #print(max_first_dim)
 
     vecs = []
