@@ -167,7 +167,7 @@ def _pad_and_combine(x, max_first_dim: int = None):
 
     if max_first_dim is None:
         max_first_dim = max(arr.shape[0] for arr in x)
-    #print(max_first_dim)
+    print(max_first_dim)
 
     vecs = []
     for arr in x:
