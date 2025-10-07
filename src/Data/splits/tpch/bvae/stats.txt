@@ -5,3 +5,6 @@
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:6:19203.0:8333
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:6:30954.0:9071
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql:3:38696.0:7865
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/15.sql:2:88102.0:55126
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/15.sql:2:58890.0:56846
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/30.sql:1:1800000.0:89297

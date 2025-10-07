@@ -77,6 +77,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     with torch.no_grad():
         for tree,target in plan:
             print(f"Input: {tree[0].shape}")
+            torch.set_printoptions(profile="full")
+            #print(f"Tree: {tree[0]}")
             encoded_plan = ML_model.encoder(tree)
             #softmaxed = ML_model.enc_softmax(encoded_plan[0])
             latent_target = target
@@ -137,7 +139,6 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         for new_plan in v_hat:
             decoded = ML_model.decoder(new_plan.float(), indexes)
-
 
             #model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
 
@@ -457,6 +458,8 @@ def run_lsbo(input, args, state: State = None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
+    print(f"Input: {input}")
+
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
         data=input,
@@ -603,6 +606,8 @@ def get_plan_latency(args, sampled_plan) -> float:
         if exec_time < sys.maxsize:
             print("Add an executable plan")
             EXECUTABLE_PLANS.add(plan_out)
+        else:
+            exec_time = TIMEOUT * 1000
 
         # Calculate the current set timeout in ms (convert from sec to ms)
         ms_timeout = TIMEOUT * 1000
