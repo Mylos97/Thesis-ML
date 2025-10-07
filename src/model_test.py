@@ -152,8 +152,8 @@ def main_onnx(args):
 
         ort_session = onnxruntime.InferenceSession(
             model_path,
-            providers=["CUDAExecutionProvider"]
-            #providers=["CPUExecutionProvider"]
+            #providers=["CUDAExecutionProvider"]
+            providers=["CPUExecutionProvider"]
         )
         options = ort_session.get_session_options()
 
@@ -211,6 +211,8 @@ if __name__ == "__main__":
 
     #onnx_plats.append(4)
     #torch_plats.append(5)
+    print(onnx_plats[0])
+    print(torch_plats[0])
 
     assert onnx_plats == torch_plats
     print(f"Is equal: {onnx_plats == torch_plats}")
