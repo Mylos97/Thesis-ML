@@ -73,7 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--time', type=int, default=1)
     parser.add_argument('--improvement', type=float, default=25)
     parser.add_argument('--steps', type=int, default=0)
-    parser.add_argument('--acqf', type=str, default='ei')
+    parser.add_argument('--acqf', type=str, default='ts')
     args = parser.parse_args()
 
     main(args)

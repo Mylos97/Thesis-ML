@@ -5,13 +5,8 @@ import onnx
 import onnxruntime
 
 def export_model(model, x, model_name) -> None:
-    ort_input = x
-    if type(x[0]) == list:
-        ort_input = sum(x, [])
-
-    amount_inputs = len(ort_input)
+    amount_inputs = len(x)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
-    print(f"Inputs: {inputs}")
     axes = {f"input{i+1}": {0: "batch_size", 1: "height", 2: "width"} for i in range(amount_inputs)}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
@@ -37,6 +32,7 @@ def export_model(model, x, model_name) -> None:
         input_names=inputs,
         output_names=["output"],
         dynamic_axes=axes,
+        #dynamo=True
     )
 
     print("Finished exporting model", flush=True)

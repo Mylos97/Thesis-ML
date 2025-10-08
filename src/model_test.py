@@ -64,7 +64,7 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
-    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('10a.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
     #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('g0.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
 
     # find model parameters
@@ -134,7 +134,7 @@ def main_onnx(args):
     #device = torch.device("cpu")
 
     #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('tpch0.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('10a.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
 
     # find model parameters
     weights = get_weights_of_model_by_path(model_path)
@@ -188,6 +188,7 @@ def main_onnx(args):
                     )
                 )
 
+                print(platform_choices)
                 results.append(platform_choices)
         return results
 
@@ -211,8 +212,6 @@ if __name__ == "__main__":
 
     #onnx_plats.append(4)
     #torch_plats.append(5)
-    print(onnx_plats[0])
-    print(torch_plats[0])
 
     assert onnx_plats == torch_plats
     print(f"Is equal: {onnx_plats == torch_plats}")

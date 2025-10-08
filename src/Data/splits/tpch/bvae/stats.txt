@@ -8,3 +8,13 @@
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/15.sql:2:88102.0:55126
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/15.sql:2:58890.0:56846
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/30.sql:1:1800000.0:89297
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/30.sql:2:1800000.0:21591
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/15.sql:4:9.223372036854776e+18:14578
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/15.sql:4:9.223372036854776e+18:24421
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/1.sql:1:9.223372036854776e+18:58658
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/1.sql:1:9.223372036854776e+18:27422
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/1.sql:7:19767.0:11890
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/30.sql:9:87510.0:10553
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/30.sql:12:40559.0:34018
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/30.sql:2:9.223372036854776e+18:37389
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/30.sql:2:9.223372036854776e+18:43149

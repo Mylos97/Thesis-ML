@@ -303,10 +303,10 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         weights = weights * x_range # less than 4 stdevs on either side max
         #tr_lb = x_center - weights * 59 / 2.0
         #tr_ub = x_center + weights * 59 / 2.0
-        tr_lb = x_center - weights
-        tr_ub = x_center + weights
-        #tr_lb = x_center - weights * state.length / 2.0
-        #tr_ub = x_center + weights * state.length / 2.0
+        #tr_lb = x_center - weights
+        #tr_ub = x_center + weights
+        tr_lb = x_center - weights * state.length / 2.0
+        tr_ub = x_center + weights * state.length / 2.0
 
         new_bounds = torch.stack([tr_lb, tr_ub])
         """
@@ -359,7 +359,6 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         #candidates = [torch.tensor(x).unsqueeze(0) for x in new_x]
         candidates = [torch.add(latent_vector, x.clone().detach()) for x in new_x]
         #new_x = candidates.detach()
-        print(f"new_x: {candidates}")
         #print(f"expected improvements: {expected}")
         print(f"[{datetime.datetime.now()}] Starting objective_function on candidates")
         new_obj = objective_function(candidates).unsqueeze(-1)
@@ -458,8 +457,6 @@ def run_lsbo(input, args, state: State = None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
-    print(f"Input: {input}")
-
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
         data=input,
@@ -536,7 +533,6 @@ def get_plan_latency(args, sampled_plan) -> float:
         counter = 0
         for line in iter(process.stdout.readline, b''):
             line_str = line.rstrip().decode('utf-8')
-            print(line_str)
             if line_str.startswith("Nulling psql choice"):
                 print(line_str)
             if line_str.startswith("Encoding while choices: "):
@@ -606,8 +602,6 @@ def get_plan_latency(args, sampled_plan) -> float:
         if exec_time < sys.maxsize:
             print("Add an executable plan")
             EXECUTABLE_PLANS.add(plan_out)
-        else:
-            exec_time = TIMEOUT * 1000
 
         # Calculate the current set timeout in ms (convert from sec to ms)
         ms_timeout = TIMEOUT * 1000
