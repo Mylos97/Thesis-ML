@@ -32,12 +32,13 @@ def export_model(model, x, model_name) -> None:
         args=(x),
         f=model_name,
         export_params=True,
-        opset_version=17,
+        opset_version=20,
         do_constant_folding=True,
         input_names=inputs,
         output_names=["output"],
         dynamic_axes=axes,
     )
+
     print("Finished exporting model", flush=True)
 
     torch_out = model(x).to("cpu")

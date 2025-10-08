@@ -227,12 +227,10 @@ def do_hyperparameter_BO(
         shuffle=True
     )
 
-    """
     with open(get_relative_path("BVAE-1.json", "HyperparameterLogs/imdb"), 'r') as param_file:
         best_parameters = json.load(param_file)
-        best_parameters["beta"] = 10
+        #best_parameters["beta"] = 10
         #print(f"Beta: {best_parameters.get('beta')}")
-    """
 
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
