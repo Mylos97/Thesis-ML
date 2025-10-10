@@ -129,7 +129,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         duplicate_plans = []
 
         if not initial:
-            v_hat = [torch.add(latent_vector, v.clone().detach()) for v in X]
+            #v_hat = [torch.add(latent_vector, v.clone().detach()) for v in X]
+            v_hat = X
         else:
             v_hat = [latent_vector]
 
@@ -173,16 +174,21 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             #print(f"neg log likelihood: {-F.cross_entropy(softmaxed, latent_target)}")
 
             # Only append and test new plans
+            """
             if platform_choices not in distinct_choices:
                 distinct_choices.append(platform_choices)
             else:
                 #model_results.append(None)
                 duplicate_plans.append(discovered_latent_vector)
+            """
 
             model_results.append(discovered_latent_vector)
 
+        """
         no_distinct_plans_after = len(distinct_choices)
-        print(f"Generated {no_distinct_plans_after - no_distinct_plans_before} new plans")
+        #print(f"Generated {no_distinct_plans_after - no_distinct_plans_before} new plans")
+        """
+        print(f"Generated {len(model_results)} new plans")
 
         #assert no_distinct_plans_after > no_distinct_plans_before, f'No new plans generated, {len(distinct_choices)} total, aborting'
 
@@ -247,6 +253,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
+        """
         # Mask rows where X has NaNs
         x_mask = torch.isnan(train_x).any(dim=tuple(range(1, train_x.ndim))).to(device)
 
@@ -262,10 +269,13 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         x_filtered = x_filtered.to(device)
         y_filtered = y_filtered.to(device)
+        print(f"x_filtered: {x_filtered}")
+        print(f"y_filtered: {y_filtered}")
+        """
         model = SingleTaskGP(
             #train_X=normalize(train_x, bounds),
-            train_X=x_filtered,
-            train_Y=y_filtered,
+            train_X=train_x,
+            train_Y=train_obj,
             input_transform=Normalize(d=d),
             outcome_transform=Standardize(m=1)
         )
@@ -428,7 +438,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         VALID_X = set()
 
         index, best_impr = max(enumerate(state.train_obj), key=lambda x: x[1])
-        criteria.step(best_impr.item(), new_x.shape[1])
+        criteria.step(best_impr.item(), new_x.shape[0])
 
     print('Finish Bayesian Optimization for latent space', flush=True)
 

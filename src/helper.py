@@ -441,7 +441,7 @@ class Beta_Vae_Loss(torch.nn.Module):
             return {
                 'loss': loss,
                 'recon_loss': recon_loss,
-                #'kld': total_kld * self.beta,
+                'kld': total_kld * self.beta,
                 'beta': self.beta
             }
         else:

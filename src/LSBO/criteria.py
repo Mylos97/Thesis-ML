@@ -80,6 +80,7 @@ class StoppingCriteria:
 
     def step(self, improvement: float, num_steps: int):
         self.steps_taken += num_steps
+        print(f"{self.steps_taken}/{self.max_steps} taken")
 
         if self.__iterations_left <= 0 and self.max_steps == 0:
             print("Canceling timer, no iterations left")

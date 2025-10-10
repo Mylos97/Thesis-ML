@@ -166,7 +166,8 @@ def do_hyperparameter_BO(
             name='tune_model',
             parameters=parameters,
             objectives={
-                'loss': ObjectiveProperties(minimize=True)
+                'loss': ObjectiveProperties(minimize=True),
+                'kld': ObjectiveProperties(minimize=True)
             },
         )
 
@@ -180,14 +181,12 @@ def do_hyperparameter_BO(
             ax_client.complete_trial(trial_index=trial_index, raw_data=raw_data)
             #trial_eval_map[raw_data] = parameters
 
-        best_parameters, _ = ax_client.get_best_parameters()
-        print(f"Best parameters: {best_parameters}")
-        #print(f"Best parameters: {ax_client.get_pareto_optimal_parameters()}")
-        #print(f"Best parameters: {list(ax_client.get_pareto_optimal_parameters().items())[0][1][0]}")
-        #best_parameters, _ = list(ax_client.get_pareto_optimal_parameters().items())[0][1]
+        #best_parameters, _ = ax_client.get_best_parameters()
+        print(f"Best parameters: {ax_client.get_pareto_optimal_parameters()}")
+        print(f"Best parameters: {list(ax_client.get_pareto_optimal_parameters().items())[0][1][0]}")
+        best_parameters, _ = list(ax_client.get_pareto_optimal_parameters().items())[0][1]
         #print(f"Trial eval map: {sorted([key for key, value in trial_eval_map.items()])}")
         print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
-
 
     if best_parameters is not None and (model_class == BVAE or model_class == VAE):
         batch_size = best_parameters.get('batch_size')
@@ -227,10 +226,12 @@ def do_hyperparameter_BO(
         shuffle=True
     )
 
-    with open(get_relative_path("BVAE-1.json", "HyperparameterLogs/imdb"), 'r') as param_file:
+    """
+    with open(get_relative_path("BVAE-T.json", "HyperparameterLogs/imdb"), 'r') as param_file:
         best_parameters = json.load(param_file)
-        #best_parameters["beta"] = 10
+        best_parameters["beta"] = 10
         #print(f"Beta: {best_parameters.get('beta')}")
+    """
 
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
