@@ -96,13 +96,12 @@ def latency_to_label(latency: float):
     """
         Converts plan latency to three different classes, invalid, time-out & normal execution
     """
-    match latency:
-        case 1000000: # invalid
-            return 2 
-        case 3000: # time-out
-            return 1 
-        case _: # default execution
-            return 0
+    if latency == 1000000:  # invalid
+        return 2
+    elif latency == 3000:  # time-out
+        return 1
+    else:  # default execution
+        return 0
 
 def make_validity_labels(latent_vectors: list[torch.Tensor], decoder: TreeDecoder) -> list[int]:
     """
@@ -127,7 +126,7 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
 
         Args:
             plan: A plan decoded from a latent vector
-            wayang args: arguments to Wayang executable
+            wayang_args: arguments to Wayang executable
     """
     TIMEOUT: int = 100000
     PLAN_CACHE: set = set()
@@ -178,8 +177,6 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
             elif plan_out != "":
                 break
 
-        PLAN_SIZE = counter
-
         # if plan has beeen executed before we return that plan's inital latency
         if plan_out in PLAN_CACHE:
             print(f"[{datetime.datetime.now()}] Seen this plan before")
@@ -220,7 +217,7 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
             exec_time = int(TIMEOUT * 100000)
             return exec_time
 
-        inp, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
+        _, _, exec_time_str = read_from_wayang(sock_file).split(":")
         sock_file.close()
         sock.close()
 
@@ -235,7 +232,7 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
         if ms_timeout > exec_time:
             TIMEOUT = int(exec_time / 1000)
             print(f"[{datetime.datetime.now()}] Found better plan, updating timeout: {TIMEOUT} sec")
-            best_plan_data = inp, picked_plan, exec_time_str
+            # best_plan_data = inp, picked_plan, exec_time_str
 
         print(exec_time)
 
