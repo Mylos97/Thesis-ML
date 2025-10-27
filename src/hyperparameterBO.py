@@ -68,7 +68,7 @@ def do_hyperparameter_BO(
         print(f"Training on {device}")
         loss = evaluate(
             model=model,
-            val_data_loader=test_loader,
+            val_data_loader=val_loader,
             loss_function=l_function,
             device=device
         )
@@ -167,7 +167,7 @@ def do_hyperparameter_BO(
             parameters=parameters,
             objectives={
                 'loss': ObjectiveProperties(minimize=True),
-                'kld': ObjectiveProperties(minimize=True)
+            #    'kld': ObjectiveProperties(minimize=True)
             },
         )
 
@@ -181,10 +181,10 @@ def do_hyperparameter_BO(
             ax_client.complete_trial(trial_index=trial_index, raw_data=raw_data)
             #trial_eval_map[raw_data] = parameters
 
-        #best_parameters, _ = ax_client.get_best_parameters()
-        print(f"Best parameters: {ax_client.get_pareto_optimal_parameters()}")
-        print(f"Best parameters: {list(ax_client.get_pareto_optimal_parameters().items())[0][1][0]}")
-        best_parameters, _ = list(ax_client.get_pareto_optimal_parameters().items())[0][1]
+        best_parameters, _ = ax_client.get_best_parameters()
+        #print(f"Best parameters: {ax_client.get_pareto_optimal_parameters()}")
+        #print(f"Best parameters: {list(ax_client.get_pareto_optimal_parameters().items())[0][1][0]}")
+        #best_parameters, _ = list(ax_client.get_pareto_optimal_parameters().items())[0][1]
         #print(f"Trial eval map: {sorted([key for key, value in trial_eval_map.items()])}")
         print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
 
@@ -229,7 +229,7 @@ def do_hyperparameter_BO(
     """
     with open(get_relative_path("BVAE-T.json", "HyperparameterLogs/imdb"), 'r') as param_file:
         best_parameters = json.load(param_file)
-        best_parameters["beta"] = 10
+        #best_parameters["beta"] = 10
         #print(f"Beta: {best_parameters.get('beta')}")
     """
 
@@ -238,7 +238,6 @@ def do_hyperparameter_BO(
     if model_class == BVAE:
         l_function = loss_function(
             beta=best_parameters.get('beta', 1.0),
-            #beta=0,
         )
         #l_function = loss_function(beta=1.5)
     else:

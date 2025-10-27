@@ -64,3 +64,29 @@ class TreeLayerNorm(nn.Module):
 class DynamicPooling(nn.Module):
     def forward(self, x):
         return torch.max(x[0], dim=2).values
+
+class OneHot(nn.Module):
+    def forward(self, x):
+
+        one_hots = []
+        for recon in x:
+            # One-hot along dim=0
+            idx = recon.argmax(dim=0, keepdim=True)  # [1, 62]
+            one_hot = torch.zeros_like(recon).scatter_(0, idx, 1.0)
+
+            # Compute max per column
+            max_vals = recon.max(dim=0, keepdim=True).values  # [1, 62]
+
+            # Detect columns where all values == max (padded columns)
+            all_equal_max = (recon == max_vals).all(dim=0, keepdim=True)  # [1, 62]
+
+            # Build mask: keep only columns that are NOT all equal to max
+            mask = (~all_equal_max).float()
+
+            # Apply mask
+            one_hot = one_hot * mask
+            one_hots.append(one_hot)
+
+        x = torch.stack(one_hots, dim=0)  # [B, 9, 62]
+
+        return x

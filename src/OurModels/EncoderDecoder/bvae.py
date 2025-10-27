@@ -6,6 +6,8 @@ import logging
 from OurModels.EncoderDecoder.encoder import TreeEncoder
 from OurModels.EncoderDecoder.decoder import TreeDecoder
 
+from TreeConvolution.tcnn import OneHot
+
 
 class BVAE(nn.Module):
     def __init__(self, in_dim, out_dim, dropout_prob, z_dim):
@@ -17,7 +19,8 @@ class BVAE(nn.Module):
         self.encoder = TreeEncoder(in_dim, dropout_prob, z_dim)
         self.decoder = TreeDecoder(out_dim, dropout_prob, z_dim)
         self.training = False
-        self.softmax = nn.Softmax(dim=1)
+        #self.softmax = nn.Softmax(dim=1)
+        #self.onehot = OneHot()
         #self.logger = logging.getLogger(__name__)
         #logging.basicConfig(filename='src/Logs/bvae.log', level=logging.INFO)
 
@@ -35,9 +38,12 @@ class BVAE(nn.Module):
             mean = self.mu(encoded)
             log_var = self.log_var(encoded)
             batch, dim = mean.shape
+            std = torch.exp(0.5 * log_var)
+            #epsilon = torch.rand_like(std).to(self.device)
             epsilon = torch.randn(batch, dim).to(self.device)
-            z = mean + torch.exp(0.5 * log_var) * epsilon
+            z = mean + torch.exp(0.5 * log_var)
             decoded = self.decoder(z, indexes)
             x = decoded[0]
+            #x = self.onehot(x)
 
             return [x, mean, log_var]

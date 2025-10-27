@@ -5,6 +5,7 @@ import torch
 import os
 import json
 import random
+from torch.distributions import Categorical, Normal, kl_divergence
 import torch.nn.intrinsic
 import torch.utils
 import torch.utils.data
@@ -425,23 +426,29 @@ class Beta_Vae_Loss(torch.nn.Module):
 
     def forward(self, prediction, target):
 
+
         recon_x, mu, logvar = prediction
 
-        if self.loss_type == "B":
-            recon_loss = F.cross_entropy(recon_x, target)
-            #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
-            loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
-            #total_kld = loss_reg * 0.0001
-            total_kld = loss_reg
+        pred_logits = recon_x
+        target_indices = target.permute(0, 2, 1).argmax(dim=-1).long()
 
-            loss = recon_loss + self.kld_weight * total_kld * self.beta
+        if self.loss_type == "B":
+            #recon_prediction = recon_x.view(-1, recon_x.size(-1))
+            #target_indices_view = target_indices.view(-1)
+
+            recon_loss = F.cross_entropy(pred_logits, target)
+            #recon_loss = F.binary_cross_entropy_with_logits(recon_x, target, reduction='sum')
+            #kld = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean().sum()
+            kld = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
+
+            loss = recon_loss + self.kld_weight * kld * self.beta
 
             #print(f"recon_loss: {recon_loss}, loss: {loss}, beta: {self.beta}, kld: {total_kld}")
 
             return {
                 'loss': loss,
                 'recon_loss': recon_loss,
-                'kld': total_kld * self.beta,
+                'kld': kld * self.beta,
                 'beta': self.beta
             }
         else:

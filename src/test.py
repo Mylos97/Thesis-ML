@@ -59,9 +59,9 @@ def get_platform_choices(file_path: str, line: int):
             print(platform_choices)
 
 def main():
-    file_path = get_relative_path("test-queries.txt", "Data/splits/imdb/training/")
+    file_path = get_relative_path("retrain-1.txt", "Data/splits/imdb/training/")
     #clean_duplicate_platforms(file_path)
-    get_platform_choices(file_path, 0)
+    get_platform_choices(file_path, 353)
 
 if __name__ == "__main__":
     main()

@@ -57,14 +57,15 @@ def train(
         model.train()
 
         for tree, target in training_data_loader:
+            torch.set_printoptions(profile="full")
             prediction = model(tree)
             loss = loss_function(prediction, target.float())
             loss_accum += loss["loss"].item()
             loss_accum = min(loss_accum, sys.maxsize)
-            kld = annealing_agent(loss["kld"])
+            #kld = annealing_agent(loss["kld"])
             optimizer.zero_grad()
-            (loss["loss"] + loss["kld"]).backward()
-            #loss["loss"].backward()
+            #(loss["loss"] + loss["kld"]).backward()
+            loss["loss"].backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
             #annealing_agent.step()
@@ -154,14 +155,14 @@ def evaluate(
             val_loss += min(loss["loss"].item(), sys.maxsize)
             val_loss = min(val_loss, sys.maxsize)
         loss["loss"].backward()
-        val_kld += loss["kld"].item()
+        #val_kld += loss["kld"].item()
 
     assert len(val_data_loader) != 0
     val_loss /= len(val_data_loader)
-    #al_kld /= len(val_data_loader)
+    #val_kld /= len(val_data_loader)
     val_loss = min(val_loss, sys.maxsize)
 
     return {
         "loss": val_loss,
-        "kld": val_kld
+        #"kld": val_kld
     }
