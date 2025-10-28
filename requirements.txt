@@ -140,3 +140,5 @@ websockets==7.0
 widgetsnbextension==4.0.10
 yarl==1.9.4
 html5lib==1.1
+pytest==8.3.0
+hypothesis==6.142.0
