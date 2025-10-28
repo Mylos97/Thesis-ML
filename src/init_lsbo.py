@@ -30,7 +30,6 @@ def main(args) -> None:
     state = None
     timeout = float(60 * 30)
 
-    """
     plan_data, initial_latency, plan_cache = request_wayang_plan(args, state, timeout)
     print(f"Best plan data: {plan_data}")
 
@@ -48,6 +47,7 @@ def main(args) -> None:
 
     args.retrain = args.trainset
     retrain(args)
+    """
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

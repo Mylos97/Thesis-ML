@@ -27,6 +27,7 @@ def train(
     dropout = parameters.get("dropout", 0.1)
     z_dim = parameters.get("z_dim", 128)
     weight_decay = parameters.get("weight_decay", 0.001) #bounds between 0, 0.1
+    batch_size = parameters.get("batch_size" , 1)
     model = model_class(
         in_dim=in_dim, out_dim=out_dim, dropout_prob=dropout, z_dim=z_dim
     )
@@ -80,6 +81,7 @@ def train(
             val_data_loader=val_data_loader,
             loss_function=loss_function,
             device=device,
+            batch_size=batch_size,
         )
 
         counter += 1
@@ -122,6 +124,7 @@ def train(
         val_data_loader=test_data_loader,
         loss_function=loss_function,
         device=device,
+        batch_size=batch_size,
     )
 
     if test_loss["loss"] < best_test_loss:
@@ -139,6 +142,7 @@ def evaluate(
     val_data_loader: DataLoader,
     loss_function,
     device: torch.device,
+    batch_size: int,
 ) -> float:
     model.eval()
     val_loss = 0

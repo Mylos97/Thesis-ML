@@ -70,7 +70,8 @@ def do_hyperparameter_BO(
             model=model,
             val_data_loader=val_loader,
             loss_function=l_function,
-            device=device
+            device=device,
+            batch_size=parameters.get("batch_size", 1)
         )
         print(f'Test loss for the model after training {loss}', flush=True)
         return loss
@@ -257,7 +258,7 @@ def do_hyperparameter_BO(
         epochs=epochs,
         weights=weights
     )
-    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device)
+    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device, batch_size=parameters.get("batch_size", 1))
 
     # write best parameters to file
     if not is_retraining:

@@ -433,10 +433,9 @@ class Beta_Vae_Loss(torch.nn.Module):
         target_indices = target.permute(0, 2, 1).argmax(dim=-1).long()
 
         if self.loss_type == "B":
-            #recon_prediction = recon_x.view(-1, recon_x.size(-1))
-            #target_indices_view = target_indices.view(-1)
 
-            recon_loss = F.cross_entropy(pred_logits, target)
+            recon_loss = F.cross_entropy(pred_logits, target, reduction='none')
+            recon_loss = torch.mean(torch.sum(recon_loss, dim = 1), dim = 0)
             #recon_loss = F.binary_cross_entropy_with_logits(recon_x, target, reduction='sum')
             #kld = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean().sum()
             kld = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
