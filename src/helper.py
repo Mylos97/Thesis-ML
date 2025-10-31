@@ -403,6 +403,9 @@ def convert_to_json(plans) -> None:
     with open(f'{relative_path}.txt', 'w') as file:
         file.write(json_data)
 
+def kl_divergence(logvar, mu):
+    return torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
+
 class Beta_Vae_Loss(torch.nn.Module):
 
     num_iter = 0 # Global static variable to keep track of iterations
@@ -438,8 +441,7 @@ class Beta_Vae_Loss(torch.nn.Module):
             recon_loss = torch.mean(torch.sum(recon_loss, dim = 1), dim = 0)
             #recon_loss = F.binary_cross_entropy_with_logits(recon_x, target, reduction='sum')
             #kld = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean().sum()
-            kld = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
-
+            kld = kl_divergence(logvar, mu)
             loss = recon_loss + self.kld_weight * kld * self.beta
 
             #print(f"recon_loss: {recon_loss}, loss: {loss}, beta: {self.beta}, kld: {total_kld}")
