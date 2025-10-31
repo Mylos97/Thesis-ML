@@ -129,8 +129,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         duplicate_plans = []
 
         if not initial:
-            #v_hat = [torch.add(latent_vector, v.clone().detach()) for v in X]
-            v_hat = X
+            v_hat = [torch.add(latent_vector, v.clone().detach()) for v in X]
+            #v_hat = X
         else:
             v_hat = [latent_vector]
 
