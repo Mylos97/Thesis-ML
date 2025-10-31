@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -20,6 +19,8 @@ import datetime
 import json
 import os
 import sys
+import traceback
+
 import umap
 import matplotlib.pyplot as plt
 import torch
@@ -42,27 +43,32 @@ class WayangArgs(NamedTuple):
     memory: str    = '-Xmx8g --illegal-access=permit'
     namespace: str = 'org.apache.wayang.ml.benchmarks.LSBORunner'
     args: str      = 'java,spark,flink,postgres file:///opt/data/'
+    query: str     = '/var/www/html/wayang-plugins/wayang-ml/src/main/resources/calcite-ready-job-queries/benchmark/10a.sql' 
 
-def make_umap(plans: list, model: BVAE, label_func: Callable[[list, list, TreeDecoder], list], sample_amnt: 1000):
+def make_umap(plans: list, model: BVAE, label_func: Callable[[list, TreeDecoder], list], sample_amnt: 2):
     """
         Creates umap embeddings & labels
-
+        
         Args: 
             plans: list of input Wayang plans
             model: bvae model
             label_func: function that takes a list of latent vectors and returns a label
             via execution or other means
             sample_amnt: how many samples the model should sample per plan
-
-        Returns: a tuple of embedding & labels
+        
+        Returns: 
+            a tuple of embedding & labels
     """
 
     # Set training flag true so we get variance from BVAE encoder
     model.training = True
     
+    print("[UMAP]: encoding plans with sample amount,", sample_amnt)
     # Create multiple latent vectors per plan & generate labels per latent vector
     latent_vectors: list = [model.encoder(plan) for plan in plans for _ in range(sample_amnt)]
-    labels: list         = label_func(latent_vectors, [plan[0] for plan in plans], model.decoder)
+    print("[UMAP]: labelling using func, ", label_func)
+    labels: list         = label_func(latent_vectors, model.decoder)
+    print("[UMAP]: generated labels ", labels)
 
     # Create umap
     reducer   = umap.UMAP(n_neighbors=15, min_dist=0.3, metric='euclidean', random_state=42)
@@ -77,11 +83,10 @@ def plot(embedding, labels):
         Args:
             embedding: umap embeddings
             labels: umap labels 
-
+        
         Returns:
             void
     """
-    
     plt.figure(figsize=(10, 8))
     scatter = plt.scatter(embedding[:, 0], embedding[:, 1], c=labels, cmap='Spectral', s=5)
     plt.colorbar(scatter)
@@ -90,7 +95,7 @@ def plot(embedding, labels):
     plt.ylabel("UMAP-2")
     plt.show()
     plt.savefig("./umap_plot.png", dpi=300)
-
+    print("[Umap]: saved plot to ./umap_plot.png")
 
 def latency_to_label(latency: float):
     """
@@ -111,14 +116,27 @@ def make_validity_labels(latent_vectors: list[torch.Tensor], decoder: TreeDecode
             latent_vectors: list of vectors sampled from the latent space
             decoder: BVAE decoder
     """
-
     results: list[float] = [execute_plan(decoder(latent_vector, index), WayangArgs()) for latent_vector, index in latent_vectors]
+    print("[Umap]: executed plans")
     labels: list[int]    = [latency_to_label(latency) for latency in results]
+    print("[Umap]: labelled plans")
 
     return labels
 
-def make_latency_labels(latent_vectors, decoder: TreeDecoder):
-    pass
+def kill_process(log_msg: str, process: Popen, sock, sock_file):
+    print(log_msg)
+    print(f"[{datetime.datetime.now()}] Closing sock_file")
+    sock_file.close()
+    print(f"[{datetime.datetime.now()}] Closing sock")
+    sock.close()
+    print(f"[{datetime.datetime.now()}] Killing process")
+    process.stdout.close()
+    process.stderr.close()
+    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+    process.kill()
+    print(f"[{datetime.datetime.now()}] Awaiting process.wait")
+    process.wait(timeout=5)
+    print(f"[{datetime.datetime.now()}] process.wait finished")
 
 def execute_plan(plan, wayang_args: WayangArgs) -> float:
     """
@@ -133,66 +151,56 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
     EXECUTABLE_PLANS: set = set()
     initial_latency: int = 0
     
+    print("[Umap]: executing plan")
+    print(f"[Umap]: with variables; TIMEOUT={TIMEOUT}, PLAN_CACHE={PLAN_CACHE}, EXECUTABLE_PLANS={EXECUTABLE_PLANS}, initial_latency={initial_latency}")
     try:
         process = Popen([
             wayang_args.exec,
             wayang_args.memory,
             wayang_args.namespace,
             wayang_args.args,
-            #str(args.query)
-        ], stdout=PIPE, stderr=PIPE, start_new_session=True)
+            str(wayang_args.query)
+        ], stdout=PIPE, stderr=PIPE, start_new_session=True, text=True)
+        
+        print("[UMAP]: opening process with args: ", process.args)
 
+        # The first message received in the stdout should be the socket_port
+        socket_port = int(process.stdout.readline())
 
-        """
-        The first message received in the stdout should be the socket_port
-        """
-
-        socket_port = int(process.stdout.readline().rstrip().decode("utf-8"))
         print(f"Socket port {socket_port}")
         
         print(f"[{datetime.datetime.now()}] Opening socket connection")
         sock_file, sock = open_connection(socket_port)
 
+        assert not sock_file.closed
+
         print(f"[{datetime.datetime.now()}] Reading from wayang")
         _ = read_from_wayang(sock_file)
 
-        dump_stream(iterator=[plan], stream=sock_file)
+        dump_stream(iterator=[plan[0].tolist()[0]], stream=sock_file)
         print(f"[{datetime.datetime.now()}] Wrote to wayang")
 
         sock_file.flush()
 
         print(plan)
         plan_out = ""
-        counter = 0
-        for line in iter(process.stdout.readline, b''):
-            line_str = line.rstrip().decode('utf-8')
-            if line_str.startswith("Nulling psql choice"):
-                print(line_str)
-            if line_str.startswith("Encoding while choices: "):
-                plan_out += line_str
-                counter += 1
-            elif line_str.startswith("DECODED"):
+
+        for line in iter(process.stdout.readline, ''):
+            if line.startswith("Nulling psql choice"):
+                print(line)
+            if line.startswith("Encoding while choices: "):
+                plan_out += line
+            elif line.startswith("DECODED"):
                 print(f"[{datetime.datetime.now()}] Decoded WayangPlan received on Java side")
                 break
             elif plan_out != "":
                 break
 
+        print("[Umap]: finished reading from process.stdout")
+
         # if plan has beeen executed before we return that plan's inital latency
         if plan_out in PLAN_CACHE:
-            print(f"[{datetime.datetime.now()}] Seen this plan before")
-            print(f"[{datetime.datetime.now()}] Closing sock_file")
-            sock_file.close()
-            print(f"[{datetime.datetime.now()}] Closing sock")
-            sock.close()
-            print(f"[{datetime.datetime.now()}] Killing process")
-            process.stdout.close()
-            process.stderr.close()
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            process.kill()
-            print(f"[{datetime.datetime.now()}] Awaiting process.wait")
-            process.wait(timeout=5)
-            print(f"[{datetime.datetime.now()}] process.wait finished")
-
+            kill_process("Seen this plan before", process=process, sock=sock, sock_file=sock_file)
             return initial_latency
 
         print(f"[{datetime.datetime.now()}] Sampling new plan")
@@ -200,23 +208,13 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
         print(f"[{datetime.datetime.now()}] Starting execution with {TIMEOUT} seconds max.")
 
         if process.wait(timeout=TIMEOUT) != 0:
-            print("Error closing Wayang process!")
-            print(f"[{datetime.datetime.now()}] Closing sock_file")
-            sock_file.close()
-            print(f"[{datetime.datetime.now()}] Closing sock")
-            sock.close()
-            print(f"[{datetime.datetime.now()}] Killing process")
-            process.stdout.close()
-            process.stderr.close()
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            process.kill()
-            print(f"[{datetime.datetime.now()}] Awaiting process.wait")
-            process.wait(timeout=5)
-            print(f"[{datetime.datetime.now()}] process.wait finished")
+            kill_process("Error closing Wayang process!", process=process, sock=sock, sock_file=sock_file)
 
             exec_time = int(TIMEOUT * 100000)
             return exec_time
 
+        stderr_output = process.stderr.read()
+        print("Subprocess stderr:\n", stderr_output)
         _, _, exec_time_str = read_from_wayang(sock_file).split(":")
         sock_file.close()
         sock.close()
@@ -232,7 +230,6 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
         if ms_timeout > exec_time:
             TIMEOUT = int(exec_time / 1000)
             print(f"[{datetime.datetime.now()}] Found better plan, updating timeout: {TIMEOUT} sec")
-            # best_plan_data = inp, picked_plan, exec_time_str
 
         print(exec_time)
 
@@ -241,29 +238,15 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
     except TimeoutExpired as e:
         print(f"Exception: {e}")
         print("Didnt finish fast enough")
+        kill_process("Seen this plan before", process=process, sock=sock, sock_file=sock_file)
 
-        print(f"[{datetime.datetime.now()}] Seen this plan before")
-        print(f"[{datetime.datetime.now()}] Closing sock_file")
-        sock_file.close()
-        print(f"[{datetime.datetime.now()}] Closing sock")
-        sock.close()
-        print(f"[{datetime.datetime.now()}] Killing process")
-        process.stdout.close()
-        process.stderr.close()
-        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-        print(f"[{datetime.datetime.now()}] Awaiting process.wait")
-        process.wait(timeout=5)
-        print(f"[{datetime.datetime.now()}] process.wait finished")
-
-        exec_time = initial_latency
-
-        return exec_time
+        return initial_latency
 
     except Exception as e:
         # In case the underlying process died
-        print(f"Exception: {e}")
+        print(f"Underlying process died, setting timeout {TIMEOUT * 100000}")
+        traceback.print_exc()
         exec_time = int(TIMEOUT * 100000)
-
         return exec_time
 
 def fetch_model(model_path: str, parameters_path: str, in_dim: int, out_dim: int) -> BVAE:
@@ -300,11 +283,14 @@ def fetch_data(path: str) -> tuple[int, int, DataLoader]:
 
     return (in_dim, out_dim, [inp for inp, _ in dataloader])
 
+print("[UMAP]: starting setup")
+
 # paths
-data_path: str       = get_relative_path("train.txt", "Data/splits/imdb/training/")
+data_path: str       = get_relative_path("10a.txt", "Data/splits/imdb/training/")
 model_path: str      = get_relative_path("bvae-1.onnx", "Models/imdb/")
 parameters_path: str = get_relative_path("BVAE-B-1.json", "HyperparameterLogs/imdb/")
 
+# plan data
 in_dim, out_dim, data = fetch_data(path=data_path)
 
 model = fetch_model(
@@ -316,6 +302,7 @@ model = fetch_model(
 
 model.train(False)
 
+print("[UMAP]: setup done")
 embedding, labels = make_umap(
 		model=model, 
 		plans=data, 
