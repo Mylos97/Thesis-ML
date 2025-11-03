@@ -68,9 +68,10 @@ def do_hyperparameter_BO(
         print(f"Training on {device}")
         loss = evaluate(
             model=model,
-            val_data_loader=test_loader,
+            val_data_loader=val_loader,
             loss_function=l_function,
-            device=device
+            device=device,
+            batch_size=parameters.get("batch_size", 1)
         )
         print(f'Test loss for the model after training {loss}', flush=True)
         return loss
@@ -166,7 +167,8 @@ def do_hyperparameter_BO(
             name='tune_model',
             parameters=parameters,
             objectives={
-                'loss': ObjectiveProperties(minimize=True)
+                'loss': ObjectiveProperties(minimize=True),
+            #    'kld': ObjectiveProperties(minimize=True)
             },
         )
 
@@ -181,13 +183,11 @@ def do_hyperparameter_BO(
             #trial_eval_map[raw_data] = parameters
 
         best_parameters, _ = ax_client.get_best_parameters()
-        print(f"Best parameters: {best_parameters}")
         #print(f"Best parameters: {ax_client.get_pareto_optimal_parameters()}")
         #print(f"Best parameters: {list(ax_client.get_pareto_optimal_parameters().items())[0][1][0]}")
         #best_parameters, _ = list(ax_client.get_pareto_optimal_parameters().items())[0][1]
         #print(f"Trial eval map: {sorted([key for key, value in trial_eval_map.items()])}")
         print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
-
 
     if best_parameters is not None and (model_class == BVAE or model_class == VAE):
         batch_size = best_parameters.get('batch_size')
@@ -227,17 +227,18 @@ def do_hyperparameter_BO(
         shuffle=True
     )
 
-    with open(get_relative_path("BVAE-B-1.json", "HyperparameterLogs/imdb"), 'r') as param_file:
+    """
+    with open(get_relative_path("BVAE-T.json", "HyperparameterLogs/imdb"), 'r') as param_file:
         best_parameters = json.load(param_file)
-        #best_parameters["beta"] = 2
+        #best_parameters["beta"] = 10
         #print(f"Beta: {best_parameters.get('beta')}")
+    """
 
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
     if model_class == BVAE:
         l_function = loss_function(
             beta=best_parameters.get('beta', 1.0),
-            #beta=0,
         )
         #l_function = loss_function(beta=1.5)
     else:
@@ -257,7 +258,7 @@ def do_hyperparameter_BO(
         epochs=epochs,
         weights=weights
     )
-    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device)
+    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device, batch_size=parameters.get("batch_size", 1))
 
     # write best parameters to file
     if not is_retraining:

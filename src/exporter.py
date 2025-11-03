@@ -5,14 +5,9 @@ import onnx
 import onnxruntime
 
 def export_model(model, x, model_name) -> None:
-    ort_input = x
-    if type(x[0]) == list:
-        ort_input = sum(x, [])
-
-    amount_inputs = len(ort_input)
+    amount_inputs = len(x)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
-    print(f"Inputs: {inputs}")
-    axes = {f"input{i+1}": {0: "batch_size"} for i in range(amount_inputs)}
+    axes = {f"input{i+1}": {0: "batch_size", 1: "height", 2: "width"} for i in range(amount_inputs)}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
@@ -32,12 +27,14 @@ def export_model(model, x, model_name) -> None:
         args=(x),
         f=model_name,
         export_params=True,
-        #opset_version=17,
-        #do_constant_folding=True,
+        opset_version=20,
+        do_constant_folding=True,
         input_names=inputs,
         output_names=["output"],
         dynamic_axes=axes,
+        #dynamo=True
     )
+
     print("Finished exporting model", flush=True)
 
     torch_out = model(x).to("cpu")
@@ -63,6 +60,7 @@ def export_model(model, x, model_name) -> None:
     for i, input in enumerate(ort_session.get_inputs()):
         print(f"ORT Input: {input}")
         # might need padding:
+        """
         if input.name == 'input1':
             if input.shape[2] > x[i].shape[2]:
                 pad_len = input.shape[2] - x[i].shape[2]
@@ -75,10 +73,10 @@ def export_model(model, x, model_name) -> None:
                 pad_len = input.shape[1] - x[i].shape[1]
                 x[i] = F.pad(x[i], (0, 0, 0, pad_len))  # pad middle dim
                 print(f"Padded again {x[i].shape}")
+        """
         ort_inputs[input.name] = to_numpy(x[i])
 
     print(f"Checking the output of the model {model_name}", flush=True)
     ort_outs = ort_session.run(None, ort_inputs)
     np.testing.assert_allclose(to_numpy(torch_out), ort_outs[0], rtol=1e-03, atol=1e-05)
     print("All good!")
-    print(f"Final inference: {ort_outs[0][0]}")

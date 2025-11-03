@@ -37,15 +37,15 @@ def main(args) -> None:
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
-        """
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         """
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        """
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
@@ -76,7 +76,7 @@ def main(args) -> None:
         print("Retraining a model, not actually running hyperparameterBO")
         with open(args.parameters) as file:
             best_parameters = json.load(file)
-            best_parameters["batch_size"] = 7
+            #best_parameters["batch_size"] = 7
 
         weights = get_weights_of_model_by_path(args.model_path)
 
