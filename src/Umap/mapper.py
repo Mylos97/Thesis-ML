@@ -63,12 +63,9 @@ def make_umap(plans: list, model: BVAE, label_func: Callable[[list, TreeDecoder]
     # Set training flag true so we get variance from BVAE encoder
     model.training = True
     
-    print("[UMAP]: encoding plans with sample amount,", sample_amnt)
     # Create multiple latent vectors per plan & generate labels per latent vector
     latent_vectors: list = [model.encoder(plan) for plan in plans for _ in range(sample_amnt)]
-    print("[UMAP]: labelling using func, ", label_func)
     labels: list         = label_func(latent_vectors, model.decoder)
-    print("[UMAP]: generated labels ", labels)
 
     # Create umap
     reducer   = umap.UMAP(n_neighbors=15, min_dist=0.3, metric='euclidean', random_state=42)
@@ -95,7 +92,6 @@ def plot(embedding, labels):
     plt.ylabel("UMAP-2")
     plt.show()
     plt.savefig("./umap_plot.png", dpi=300)
-    print("[Umap]: saved plot to ./umap_plot.png")
 
 def latency_to_label(latency: float):
     """
@@ -116,10 +112,13 @@ def make_validity_labels(latent_vectors: list[torch.Tensor], decoder: TreeDecode
             latent_vectors: list of vectors sampled from the latent space
             decoder: BVAE decoder
     """
-    results: list[float] = [execute_plan(decoder(latent_vector, index), WayangArgs()) for latent_vector, index in latent_vectors]
-    print("[Umap]: executed plans")
+    decoded_plans: list[any, int] = [decoder(latent_vector, index) for latent_vector, index in latent_vectors]
+
+    print("len decoded_plans", len(decoded_plans))
+    print("len decoded_plans", len(decoded_plans[0]))
+
+    results: list[float] = [execute_plan(plan, WayangArgs()) for plan in decoded_plans]
     labels: list[int]    = [latency_to_label(latency) for latency in results]
-    print("[Umap]: labelled plans")
 
     return labels
 
@@ -146,13 +145,11 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
             plan: A plan decoded from a latent vector
             wayang_args: arguments to Wayang executable
     """
-    TIMEOUT: int = 100000
-    PLAN_CACHE: set = set()
+    TIMEOUT: int          = 100000
+    PLAN_CACHE: set       = set()
     EXECUTABLE_PLANS: set = set()
-    initial_latency: int = 0
+    initial_latency: int  = 0
     
-    print("[Umap]: executing plan")
-    print(f"[Umap]: with variables; TIMEOUT={TIMEOUT}, PLAN_CACHE={PLAN_CACHE}, EXECUTABLE_PLANS={EXECUTABLE_PLANS}, initial_latency={initial_latency}")
     try:
         process = Popen([
             wayang_args.exec,
@@ -162,13 +159,10 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
             str(wayang_args.query)
         ], stdout=PIPE, stderr=PIPE, start_new_session=True, text=True)
         
-        print("[UMAP]: opening process with args: ", process.args)
-
         # The first message received in the stdout should be the socket_port
         socket_port = int(process.stdout.readline())
 
         print(f"Socket port {socket_port}")
-        
         print(f"[{datetime.datetime.now()}] Opening socket connection")
         sock_file, sock = open_connection(socket_port)
 
@@ -177,12 +171,25 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
         print(f"[{datetime.datetime.now()}] Reading from wayang")
         _ = read_from_wayang(sock_file)
 
-        dump_stream(iterator=[plan[0].tolist()[0]], stream=sock_file)
+
+        # fetch the [0] list for values and [1] for indicies, they are wrapped in an extra tuple which we
+        # unwrap with an extra getter for [0]
+        values  = plan[0][0]
+        indices = plan[1][0]
+
+        print(len(values))
+        print(len(indices) * 3)
+        assert len(values) >= len(indices), "There must be at least 1 index per given value."
+
+        print("dumping values ", plan[0].tolist()[0])
+        print("dumping indexes ", plan[1].tolist()[0])
+
+        dump_stream(iterator=[plan[0].tolist()[0], plan[1].tolist()[0]], stream=sock_file)
         print(f"[{datetime.datetime.now()}] Wrote to wayang")
 
         sock_file.flush()
 
-        print(plan)
+        print("plan shape: ", plan[0].shape, plan[1].shape)
         plan_out = ""
 
         for line in iter(process.stdout.readline, ''):
@@ -192,11 +199,9 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
                 plan_out += line
             elif line.startswith("DECODED"):
                 print(f"[{datetime.datetime.now()}] Decoded WayangPlan received on Java side")
-                break
+                break 
             elif plan_out != "":
                 break
-
-        print("[Umap]: finished reading from process.stdout")
 
         # if plan has beeen executed before we return that plan's inital latency
         if plan_out in PLAN_CACHE:
@@ -232,7 +237,6 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
             print(f"[{datetime.datetime.now()}] Found better plan, updating timeout: {TIMEOUT} sec")
 
         print(exec_time)
-
         return exec_time
 
     except TimeoutExpired as e:
@@ -247,6 +251,7 @@ def execute_plan(plan, wayang_args: WayangArgs) -> float:
         print(f"Underlying process died, setting timeout {TIMEOUT * 100000}")
         traceback.print_exc()
         exec_time = int(TIMEOUT * 100000)
+
         return exec_time
 
 def fetch_model(model_path: str, parameters_path: str, in_dim: int, out_dim: int) -> BVAE:
@@ -260,7 +265,7 @@ def fetch_model(model_path: str, parameters_path: str, in_dim: int, out_dim: int
             in_dim=in_dim,
             out_dim=out_dim,
             dropout_prob=dropout,
-            z_dim=z_dim,
+            z_dim=z_dim
         )
 
         set_weights(weights=weights, model=model, device=device)
@@ -268,7 +273,7 @@ def fetch_model(model_path: str, parameters_path: str, in_dim: int, out_dim: int
 
         return model
     
-def fetch_data(path: str) -> tuple[int, int, DataLoader]:
+def fetch_data(path: str, num_ops: int = 43, num_platfs: int = 9, batch_size: int = 1) -> tuple[int, int, DataLoader]:
     """
         Fetches plan data from a given path
 
@@ -278,12 +283,10 @@ def fetch_data(path: str) -> tuple[int, int, DataLoader]:
         Returns: 
             a tuple of (in_dim, out_dim, data)
     """
-    data, in_dim, out_dim  = load_autoencoder_data(path=path, device=device, num_ops=43, num_platfs=9)
-    dataloader: DataLoader = DataLoader(data, batch_size=1, drop_last=False, shuffle=False, num_workers=0)
+    data, in_dim, out_dim  = load_autoencoder_data(path=path, device=device, num_ops=num_ops, num_platfs=num_platfs)
+    dataloader: DataLoader = DataLoader(data, batch_size=batch_size, drop_last=False, shuffle=False, num_workers=0)
 
     return (in_dim, out_dim, [inp for inp, _ in dataloader])
-
-print("[UMAP]: starting setup")
 
 # paths
 data_path: str       = get_relative_path("10a.txt", "Data/splits/imdb/training/")
@@ -302,7 +305,6 @@ model = fetch_model(
 
 model.train(False)
 
-print("[UMAP]: setup done")
 embedding, labels = make_umap(
 		model=model, 
 		plans=data, 
