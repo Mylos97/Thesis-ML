@@ -41,7 +41,8 @@ class BVAE(nn.Module):
             std = torch.exp(0.5 * log_var)
             #epsilon = torch.rand_like(std).to(self.device)
             epsilon = torch.randn(batch, dim).to(self.device)
-            z = mean + torch.exp(0.5 * log_var)
+            z = mean + std * epsilon
+            #z = mean + torch.exp(0.5 * log_var)
             decoded = self.decoder(z, indexes)
             x = decoded[0]
             #x = self.onehot(x)

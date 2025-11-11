@@ -36,11 +36,12 @@ from .state import State
 from torch.quasirandom import SobolEngine
 
 from botorch.models import SingleTaskGP
+from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 from botorch.utils.transforms import normalize, unnormalize
 from botorch.models.transforms import Standardize, Normalize
 from botorch.models.transforms.input import InputStandardize
-from botorch import fit_gpytorch_mll
+from botorch import fit_gpytorch_mll, fit_fully_bayesian_model_nuts
 from botorch.acquisition.logei import qLogExpectedImprovement
 from botorch.acquisition.monte_carlo import qExpectedImprovement
 from botorch.sampling.normal import SobolQMCNormalSampler
@@ -173,21 +174,20 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
             #print(f"neg log likelihood: {-F.cross_entropy(softmaxed, latent_target)}")
 
-            # Only append and test new plans
             """
+            # Only append and test new plans
             if platform_choices not in distinct_choices:
                 distinct_choices.append(platform_choices)
             else:
-                #model_results.append(None)
+                model_results.append(None)
                 duplicate_plans.append(discovered_latent_vector)
             """
 
             model_results.append(discovered_latent_vector)
 
-        """
-        no_distinct_plans_after = len(distinct_choices)
+
+        #no_distinct_plans_after = len(distinct_choices)
         #print(f"Generated {no_distinct_plans_after - no_distinct_plans_before} new plans")
-        """
         print(f"Generated {len(model_results)} new plans")
 
         #assert no_distinct_plans_after > no_distinct_plans_before, f'No new plans generated, {len(distinct_choices)} total, aborting'
@@ -253,25 +253,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
-        """
-        # Mask rows where X has NaNs
-        x_mask = torch.isnan(train_x).any(dim=tuple(range(1, train_x.ndim))).to(device)
 
-# Mask rows where Y has NaNs
-        y_mask = torch.isnan(train_obj).any(dim=tuple(range(1, train_obj.ndim))).to(device)
-
-# Combine masks: keep only rows that are valid in both
-        valid_mask = ~(x_mask | y_mask).to(device)
-
-# Filter both X and Y consistently
-        x_filtered = train_x.to(device)[valid_mask]
-        y_filtered = train_obj.to(device)[valid_mask]
-
-        x_filtered = x_filtered.to(device)
-        y_filtered = y_filtered.to(device)
-        print(f"x_filtered: {x_filtered}")
-        print(f"y_filtered: {y_filtered}")
-        """
         model = SingleTaskGP(
             #train_X=normalize(train_x, bounds),
             train_X=train_x,
@@ -284,6 +266,17 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
         mll.to(train_x)
         fit_gpytorch_mll(mll)
+
+        """
+        model = SaasFullyBayesianSingleTaskGP(
+            train_x.to(device),
+            train_obj.to(device),
+            input_transform=Normalize(d=d),
+            outcome_transform=Standardize(m=1)
+        )
+        model.to(device)
+        fit_fully_bayesian_model_nuts(model)
+        """
 
         return model
 
