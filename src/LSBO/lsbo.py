@@ -55,7 +55,7 @@ from Util.communication import read_int, UTF8Deserializer, dump_stream, open_con
 from LSBO.criteria import StoppingCriteria
 
 # Set to 30min (1800 seconds)
-TIMEOUT = float(60 * 30)
+TIMEOUT = float(60 * 180)
 PLAN_CACHE = set()
 EXECUTABLE_PLANS = set()
 VALID_X = set()

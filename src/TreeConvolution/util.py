@@ -102,14 +102,27 @@ def _preorder_indexes(root, left_child, right_child, idx=1):
             "tree node to its child, or None"
         )
 
+    if is_null_operator(root):
+        return 0
 
     if _is_leaf(root, left_child, right_child):
         # leaf
         return idx
 
+    """
     def rightmost(tree):
         if isinstance(tree, tuple):
             return rightmost(tree[2])
+        return tree
+    """
+
+    def rightmost(tree):
+        if isinstance(tree, tuple):
+            if tree[2] == 0:
+                return max(tree[0], rightmost(tree[1]))
+
+            return max(tree[0], rightmost(tree[1]), rightmost(tree[2]))
+
         return tree
 
     left_subtree = _preorder_indexes(left_child(root), left_child, right_child,

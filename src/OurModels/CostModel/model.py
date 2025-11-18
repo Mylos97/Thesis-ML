@@ -6,6 +6,7 @@ from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
 class CostModel(nn.Module):
     def __init__(self, in_dim, **args) -> None:
         super(CostModel, self).__init__()
+
         self.tree_conv = nn.Sequential(
             BinaryTreeConv(in_dim, 256),
             TreeLayerNorm(),

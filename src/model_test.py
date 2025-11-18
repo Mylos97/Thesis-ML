@@ -29,6 +29,8 @@ import math
 import argparse
 import onnx
 import onnxruntime
+import re
+import os
 
 from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data, get_relative_path
 
@@ -64,7 +66,7 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #device = torch.device("cpu")
 
-    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('30.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
     #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('g0.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
 
     # find model parameters
@@ -121,6 +123,11 @@ def main(args):
                     )
                 )
 
+
+
+                for choice in platform_choices:
+                    print(choice)
+
                 results.append(platform_choices)
 
         return results
@@ -134,7 +141,7 @@ def main_onnx(args):
     #device = torch.device("cpu")
 
     #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('tpch0.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('30.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
 
     # find model parameters
     weights = get_weights_of_model_by_path(model_path)
@@ -188,9 +195,27 @@ def main_onnx(args):
                     )
                 )
 
-                print(platform_choices)
                 results.append(platform_choices)
         return results
+
+def get_platform_choices(file_path: str, line: int):
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+    lines = []
+
+    print(file_path)
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    input, exec_plan, latency = lines[line].split(":")
+    matches_iterator = re.finditer(regex_pattern, exec_plan)
+    for match in matches_iterator:
+        in_paranthesis = match.group()
+        find = in_paranthesis.strip('(').strip(')')
+        values = [int(num.strip()) for num in find.split(',')]
+        platform_choices = values[43:43+9]
+        #if sum(platform_choices) > 0:
+        print(platform_choices)
+
 
 
 if __name__ == "__main__":
@@ -207,11 +232,11 @@ if __name__ == "__main__":
     parser.add_argument('--platforms', type=int, default=9)
     parser.add_argument('--operators', type=int, default=43)
     args = parser.parse_args()
-    onnx_plats = main_onnx(args)
+    #onnx_plats = main_onnx(args)
     torch_plats = main(args)
+    file_path = get_relative_path("30.txt", "Data/splits/imdb/training/")
+    #clean_duplicate_platforms(file_path)
+    get_platform_choices(file_path, 0)
 
-    #onnx_plats.append(4)
-    #torch_plats.append(5)
-
-    assert onnx_plats == torch_plats
-    print(f"Is equal: {onnx_plats == torch_plats}")
+    #assert onnx_plats == torch_plats
+    #print(f"Is equal: {onnx_plats == torch_plats}")

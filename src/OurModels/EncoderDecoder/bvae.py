@@ -24,6 +24,11 @@ class BVAE(nn.Module):
         #self.logger = logging.getLogger(__name__)
         #logging.basicConfig(filename='src/Logs/bvae.log', level=logging.INFO)
 
+    def reparameterize(self, mu, log_var):
+        std = torch.exp(0.5 * log_var)
+        epsilon = torch.rand_like(std).to(self.device)
+
+        return mu + epsilon * std
 
     def forward(self, x):
         if not self.training:
@@ -37,14 +42,8 @@ class BVAE(nn.Module):
             encoded, indexes = self.encoder(x)
             mean = self.mu(encoded)
             log_var = self.log_var(encoded)
-            batch, dim = mean.shape
-            std = torch.exp(0.5 * log_var)
-            #epsilon = torch.rand_like(std).to(self.device)
-            epsilon = torch.randn(batch, dim).to(self.device)
-            z = mean + std * epsilon
-            #z = mean + torch.exp(0.5 * log_var)
+            z = self.reparameterize(mean, log_var)
             decoded = self.decoder(z, indexes)
             x = decoded[0]
-            #x = self.onehot(x)
 
             return [x, mean, log_var]
