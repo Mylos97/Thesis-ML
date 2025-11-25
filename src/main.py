@@ -37,15 +37,15 @@ def main(args) -> None:
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == 'bvae':
-        """
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('retrain.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('retrain.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('retrain.txt', 'Data/splits/tpch/bvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/tpch/bvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         """
         data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         test_data, _, _ = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         val_data, _, _ = load_autoencoder_data(path=get_relative_path('test-queries.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        """
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
@@ -56,9 +56,9 @@ def main(args) -> None:
 
     if args.model == "cost":
         #data, in_dim, out_dim = load_costmodel_data(path=get_relative_path('training.txt', 'Data/splits'), device=device)
-        data, in_dim, out_dim = load_costmodel_data(path=get_relative_path('pointwise.txt', 'Data/splits/imdb/training'), device=device)
-        test_data, _, _ = load_costmodel_data(path=get_relative_path('pointwise.txt', 'Data/splits/imdb/training'), device=device)
-        val_data, _, _ = load_costmodel_data(path=get_relative_path('pointwise.txt', 'Data/splits/imdb/training'), device=device)
+        data, in_dim, out_dim = load_costmodel_data(path=get_relative_path('experience-cost.txt', 'Data/splits/imdb/training'), device=device)
+        test_data, _, _ = load_costmodel_data(path=get_relative_path('experience-cost.txt', 'Data/splits/imdb/training'), device=device)
+        val_data, _, _ = load_costmodel_data(path=get_relative_path('experience-cost.txt', 'Data/splits/imdb/training'), device=device)
         """
         data, val_data, test_data = torch.utils.data.random_split(
             data, [0.8, 0.1, 0.1]
