@@ -1,5 +1,5 @@
 __pycache__/
 venv/
 src/Logs/*
-**/*.onnx
-**/*.txt
+src/Models/**/*.onnx
+src/Data/**/*.txt
