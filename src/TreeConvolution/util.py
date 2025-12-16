@@ -1,9 +1,44 @@
+# < begin copyright >
+# Copyright Ryan Marcus 2019
+#
+# This file is part of TreeConvolution.
+#
+# TreeConvolution is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# TreeConvolution is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with TreeConvolution.  If not, see <http://www.gnu.org/licenses/>.
+#
+# < end copyright >
+
 import numpy as np
 import torch
 
 
 class TreeConvolutionError(Exception):
     pass
+
+# leaf
+def is_null_operator(tup):
+    if isinstance(tup, tuple):
+        if isinstance(tup[0], tuple):
+            return all(is_null_operator(sub) for sub in tup)
+        else:
+            # Features
+            if len(tup) > 9:
+                return sum(list(tup)) <= 1
+
+            # Platform choices
+            return sum(list(tup)) == 0
+    else:
+        return tup == 0
 
 
 def _is_leaf(x, left_child, right_child):
@@ -17,11 +52,9 @@ def _is_leaf(x, left_child, right_child):
 
     return not has_left
 
-
 def _flatten(root, transformer, left_child, right_child):
-    """turns a tree into a flattened vector, preorder"""
-    global count
-    count = 0
+    """ turns a tree into a flattened vector, preorder """
+
     if not callable(transformer):
         raise TreeConvolutionError(
             "Transformer must be a function mapping a tree node to a vector"
@@ -33,12 +66,15 @@ def _flatten(root, transformer, left_child, right_child):
             + "tree node to its child, or None"
         )
 
+
     accum = []
 
     def recurse(x):
-        global count
-        count += 1
         if _is_leaf(x, left_child, right_child):
+            if is_null_operator(x):
+                accum.append(np.zeros(transformer(x).shape))
+                return
+
             accum.append(transformer(x))
             return
 
@@ -47,9 +83,9 @@ def _flatten(root, transformer, left_child, right_child):
         recurse(right_child(x))
 
     recurse(root)
-    try:
-        accum = [np.zeros(accum[0].shape, dtype=int)] + accum
 
+    try:
+        accum = [np.zeros(accum[0].shape)] + accum
     except:
         raise TreeConvolutionError(
             "Output of transformer must have a .shape (e.g., numpy array)"
@@ -57,62 +93,34 @@ def _flatten(root, transformer, left_child, right_child):
 
     return np.array(accum)
 
-
 def _preorder_indexes(root, left_child, right_child, idx=1):
-    """transforms a tree into a tree of preorder indexes"""
+    """ transforms a tree into a tree of preorder indexes """
+
     if not callable(left_child) or not callable(right_child):
-        raise TreeConvolutionError( "left_child and right_child must be a function mapping a "
-            + "tree node to its child, or None"
+        raise TreeConvolutionError(
+            "left_child and right_child must be a function mapping a " +
+            "tree node to its child, or None"
         )
 
-    def is_null_operator(tup):
-        if isinstance(tup, int):  # Base case: if it's an integer
-            return tup == 0
-        if isinstance(tup, tuple):  # Recursive case: check all elements
-            if isinstance(tup[0], int): # tuple of ints
-                if len(tup) > 9: # Not for platform choices
-                    return sum(list(tup)) <= 1
-                else:
-                    return sum(list(tup)) == 0
-            elif isinstance(tup[0], tuple): # Recursive case
-                return all(is_null_operator(sub) for sub in tup)
-        return False
-
-    """
-    def is_null_operator(tup):
-        if isinstance(tup, int):  # Base case: if it's an integer
-            return tup == 0
-        if isinstance(tup, tuple):  # Recursive case: check all elements
-            return all(is_null_operator(sub) for sub in tup)
-        return True  # If any non-tuple, non-int value appears
-    """
 
     if _is_leaf(root, left_child, right_child):
         # leaf
-        if is_null_operator(root):
-            return 0
-
         return idx
 
     def rightmost(tree):
         if isinstance(tree, tuple):
-            if tree[2] == 0:
-                return max(tree[0], rightmost(tree[1]))
-
-            return max(tree[0], rightmost(tree[1]), rightmost(tree[2]))
-
+            return rightmost(tree[2])
         return tree
 
-    left_subtree = _preorder_indexes(
-        left_child(root), left_child, right_child, idx=idx + 1
-    )
+
+    left_subtree = _preorder_indexes(left_child(root), left_child, right_child,
+                                     idx=idx+1)
+
     max_index_in_left = rightmost(left_subtree)
-    right_subtree = _preorder_indexes(
-        right_child(root), left_child, right_child, idx=max_index_in_left + 1
-    )
+    right_subtree = _preorder_indexes(right_child(root), left_child, right_child,
+                                      idx=max_index_in_left + 1)
 
     return (idx, left_subtree, right_subtree)
-
 
 def _tree_conv_indexes(root, left_child, right_child):
     """
@@ -134,26 +142,16 @@ def _tree_conv_indexes(root, left_child, right_child):
             my_id = root[0]
             left_id = root[1][0] if isinstance(root[1], tuple) else root[1]
             right_id = root[2][0] if isinstance(root[2], tuple) else root[2]
-            swag = [my_id, left_id, right_id]
-            yield swag
+            yield [my_id, left_id, right_id]
 
             yield from recurse(root[1])
             yield from recurse(root[2])
         else:
-            """
-            TODO: This  step shouldn't really be needed,
-            wayang already appends 0s when needed
-            """
-            if root != 0:
-                yield [root, 0, 0]
+            yield [root, 0, 0]
 
+    return np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
 
-    out = np.array(list(recurse(index_tree))).flatten().reshape(-1, 1)
-
-    return out
-
-
-def _pad_and_combine(x):
+def _pad_and_combine(x, max_first_dim: int = None):
     assert len(x) >= 1
     assert len(x[0].shape) == 2
 
@@ -163,34 +161,36 @@ def _pad_and_combine(x):
                 "Transformer outputs could not be unified into an array. "
                 + "Are they all the same size?"
             )
+
     second_dim = x[0].shape[1]
     for itm in x[1:]:
         assert itm.shape[1] == second_dim
-    max_first_dim = max(arr.shape[0] for arr in x)
-    #max_first_dim = 500
 
-    print(f"max_first_dim: {max_first_dim}")
-    print(f"second_dim: {second_dim}")
+    if max_first_dim is None:
+        max_first_dim = max(arr.shape[0] for arr in x)
+    #print(max_first_dim)
 
     vecs = []
     for arr in x:
         padded = np.zeros((max_first_dim, second_dim))
-        padded[0 : arr.shape[0]] = arr
+        padded[0:arr.shape[0]] = arr
         vecs.append(padded)
 
     return np.array(vecs)
 
-
-def prepare_trees(trees, transformer, left_child, right_child, device='cpu'):
+def prepare_trees(trees, transformer, left_child, right_child):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     flat_trees = [_flatten(x, transformer, left_child, right_child) for x in trees]
     flat_trees = _pad_and_combine(flat_trees)
     flat_trees = torch.Tensor(flat_trees)
-    flat_trees = flat_trees.transpose(1, 2)
+
+    # flat trees is now batch x max tree nodes x channels
+    flat_trees = flat_trees.transpose(1, 2).to(device)
     flat_trees = flat_trees.to(device)
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
     indexes = _pad_and_combine(indexes)
-    indexes = torch.Tensor(indexes).long()
+    indexes = torch.Tensor(indexes).long().to(device)
     indexes = indexes.to(device)
 
     return (flat_trees, indexes)

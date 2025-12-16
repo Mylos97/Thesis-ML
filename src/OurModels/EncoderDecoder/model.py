@@ -8,7 +8,6 @@ class VAE(nn.Module):
     def __init__(self, in_dim, out_dim, dropout_prob, z_dim):
         super().__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        #self.device = torch.device("cpu")
         self.mu = nn.Linear(z_dim, z_dim)
         self.log_var = nn.Linear(z_dim, z_dim)
         self.encoder = TreeEncoder(in_dim, dropout_prob, z_dim)
@@ -23,7 +22,6 @@ class VAE(nn.Module):
             z = self.mu(encoded)
             decoded = self.decoder(z, indexes)
             x = decoded[0]
-            #x = self.softmax(decoded[0])
 
             return x
         else:
@@ -36,6 +34,5 @@ class VAE(nn.Module):
             z = mean + torch.exp(0.5 * log_var) * epsilon
             decoded = self.decoder(z, indexes)
             x = decoded[0]
-            #x = self.softmax(decoded[0])
 
             return x

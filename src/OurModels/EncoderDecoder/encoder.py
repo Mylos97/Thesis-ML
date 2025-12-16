@@ -23,40 +23,18 @@ class TreeEncoder(nn.Module):
             BinaryTreeConv(64, 32),
             TreeLayerNorm(),
             TreeActivation(nn.Mish()),
-        )
-
-        self.linear = nn.Sequential(
-            DynamicPooling(),
-            nn.Linear(32, z_dim),
-            nn.BatchNorm1d(z_dim),
-            nn.Mish(),
-            nn.Dropout(dropout_prob),
-        )
-
-        """
-        self.binary_conv = nn.Sequential (
-            BinaryTreeConv(input_dim, 256),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(256, 128),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(128, 64),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(64, 32),
+            BinaryTreeConv(32, 16),
             TreeLayerNorm(),
             TreeActivation(nn.Mish()),
         )
 
         self.linear = nn.Sequential(
             DynamicPooling(),
-            nn.Linear(32, z_dim),
+            nn.Linear(16, z_dim),
             nn.BatchNorm1d(z_dim),
             nn.Mish(),
             nn.Dropout(dropout_prob),
         )
-        """
 
     def forward(self, trees):
         x = self.binary_conv(trees)

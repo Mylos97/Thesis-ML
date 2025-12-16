@@ -70,8 +70,6 @@ def write_int(p, outfile):
 def write_with_length(obj, stream):
     if type(obj) is list:
         serialized = str(obj).encode('utf-8')
-        #arr = np.array(obj)
-        #serialized = arr.tobytes()
     else:
         serialized = str(obj).encode('utf-8')
     if serialized is None:
@@ -93,8 +91,6 @@ def dump_stream(iterator, stream):
                 write_with_length(int(obj == True), stream)
             else:
                 write_with_length(obj, stream)
-            ## elif type(obj) is list:
-            ##    write_with_length(obj, stream)
     write_int(SpecialLengths.END_OF_DATA_SECTION, stream)
 
 

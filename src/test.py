@@ -39,9 +39,29 @@ def clean_duplicate_platforms(file_path: str):
         print(fixes)
         file.writelines(lines)
 
+def get_platform_choices(file_path: str, line: int):
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+    lines = []
+
+    print(file_path)
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    input, exec_plan, latency = lines[line].split(":")
+    matches_iterator = re.finditer(regex_pattern, exec_plan)
+
+    for match in matches_iterator:
+        in_paranthesis = match.group()
+        find = in_paranthesis.strip('(').strip(')')
+        values = [int(num.strip()) for num in find.split(',')]
+        platform_choices = values[43:43+9]
+        if sum(platform_choices) > 0:
+            print(platform_choices)
+
 def main():
-    file_path = get_relative_path("retrain-2.txt", "Data/splits/imdb/training/")
-    clean_duplicate_platforms(file_path)
+    file_path = get_relative_path("916.txt", "Data/splits/tpch/bvae/")
+    #clean_duplicate_platforms(file_path)
+    get_platform_choices(file_path, 0)
 
 if __name__ == "__main__":
     main()

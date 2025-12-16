@@ -5,6 +5,7 @@ import torch
 import os
 import json
 import random
+from torch.distributions import Categorical, Normal, kl_divergence
 import torch.nn.intrinsic
 import torch.utils
 import torch.utils.data
@@ -16,6 +17,7 @@ from TreeConvolution.util import prepare_trees
 from onnx import numpy_helper
 from torch.utils.data import DataLoader, Dataset
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class TreeVectorDataset(Dataset):
     def __init__(self, data):
@@ -80,7 +82,7 @@ def make_dataloader(x: Dataset, batch_size: int) -> DataLoader:
 def build_trees(
     feature: list[tuple[torch.Tensor, torch.Tensor]], device: str
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    return prepare_trees(feature, transformer, left_child, right_child, device=device)
+    return prepare_trees(feature, transformer, left_child, right_child)
 
 
 def remove_operator_ids(tree: str):
@@ -114,7 +116,6 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
 
 def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_ops: int = 43, num_platfs: int = 9) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
-    path = get_relative_path('train.naive-lsbo.txt', 'Data') if path == None else path
 
     def platform_encodings(optimal_tree: str):
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
@@ -131,23 +132,11 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
     trees = []
     targets = []
 
-    # structure tree -> (exec-plan, latency)
-    #tree_latency_map = generate_tree_latency_map(path)
     tree_latency_list = generate_tree_latency_list(path)
 
     if retrain_path != "":
-        #tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
         tree_latency_list = generate_tree_latency_list(retrain_path)
-        #tree_latency_map = generate_tree_latency_map(retrain_path)
 
-
-    """
-    for tree, tup in tree_latency_map.items():
-        optimal_tree = platform_encodings(tup[0])
-        tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
-        trees.append(tree)
-        targets.append(optimal_tree)
-    """
 
     for tup in tree_latency_list:
         optimal_tree = platform_encodings(tup[1])
@@ -162,7 +151,7 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
     in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
     x = []
     trees, indexes = build_trees(trees, device=device)
-    target_trees, _ = build_trees(targets, device=device)
+    target_trees, target_indexes = build_trees(targets, device=device)
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
     for i, tree in enumerate(trees):
@@ -189,6 +178,7 @@ def load_autoencoder_data_from_str(device: str, data: str, num_ops: int = 43, nu
 
     trees = []
     targets = []
+
     # structure tree -> (exec-plan, latency)
     tree_latency_map = generate_tree_latency_map_from_str(data)
 
@@ -206,7 +196,6 @@ def load_autoencoder_data_from_str(device: str, data: str, num_ops: int = 43, nu
     x = []
     trees, indexes = build_trees(trees, device=device)
     target_trees, _ = build_trees(targets, device=device)
-    #target_trees = trees
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
     for i, tree in enumerate(trees):
@@ -401,6 +390,9 @@ def convert_to_json(plans) -> None:
     with open(f'{relative_path}.txt', 'w') as file:
         file.write(json_data)
 
+def kl_divergence(logvar, mu):
+    return torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
+
 class Beta_Vae_Loss(torch.nn.Module):
 
     num_iter = 0 # Global static variable to keep track of iterations
@@ -424,36 +416,34 @@ class Beta_Vae_Loss(torch.nn.Module):
 
     def forward(self, prediction, target):
 
+
+        recon_x, mu, logvar = prediction
+
+        pred_logits = recon_x
+        target_indices = target.argmax(dim=1)
+
         if self.loss_type == "B":
 
-            recon_x, mu, logvar = prediction
-            recon_loss = F.cross_entropy(recon_x, target)
-            #recon_loss = F.binary_cross_entropy(recon_x, target, reduction='sum')
-            loss_reg = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean(dim=0).sum()
-            #total_kld = loss_reg * 0.0001
-            total_kld = loss_reg
+            criterion = torch.nn.CrossEntropyLoss()
+            recon_loss = criterion(pred_logits, target)
 
-            loss = recon_loss + self.kld_weight * total_kld * self.beta
+            kld = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            loss = recon_loss + self.beta * kld
 
             return {
                 'loss': loss,
                 'recon_loss': recon_loss,
-                'kld': total_kld * self.beta,
+                'kld': kld,
                 'beta': self.beta
             }
         else:
             self.num_iter += 1
 
-            recon_x, mu, logvar = prediction
             recon_loss = F.cross_entropy(recon_x, target)
             kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0)
             self.C_max = self.C_max.to(prediction[0].device)
 
             C = torch.clamp(self.C_max/self.C_stop_iter * self.num_iter * 100, 0, self.C_max.data[0])
             loss = recon_loss + self.gamma * self.kld_weight * (kld_loss - C).abs()
-
-            print(f"Num_iter: {self.num_iter}")
-            print(f"C: {C} nits")
-            print(f"KLD scaled: {self.gamma * self.kld_weight * (kld_loss - C).abs()}")
 
             return {'loss': loss, 'recon_loss': recon_loss, 'kld': kld_loss, 'beta': self.beta}

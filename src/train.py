@@ -1,4 +1,6 @@
 import torch
+import sys
+import math
 from torch.utils.data import DataLoader
 from torch import Tensor
 from helper import set_weights
@@ -24,6 +26,8 @@ def train(
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
     z_dim = parameters.get("z_dim", 128)
+    weight_decay = parameters.get("weight_decay", 0.001) #bounds between 0, 0.1
+    batch_size = parameters.get("batch_size" , 1)
     model = model_class(
         in_dim=in_dim, out_dim=out_dim, dropout_prob=dropout, z_dim=z_dim
     )
@@ -37,9 +41,9 @@ def train(
         print("Setting model to training mode", flush=True)
         model.training = True
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    best_val_loss = float("inf")
-    best_test_loss = float("inf")
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    best_val_loss = float(sys.maxsize)
+    best_test_loss = float(sys.maxsize)
     counter = 0
     patience = parameters.get("patience", 10)
     time = datetime.now().strftime("%H:%M:%S")
@@ -54,18 +58,24 @@ def train(
         model.train()
 
         for tree, target in training_data_loader:
+            torch.set_printoptions(profile="full")
             prediction = model(tree)
-            loss = loss_function(prediction, target.float())
+            log_target = torch.log(target + 1)
+            loss = loss_function(prediction, log_target.float())
+            #loss_accum += loss.item()
             loss_accum += loss["loss"].item()
-            kld = annealing_agent(loss["kld"])
+            loss_accum = min(loss_accum, sys.maxsize)
+            #kld = annealing_agent(loss["kld"])
             optimizer.zero_grad()
-            (loss["loss"] + loss["kld"]).backward()
+            #(loss["loss"] + loss["kld"]).backward()
+            loss["loss"].backward()
+            #loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
             annealing_agent.step()
-            # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
 
-        loss_accum /= len(training_data_loader)
+        assert len(training_data_loader) != 0
+        loss_accum /= batch_size
 
         print(f"Epoch  {epoch} training loss: {loss_accum}", flush=True)
         val_loss = evaluate(
@@ -73,6 +83,7 @@ def train(
             val_data_loader=val_data_loader,
             loss_function=loss_function,
             device=device,
+            batch_size=batch_size,
         )
 
         counter += 1
@@ -97,15 +108,19 @@ def train(
 
     for tree, target in test_data_loader:
         prediction = model(tree)
-        loss = loss_function(prediction, target.float())
+        log_target = torch.log(target + 1)
+        loss = loss_function(prediction, log_target.float())
+        #test_loss_accum += loss.item()
         test_loss_accum += loss["loss"].item()
+        test_loss_accum = min(test_loss_accum, sys.maxsize)
         optimizer.zero_grad()
+        #loss.backward()
         loss["loss"].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
         optimizer.step()
-        # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
 
-    test_loss_accum /= len(test_data_loader)
+    assert len(test_data_loader) != 0
+    test_loss_accum /= batch_size
 
     print(f"Test loss: {test_loss_accum}", flush=True)
     test_loss = evaluate(
@@ -113,6 +128,7 @@ def train(
         val_data_loader=test_data_loader,
         loss_function=loss_function,
         device=device,
+        batch_size=batch_size,
     )
 
     if test_loss["loss"] < best_test_loss:
@@ -130,6 +146,7 @@ def evaluate(
     val_data_loader: DataLoader,
     loss_function,
     device: torch.device,
+    batch_size: int,
 ) -> float:
     model.eval()
     val_loss = 0
@@ -137,17 +154,28 @@ def evaluate(
     if isinstance(model, VAE) or isinstance(model, BVAE):
         model.training = True
 
-    with torch.no_grad():
-        for tree, target in val_data_loader:
-            prediction = model(tree)
-            loss = loss_function(prediction, target.float())
-            val_loss += loss["loss"].item()
-            val_kld += loss["kld"].item()
+    for tree, target in val_data_loader:
+        prediction = model(tree)
+        log_target = torch.log(target + 1)
+        loss = loss_function(prediction, log_target.float())
+        if math.isnan(loss['loss'].item()):
+        #if math.isnan(loss.item()):
+            val_loss = sys.maxsize
+        else:
+            val_loss += min(loss["loss"].item(), sys.maxsize)
+            #val_loss += loss.item()
+            val_loss = min(val_loss, sys.maxsize)
+        loss["loss"].backward()
+        #loss.backward()
+        #val_kld += loss["kld"].item()
 
-    val_loss /= len(val_data_loader)
-    val_kld /= len(val_data_loader)
+    assert len(val_data_loader) != 0
+    #val_loss /= len(val_data_loader)
+    val_loss /= batch_size
+    #val_kld /= len(val_data_loader)
+    val_loss = min(val_loss, sys.maxsize)
 
     return {
         "loss": val_loss,
-        "kld": val_kld
+        #"kld": val_kld
     }
