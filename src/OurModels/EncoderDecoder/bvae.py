@@ -13,16 +13,11 @@ class BVAE(nn.Module):
     def __init__(self, in_dim, out_dim, dropout_prob, z_dim):
         super().__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        #self.device = torch.device("cpu")
         self.mu = nn.Linear(z_dim, z_dim)
         self.log_var = nn.Linear(z_dim, z_dim)
         self.encoder = TreeEncoder(in_dim, dropout_prob, z_dim)
         self.decoder = TreeDecoder(out_dim, dropout_prob, z_dim)
         self.training = False
-        #self.softmax = nn.Softmax(dim=1)
-        #self.onehot = OneHot()
-        #self.logger = logging.getLogger(__name__)
-        #logging.basicConfig(filename='src/Logs/bvae.log', level=logging.INFO)
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(0.5 * log_var)

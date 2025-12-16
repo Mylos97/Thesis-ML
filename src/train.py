@@ -62,21 +62,19 @@ def train(
             prediction = model(tree)
             log_target = torch.log(target + 1)
             loss = loss_function(prediction, log_target.float())
-            loss_accum += loss.item()
-            #loss_accum += loss["loss"].item()
+            #loss_accum += loss.item()
+            loss_accum += loss["loss"].item()
             loss_accum = min(loss_accum, sys.maxsize)
             #kld = annealing_agent(loss["kld"])
             optimizer.zero_grad()
             #(loss["loss"] + loss["kld"]).backward()
-            #loss["loss"].backward()
-            loss.backward()
+            loss["loss"].backward()
+            #loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
             annealing_agent.step()
-            # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
 
         assert len(training_data_loader) != 0
-        #loss_accum /= len(training_data_loader)
         loss_accum /= batch_size
 
         print(f"Epoch  {epoch} training loss: {loss_accum}", flush=True)
@@ -112,18 +110,16 @@ def train(
         prediction = model(tree)
         log_target = torch.log(target + 1)
         loss = loss_function(prediction, log_target.float())
-        test_loss_accum += loss.item()
-        #test_loss_accum += loss["loss"].item()
+        #test_loss_accum += loss.item()
+        test_loss_accum += loss["loss"].item()
         test_loss_accum = min(test_loss_accum, sys.maxsize)
         optimizer.zero_grad()
-        loss.backward()
-        #loss["loss"].backward()
+        #loss.backward()
+        loss["loss"].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
         optimizer.step()
-        # print(f'Sampled prediction {prediction[0]}:{prediction[0].shape} and target {target[0]}:{target[0].shape}', flush=True)
 
     assert len(test_data_loader) != 0
-    #test_loss_accum /= len(test_data_loader)
     test_loss_accum /= batch_size
 
     print(f"Test loss: {test_loss_accum}", flush=True)
@@ -162,15 +158,15 @@ def evaluate(
         prediction = model(tree)
         log_target = torch.log(target + 1)
         loss = loss_function(prediction, log_target.float())
-        #if math.isnan(loss['loss'].item()):
-        if math.isnan(loss.item()):
+        if math.isnan(loss['loss'].item()):
+        #if math.isnan(loss.item()):
             val_loss = sys.maxsize
         else:
-            #val_loss += min(loss["loss"].item(), sys.maxsize)
-            val_loss += loss.item()
+            val_loss += min(loss["loss"].item(), sys.maxsize)
+            #val_loss += loss.item()
             val_loss = min(val_loss, sys.maxsize)
-        #loss["loss"].backward()
-        loss.backward()
+        loss["loss"].backward()
+        #loss.backward()
         #val_kld += loss["kld"].item()
 
     assert len(val_data_loader) != 0

@@ -116,7 +116,6 @@ def generate_latency_map_intersect(path, old_tree_latency_map):
 
 def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_ops: int = 43, num_platfs: int = 9) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
-    #path = get_relative_path('train.naive-lsbo.txt', 'Data') if path == None else path
 
     def platform_encodings(optimal_tree: str):
         matches_iterator = re.finditer(regex_pattern, optimal_tree)
@@ -133,23 +132,11 @@ def load_autoencoder_data(device: str, path: str, retrain_path: str = "", num_op
     trees = []
     targets = []
 
-    # structure tree -> (exec-plan, latency)
-    #tree_latency_map = generate_tree_latency_map(path)
     tree_latency_list = generate_tree_latency_list(path)
 
     if retrain_path != "":
-        #tree_latency_map = generate_latency_map_intersect(retrain_path, tree_latency_map)
         tree_latency_list = generate_tree_latency_list(retrain_path)
-        #tree_latency_map = generate_tree_latency_map(retrain_path)
 
-
-    """
-    for tree, tup in tree_latency_map.items():
-        optimal_tree = platform_encodings(tup[0])
-        tree, optimal_tree = ast.literal_eval(tree), ast.literal_eval(optimal_tree)
-        trees.append(tree)
-        targets.append(optimal_tree)
-    """
 
     for tup in tree_latency_list:
         optimal_tree = platform_encodings(tup[1])
@@ -191,6 +178,7 @@ def load_autoencoder_data_from_str(device: str, data: str, num_ops: int = 43, nu
 
     trees = []
     targets = []
+
     # structure tree -> (exec-plan, latency)
     tree_latency_map = generate_tree_latency_map_from_str(data)
 
@@ -208,7 +196,6 @@ def load_autoencoder_data_from_str(device: str, data: str, num_ops: int = 43, nu
     x = []
     trees, indexes = build_trees(trees, device=device)
     target_trees, _ = build_trees(targets, device=device)
-    #target_trees = trees
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
     for i, tree in enumerate(trees):
@@ -433,19 +420,13 @@ class Beta_Vae_Loss(torch.nn.Module):
         recon_x, mu, logvar = prediction
 
         pred_logits = recon_x
-        #target_indices = target.permute(0, 2, 1).argmax(dim=-1).long()
         target_indices = target.argmax(dim=1)
 
         if self.loss_type == "B":
 
             criterion = torch.nn.CrossEntropyLoss()
-            #recon_loss = F.cross_entropy(pred_logits, target)
             recon_loss = criterion(pred_logits, target)
 
-            #print(f"recon_loss: {recon_loss}, loss: {loss}, beta: {self.beta}, kld: {total_kld}")
-
-            #recon_loss = F.binary_cross_entropy_with_logits(recon_x, target, reduction='sum')
-            #kld = (-0.5 * (1 + logvar - mu**2 - logvar.exp())).mean().sum()
             kld = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
             loss = recon_loss + self.beta * kld
 

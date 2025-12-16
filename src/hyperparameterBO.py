@@ -44,9 +44,7 @@ def do_hyperparameter_BO(
         if model_class == BVAE:
             l_function = loss_function(
                 beta=parameters.get('beta', 1.0),
-                #beta=0,
             )
-            #l_function = loss_function(beta=1.5)
         else:
             l_function = loss_function()
 
@@ -102,7 +100,6 @@ def do_hyperparameter_BO(
             'name': 'batch_size',
             'type': 'range',
             'bounds': [32, 64],
-            #'bounds': [2, 64],
             'value_type': 'int'
         },
         {
@@ -140,25 +137,6 @@ def do_hyperparameter_BO(
             "log_scale": False
         })
 
-    """
-    if model_class == VAE or model_class == BVAE:
-        parameters.append({
-            'name': 'z_dim',
-            'type': 'choice',
-            'values': [2, 4, 8, 16, 32],
-            'value_type': 'int',
-            'is_ordered': True,
-            'sort_values' : True
-        })
-        parameters.append({
-            'name': 'z_dim',
-            'type': 'range',
-            'bounds': [2, 31],
-            'value_type': 'int',
-            'is_ordered': True,
-            'sort_values' : True
-        })
-    """
 
     torch.manual_seed(42)
 
@@ -168,7 +146,6 @@ def do_hyperparameter_BO(
             parameters=parameters,
             objectives={
                 'loss': ObjectiveProperties(minimize=True),
-            #    'kld': ObjectiveProperties(minimize=True)
             },
         )
 
@@ -180,13 +157,8 @@ def do_hyperparameter_BO(
             print(f"Parameters: {parameters}")
             print(f"raw_data: {raw_data}")
             ax_client.complete_trial(trial_index=trial_index, raw_data=raw_data)
-            #trial_eval_map[raw_data] = parameters
 
         best_parameters, _ = ax_client.get_best_parameters()
-        #print(f"Best parameters: {ax_client.get_pareto_optimal_parameters()}")
-        #print(f"Best parameters: {list(ax_client.get_pareto_optimal_parameters().items())[0][1][0]}")
-        #best_parameters, _ = list(ax_client.get_pareto_optimal_parameters().items())[0][1]
-        #print(f"Trial eval map: {sorted([key for key, value in trial_eval_map.items()])}")
         print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
 
     if best_parameters is not None and (model_class == BVAE or model_class == VAE):
@@ -207,15 +179,6 @@ def do_hyperparameter_BO(
         batch_size=best_parameters.get('batch_size', 32),
     )
 
-    """
-    if is_retraining:
-        combined_train_valid_loader = torch.utils.data.DataLoader(
-            train_loader.dataset,
-            batch_size=best_parameters.get('batch_size', 32),
-            shuffle=True
-        )
-    else:
-    """
     combined_train_valid_set = torch.utils.data.ConcatDataset([
         train_loader.dataset,
         val_loader.dataset,
@@ -227,12 +190,6 @@ def do_hyperparameter_BO(
         shuffle=True
     )
 
-    """
-    with open(get_relative_path("BVAE-T.json", "HyperparameterLogs/imdb"), 'r') as param_file:
-        best_parameters = json.load(param_file)
-        #best_parameters["beta"] = 10
-        #print(f"Beta: {best_parameters.get('beta')}")
-    """
 
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
@@ -240,7 +197,6 @@ def do_hyperparameter_BO(
         l_function = loss_function(
             beta=best_parameters.get('beta', 1.0),
         )
-        #l_function = loss_function(beta=1.5)
     else:
         l_function = loss_function()
 
@@ -262,7 +218,6 @@ def do_hyperparameter_BO(
 
     # write best parameters to file
     if not is_retraining:
-        #with open(get_relative_path(f"{type(best_model).__name__}.json", 'HyperparameterLogs'), 'w') as file:
         with open(parameters_path, 'w') as file:
             json.dump(best_parameters, file)
 

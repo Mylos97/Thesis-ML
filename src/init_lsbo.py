@@ -27,7 +27,6 @@ TOLERANCE = 1.25
 time_limit_reached = False
 
 def main(args) -> None:
-    """
     state = None
     timeout = float(60 * 180)
 
@@ -36,18 +35,19 @@ def main(args) -> None:
 
     # add best plan to trainset
     with open(args.trainset, 'a') as training_file:
-        #training_file.write(f"{plan_data[0]}:{plan_data[1]}:{plan_data[2]}\n")
         training_file.write(f"{plan_data[1]}:{plan_data[0]}:{plan_data[2]}\n")
         print(f"Successfully appended best sampled plan to {args.trainset}")
 
     with open(args.stats, 'a') as stats_file:
-        #training_file.write(f"{plan_data[0]}:{plan_data[1]}:{plan_data[2]}\n")
         stats_file.write(f"{args.query}:{len(plan_cache)}:{initial_latency}:{plan_data[2]}\n")
         print(f"Successfully appended statistics to {args.stats}")
-    """
 
+
+    # Uncomment this to start retraining after exploration
+    """
     args.retrain = args.trainset
     retrain(args)
+    """
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

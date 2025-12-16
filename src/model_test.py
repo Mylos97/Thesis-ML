@@ -64,11 +64,8 @@ def main(args):
     model_path=args.model_path
     parameters_path=args.parameters
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #device = torch.device("cpu")
 
     data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('30.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-    #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('g0.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-
     # find model parameters
     weights = get_weights_of_model_by_path(model_path)
 
@@ -81,7 +78,6 @@ def main(args):
         z_dim = parameters.get("z_dim", 0.1)
         weights = get_weights_of_model_by_path(model_path)
 
-        #best_model, x = do_hyperparameter_BO(model_class=model_class, data=data, in_dim=in_dim, out_dim=out_dim, loss_function=loss_function, device=device, lr=lr, weights=weights, epochs=epochs, trials=trials, plots=args.plots)
         model = BVAE(
             in_dim=in_dim,
             out_dim=out_dim,
@@ -101,14 +97,12 @@ def main(args):
 
         dtype = torch.float64
         latent_target = None
-        #model = model.to("cpu")
         results = []
         with torch.no_grad():
             for tree,target in dataloader:
                 model.training = False
                 model.eval()
                 encoded_plan = model.encoder(tree)
-                #softmaxed = ML_model.enc_softmax(encoded_plan[0])
                 latent_target = target
                 latent_vector = encoded_plan[0]
                 indexes = encoded_plan[1]
@@ -138,9 +132,6 @@ def main_onnx(args):
     model_path=args.model_path
     parameters_path=args.parameters
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #device = torch.device("cpu")
-
-    #data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('tpch0.txt', 'Data/splits/tpch/bvae/rebalanced'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
     data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('30.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
 
     # find model parameters
@@ -159,17 +150,14 @@ def main_onnx(args):
 
         ort_session = onnxruntime.InferenceSession(
             model_path,
-            #providers=["CUDAExecutionProvider"]
             providers=["CPUExecutionProvider"]
         )
         options = ort_session.get_session_options()
 
         def to_numpy(tensor):
             return (
-                #tensor.detach().to(device).cpu().numpy()
                 tensor.detach().cpu().numpy()
                 if tensor.requires_grad
-                #else tensor.to(device).cpu().numpy()
                 else tensor.cpu().numpy()
             )
 
@@ -180,14 +168,11 @@ def main_onnx(args):
         with torch.no_grad():
             for tree,target in dataloader:
                 torch.set_printoptions(profile="full")
-                #print(f"Tree: {tree[0][0]}")
                 input_value_name = ort_session.get_inputs()[0].name
                 input_index_name = ort_session.get_inputs()[1].name
                 output_name = ort_session.get_outputs()[0].name
                 decoded = ort_session.run([output_name], {input_value_name: to_numpy(tree[0]), input_index_name: to_numpy(tree[1])})
-                #softmaxed = ML_model.enc_softmax(encoded_plan[0])
 
-                #model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
                 platform_choices = list(
                     map(
                         lambda x: [int(v == max(x)) for v in x],
