@@ -18,7 +18,7 @@
 import argparse
 
 from LSBO.state import State
-from LSBO.lsbo import request_wayang_plan
+from LSBO.sampled_lsbo import request_wayang_plan
 from main import main as retrain
 
 # Default should be 30 min, set it high for long running queries

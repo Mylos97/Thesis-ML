@@ -62,41 +62,20 @@ class BetaCVAE(nn.Module):
         self,
         logical_tree: torch.Tensor,
         z: torch.Tensor,
-        temperature: float =1.0,
-        stochastic: bool =True
+        temperature: float = 1.0,
+        stochastic: bool = True
     ):
-        node_feats, children = logical_tree
-        device = node_feats.device
-
-        # ---- 1. Compute per-node logical embeddings ----
-        x = self.logical_encoder.conv1(node_feats, children)
-        x = F.relu(self.logical_encoder.norm1(x))
-
-        x = self.logical_encoder.conv2(x, children)
-        x = F.relu(self.logical_encoder.norm2(x))
-        # x shape: [N, hidden_dim]
-
-        N = x.size(0)
-
-        # ---- 2. Prepare latent vector ----
-        if z.dim() == 2:
-            z = z.squeeze(0)
-
-        # Expand z to all nodes
-        z_expanded = z.unsqueeze(0).expand(N, -1)
-
-        # ---- 3. Concatenate and compute logits ----
-        xz = torch.cat([x, z_expanded], dim=-1)
-
-        logits = self.node_mlp(xz)  # [N, num_phys_ops]
-
+        logits = self.decoder(logical_tree, z)
         # ---- 4. Temperature scaling ----
         logits = logits / temperature
 
         if stochastic:
             probs = F.softmax(logits, dim=-1)
+            return probs
+            """
             dist = torch.distributions.Categorical(probs)
             phys_labels = dist.sample()  # [N]
+            """
         else:
             phys_labels = torch.argmax(logits, dim=-1)
 

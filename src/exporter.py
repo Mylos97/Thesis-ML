@@ -25,7 +25,7 @@ def export_model(model, x, target, model_name) -> None:
     if isinstance(model, BetaCVAE):
         torch.onnx.export(
             model,
-            args=(x, target),
+            args=(x, target.to('cpu')),
             f=model_name,
             export_params=True,
             opset_version=20,

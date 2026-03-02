@@ -254,7 +254,6 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
-
         model = SingleTaskGP(
             #train_X=normalize(train_x, bounds),
             train_X=train_x,

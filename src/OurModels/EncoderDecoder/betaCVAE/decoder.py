@@ -29,7 +29,7 @@ class TreeDecoder(nn.Module):
         # Broadcast latent to each node
         z_expanded = z.unsqueeze(2).expand(-1, -1, x.size(2))
 
-        xz = torch.cat([x, z_expanded], dim=1)
+        xz = torch.cat([x.float(), z_expanded.float()], dim=1)
         xz = xz.permute(0, 2, 1)
 
         logits = self.node_mlp(xz)

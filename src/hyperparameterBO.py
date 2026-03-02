@@ -29,8 +29,8 @@ def do_hyperparameter_BO(
     best_parameters=None
     ):
     def train_evaluate(params):
-        #batch_size = params.get('batch_size', 32)
-        batch_size = 1
+        batch_size = params.get('batch_size', 32)
+        #batch_size = 1
 
         train_loader, val_loader, test_loader = get_data_loaders(
             data=data,
