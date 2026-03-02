@@ -8,6 +8,8 @@ from OurModels.PairWise.model import Pairwise
 from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
+from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
+from OurModels.EncoderDecoder.betaCVAE.model import Loss as BetaCVAELoss
 
 from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str
 from hyperparameterBO import do_hyperparameter_BO
@@ -42,6 +44,14 @@ def main(args) -> None:
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
+    if args.model == 'bcvae':
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+
+        model_class = BetaCVAE
+        loss_function = BetaCVAELoss
+
     if args.model == "pairwise":
         data, in_dim, out_dim = load_pairwise_data(path=path, device=device)
         model_class = Pairwise
@@ -66,7 +76,7 @@ def main(args) -> None:
 
         weights = get_weights_of_model_by_path(args.model_path)
 
-        best_model, x = do_hyperparameter_BO(
+        best_model, x, target = do_hyperparameter_BO(
                 model_class=model_class,
                 data=data,
                 test_data=test_data,
@@ -91,11 +101,11 @@ def main(args) -> None:
             model_name = get_relative_path(model_name, "Models")
 
         export_model(
-            model=best_model, x=x, model_name=model_name
+            model=best_model, x=x, target=target, model_name=model_name
         )
 
     else:
-        best_model, x = do_hyperparameter_BO(
+        best_model, x, target = do_hyperparameter_BO(
                 model_class=model_class,
                 data=data,
                 test_data=test_data,
@@ -119,7 +129,7 @@ def main(args) -> None:
             model_name = get_relative_path(model_name, "Models")
 
         export_model(
-            model=best_model, x=x, model_name=model_name
+            model=best_model, x=x, target=target, model_name=model_name
         )
 
 

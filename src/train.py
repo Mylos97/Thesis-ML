@@ -8,6 +8,7 @@ from datetime import datetime
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 from annealing import Annealer
+from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
 
 def train(
     model_class,
@@ -28,9 +29,15 @@ def train(
     z_dim = parameters.get("z_dim", 128)
     weight_decay = parameters.get("weight_decay", 0.001) #bounds between 0, 0.1
     batch_size = parameters.get("batch_size" , 1)
-    model = model_class(
-        in_dim=in_dim, out_dim=out_dim, dropout_prob=dropout, z_dim=z_dim
-    )
+
+    if model_class == BetaCVAE:
+        model = model_class(
+            logical_dim=in_dim, physical_dim=out_dim, hidden_dim=128, latent_dim=z_dim, num_phys_ops=out_dim, beta=parameters.get('beta', 1.0)
+        )
+    else:
+        model = model_class(
+            in_dim=in_dim, out_dim=out_dim, dropout_prob=dropout, z_dim=z_dim
+        )
 
     if weights:
         set_weights(weights=weights, model=model, device=device)
@@ -59,17 +66,28 @@ def train(
 
         for tree, target in training_data_loader:
             torch.set_printoptions(profile="full")
-            prediction = model(tree)
-            log_target = torch.log(target + 1)
-            loss = loss_function(prediction, log_target.float())
-            #loss_accum += loss.item()
-            loss_accum += loss["loss"].item()
-            loss_accum = min(loss_accum, sys.maxsize)
-            #kld = annealing_agent(loss["kld"])
-            optimizer.zero_grad()
-            #(loss["loss"] + loss["kld"]).backward()
-            loss["loss"].backward()
-            #loss.backward()
+            if model_class == BetaCVAE:
+                #TODO: For now, BetaCVAE isn't batched
+                #This enumerate also doesn't go through all trees correctly
+                logical_plan = tree
+                physical_plan = target
+                logits, mu, logvar = model(logical_plan, physical_plan)
+                loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+                loss_accum = loss.item()
+                optimizer.zero_grad()
+                loss.backward()
+            else:
+                prediction = model(tree)
+                log_target = torch.log(target + 1)
+                loss = loss_function(prediction, log_target.float())
+                #loss_accum += loss.item()
+                loss_accum += loss["loss"].item()
+                loss_accum = min(loss_accum, sys.maxsize)
+                #kld = annealing_agent(loss["kld"])
+                optimizer.zero_grad()
+                #(loss["loss"] + loss["kld"]).backward()
+                loss["loss"].backward()
+                #loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
             annealing_agent.step()
@@ -107,15 +125,26 @@ def train(
     model.train()
 
     for tree, target in test_data_loader:
-        prediction = model(tree)
-        log_target = torch.log(target + 1)
-        loss = loss_function(prediction, log_target.float())
-        #test_loss_accum += loss.item()
-        test_loss_accum += loss["loss"].item()
-        test_loss_accum = min(test_loss_accum, sys.maxsize)
-        optimizer.zero_grad()
-        #loss.backward()
-        loss["loss"].backward()
+        if model_class == BetaCVAE:
+            #TODO: For now, BetaCVAE isn't batched
+            #This enumerate also doesn't go through all trees correctly
+            logical_plan = tree
+            physical_plan = target
+            logits, mu, logvar = model(logical_plan, physical_plan)
+            loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+            loss_accum = loss.item()
+            optimizer.zero_grad()
+            loss.backward()
+        else:
+            prediction = model(tree)
+            log_target = torch.log(target + 1)
+            loss = loss_function(prediction, log_target.float())
+            #test_loss_accum += loss.item()
+            test_loss_accum += loss["loss"].item()
+            test_loss_accum = min(test_loss_accum, sys.maxsize)
+            optimizer.zero_grad()
+            #loss.backward()
+            loss["loss"].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
         optimizer.step()
 
@@ -138,7 +167,7 @@ def train(
         )
         best_test_loss = test_loss["loss"]
 
-    return model, tree
+    return model, tree, target
 
 
 def evaluate(
@@ -155,19 +184,29 @@ def evaluate(
         model.training = True
 
     for tree, target in val_data_loader:
-        prediction = model(tree)
-        log_target = torch.log(target + 1)
-        loss = loss_function(prediction, log_target.float())
-        if math.isnan(loss['loss'].item()):
-        #if math.isnan(loss.item()):
-            val_loss = sys.maxsize
+        if isinstance(model, BetaCVAE):
+            #TODO: For now, BetaCVAE isn't batched
+            #This enumerate also doesn't go through all trees correctly
+            logical_plan = tree
+            physical_plan = target
+            logits, mu, logvar = model(logical_plan, physical_plan)
+            loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+            val_loss += loss.item()
+            loss.backward()
         else:
-            val_loss += min(loss["loss"].item(), sys.maxsize)
-            #val_loss += loss.item()
-            val_loss = min(val_loss, sys.maxsize)
-        loss["loss"].backward()
-        #loss.backward()
-        #val_kld += loss["kld"].item()
+            prediction = model(tree)
+            log_target = torch.log(target + 1)
+            loss = loss_function(prediction, log_target.float())
+            if math.isnan(loss['loss'].item()):
+            #if math.isnan(loss.item()):
+                val_loss = sys.maxsize
+            else:
+                val_loss += min(loss["loss"].item(), sys.maxsize)
+                #val_loss += loss.item()
+                val_loss = min(val_loss, sys.maxsize)
+            loss["loss"].backward()
+            #loss.backward()
+            #val_kld += loss["kld"].item()
 
     assert len(val_data_loader) != 0
     #val_loss /= len(val_data_loader)

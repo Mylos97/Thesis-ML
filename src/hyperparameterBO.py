@@ -8,6 +8,7 @@ from train import train, evaluate
 from ax.utils.notebook.plotting import render
 from OurModels.EncoderDecoder.bvae import BVAE
 from OurModels.EncoderDecoder.model import VAE
+from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
 
 
 def do_hyperparameter_BO(
@@ -28,7 +29,8 @@ def do_hyperparameter_BO(
     best_parameters=None
     ):
     def train_evaluate(params):
-        batch_size = params.get('batch_size', 32)
+        #batch_size = params.get('batch_size', 32)
+        batch_size = 1
 
         train_loader, val_loader, test_loader = get_data_loaders(
             data=data,
@@ -41,7 +43,7 @@ def do_hyperparameter_BO(
         print(f"Test data: {test_loader}")
         print(f"Val data: {val_loader}")
 
-        if model_class == BVAE:
+        if model_class == BVAE or model_class == BetaCVAE:
             l_function = loss_function(
                 beta=parameters.get('beta', 1.0),
             )
@@ -50,7 +52,7 @@ def do_hyperparameter_BO(
 
         print(f'Batch size: {batch_size}')
         print(f'Training batches: {len(train_loader)} Test batches: {len(test_loader)} Validation batches: {len(val_loader)} \n', flush=True)
-        model, _ = train(
+        model, _, _ = train(
             model_class=model_class,
             training_data_loader=train_loader,
             test_data_loader=test_loader,
@@ -111,7 +113,7 @@ def do_hyperparameter_BO(
     ]
 
 
-    if model_class == BVAE:
+    if model_class == BVAE or model_class == BetaCVAE:
         parameters.append({
             'name': 'beta',
             'type': 'range',
@@ -161,7 +163,7 @@ def do_hyperparameter_BO(
         best_parameters, _ = ax_client.get_best_parameters()
         print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
 
-    if best_parameters is not None and (model_class == BVAE or model_class == VAE):
+    if best_parameters is not None and (model_class == BVAE or model_class == VAE or model_class == BetaCVAE):
         batch_size = best_parameters.get('batch_size')
         samples_needed = batch_size-(batch_size%len(data))
         print("Starting batch generation ", batch_size, " lenght of data: ", len(data))
@@ -193,7 +195,7 @@ def do_hyperparameter_BO(
 
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
-    if model_class == BVAE:
+    if model_class == BVAE or model_class == BetaCVAE:
         l_function = loss_function(
             beta=best_parameters.get('beta', 1.0),
         )
@@ -201,7 +203,7 @@ def do_hyperparameter_BO(
         l_function = loss_function()
 
 
-    best_model, tree = train(
+    best_model, tree, target = train(
         model_class=model_class,
         training_data_loader=train_loader,
         test_data_loader=test_loader,
@@ -214,7 +216,7 @@ def do_hyperparameter_BO(
         epochs=epochs,
         weights=weights
     )
-    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device, batch_size=parameters[0].get("batch_size", 1))
+    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device, batch_size=parameters.get("batch_size", 1))
 
     # write best parameters to file
     if not is_retraining:
@@ -231,4 +233,4 @@ def do_hyperparameter_BO(
             print('Could not produce plots')
 
     print(f'Best model loss test set: {test_accuracy}', flush=True)
-    return best_model, tree
+    return best_model, tree, target
