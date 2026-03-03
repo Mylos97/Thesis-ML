@@ -40,7 +40,8 @@ class State:
         train_x,
         train_obj,
         state_dict,
-        best_values
+        best_values,
+        valid_x
     ):
         self.initial_latency = initial_latency
         self.ml_model = ml_model
@@ -51,6 +52,7 @@ class State:
         self.train_obj = train_obj
         self.state_dict = state_dict
         self.best_values = best_values
+        self.valid_values = valid_x
 
     def initialize_tr_state(self):
         self.length = 0.8
@@ -102,12 +104,13 @@ class State:
             improved_obj = max(new_obj) > max_prev
             obtained_validity = len(self.valid_values) == 0 # no previous valid values
 
+            # add all valid x's to state
+            for x in valid_x:
+                self.valid_values.append(x)
+                print(f"valid_values: {self.valid_values}")
+
             if improved_obj or obtained_validity:
                 print(f"new impr: {improved_obj} or new valid: {obtained_validity}")
-                # add all valid x's to state
-                for x in valid_x:
-                    self.valid_values.append(x)
-                    print(f"valid_values: {self.valid_values}")
 
                 self.success_counter += 1
                 self.failure_counter = 0

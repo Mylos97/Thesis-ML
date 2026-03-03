@@ -57,7 +57,7 @@ from LSBO.criteria import StoppingCriteria
 
 # Set to 30min (1800 seconds)
 TIMEOUT = float(60 * 180)
-PLAN_CACHE = set()
+PLAN_IMPROVEMENT_CACHE = {}
 EXECUTABLE_PLANS = set()
 VALID_X = set()
 best_plan_data = None
@@ -95,17 +95,18 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     NUM_RESTARTS = 10
     RAW_SAMPLES = 256
     MC_SAMPLES = 2048
-    initial_latency = TIMEOUT
+    initial_latency = 0
 
     bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6_000_000] * z_dim, [6_000_000] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
 
     def get_latencies(plans, duplicates: list) -> list[torch.Tensor]:
         global EXECUTABLE_PLANS
         global VALID_X
+        global initial_latency
         results = []
 
         for i, plan in enumerate(plans):
@@ -115,12 +116,13 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
                 latency = get_plan_latency(args, plan)
 
                 if len_executables_before < len(EXECUTABLE_PLANS): # plan was valid
-                    VALID_X.add(i)
+                    #VALID_X.add(i)
+                    if initial_latency == 0:
+                        initial_latency = latency
                 #latency = random.randrange(1,100000)
                 results.append(latency)
             else:
                 results.append(initial_latency)
-        print(results)
 
         return results
 
@@ -135,14 +137,25 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         for z in candidate_zs:
             node_feats, children = logical_plan
-            platform_choices = ML_model.sample(logical_plan, z)
+            phys_logits = ML_model.sample(logical_plan, z)
 
-            print(f"platform_choice: {platform_choices.transpose(0, 1)}")
-            model_results.append([platform_choices[0].transpose(0, 1).tolist(), logical_plan[1].tolist()[0]])
+            """
+            platform_choices = list(
+                map(
+                    lambda x: [int(v == max(x)) for v in x],
+                    phys_logits[0]
+                )
+            )
+
+            print(f"platform_choice: {platform_choices}")
+            """
+
+            print(f"Decoded choice: {phys_logits[0].transpose(0, 1)}")
+
+            model_results.append([phys_logits[0].transpose(0, 1).tolist(), logical_plan[1].tolist()[0]])
 
 
         print(f"Generated {len(model_results)} new plans")
-
 
         latencies = get_latencies(model_results, duplicate_plans)
 
@@ -153,11 +166,9 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
     def get_improvements_from_latencies(latencies: list) -> list:
         global initial_latency
-        """
+        # No executable plan found yet - thus no improvement
         if initial_latency == 0:
-            print(f"Set initial latency: {min(latencies)}")
-            return min(latencies)
-        """
+            return [0] * len(latencies)
 
         improvements = list(map(lambda latency: initial_latency - latency, latencies))
 
@@ -226,6 +237,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     def optimize_acqf_and_get_observation(acq_func, args):
         global initial_latency
 
+        """
         x_center = state.train_x[state.train_obj.argmax(), :].clone()
         x_range = state.train_x.max().item() - state.train_x.min().item()
         x_range = max(x_range, 8.0)
@@ -237,6 +249,10 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         tr_ub = x_center + weights * state.length / 2.0
 
         new_bounds = torch.stack([tr_lb, tr_ub])
+
+        print(f"New bounds: {new_bounds}")
+        """
+        new_bounds = bounds
 
         if args.acqf == "ei":
             # optimize
@@ -292,7 +308,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             state_dict = None
             model_results = []
 
-        state = State(initial_latency, ML_model, None, model_results, logical_plan, train_x.squeeze(1), train_obj, state_dict, best_observed)
+        state = State(initial_latency, ML_model, None, model_results, logical_plan, train_x.squeeze(1), train_obj, state_dict, best_observed, VALID_X)
         VALID_X = set()
 
     criteria = StoppingCriteria(args.time * 60, args.improvement, initial_latency, args.steps)
@@ -391,9 +407,10 @@ def run_lsbo(input, args, state: State = None):
 
 def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
-    global PLAN_CACHE
+    global PLAN_IMPROVEMENT_CACHE
     global PLAN_SIZE
     global EXECUTABLE_PLANS
+    global VALID_X
     global best_plan_data
     global initial_latency
 
@@ -443,7 +460,7 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         PLAN_SIZE = counter
 
-        if plan_out in PLAN_CACHE:
+        if plan_out in PLAN_IMPROVEMENT_CACHE:
             print(f"[{datetime.datetime.now()}] Seen this plan before")
             print(f"[{datetime.datetime.now()}] Closing sock_file")
             sock_file.close()
@@ -458,11 +475,11 @@ def get_plan_latency(args, sampled_plan) -> float:
             process.wait(timeout=5)
             print(f"[{datetime.datetime.now()}] process.wait finished")
 
-            return initial_latency
+            return PLAN_IMPROVEMENT_CACHE[plan_out]
 
         print(f"[{datetime.datetime.now()}] Sampling new plan")
 
-        PLAN_CACHE.add(plan_out)
+        #PLAN_CACHE.add(plan_out)
 
         print(f"[{datetime.datetime.now()}] Starting execution with {TIMEOUT} seconds max.")
 
@@ -503,6 +520,8 @@ def get_plan_latency(args, sampled_plan) -> float:
             best_plan_data = input, picked_plan, exec_time_str
 
         print(exec_time)
+        PLAN_IMPROVEMENT_CACHE[plan_out] = exec_time
+        VALID_X.add(plan_out)
 
         return exec_time
 
