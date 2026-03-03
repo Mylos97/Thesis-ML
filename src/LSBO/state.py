@@ -52,7 +52,9 @@ class State:
         self.train_obj = train_obj
         self.state_dict = state_dict
         self.best_values = best_values
-        self.valid_values = valid_x
+        self.valid_values = list(valid_x)
+
+        print(f"unique plans: {len(self.valid_values)}")
 
     def initialize_tr_state(self):
         self.length = 0.8
@@ -89,6 +91,8 @@ class State:
         points evaluated on the optimization step.
         """
 
+        for x in valid_x:
+            self.valid_values.append(x)
         #Determine which candidates produced valid plans
         valid_new_x = [t for i, t in enumerate(new_x) if i in valid_x]
         print(f"Valid_x: {valid_x}")
@@ -125,6 +129,7 @@ class State:
 
     def update(self, new_x, new_obj, state_dict, valid_x):
         # update optimization state
+        print(f"adding {len(valid_x)} unique plans")
         self.update_opt_state(new_x, new_obj, valid_x)
 
          # update training points

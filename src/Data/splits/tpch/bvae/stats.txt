@@ -1,2 +1,3 @@
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/10.sql:2:45136:45136
 /var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/10.sql:3:13968:13968
+/var/www/html/wayang-plugins/wayang-ml/src/main/resources/benchmarks/job/light/10.sql:4:36971:36971

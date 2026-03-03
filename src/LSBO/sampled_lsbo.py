@@ -97,9 +97,9 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     MC_SAMPLES = 2048
     initial_latency = 0
 
-    bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-6_000_000] * z_dim, [6_000_000] * z_dim], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6_000_000] * z_dim, [6_000_000] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
 
@@ -207,7 +207,6 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
 
-        print(train_x.shape)
         model = SingleTaskGP(
             #train_X=normalize(train_x, bounds),
             train_X=train_x.squeeze(1),
@@ -223,9 +222,9 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         """
         model = SaasFullyBayesianSingleTaskGP(
-            train_x.to(device),
+            train_x.squeeze(1).to(device),
             train_obj.to(device),
-            input_transform=Normalize(d=d),
+            input_transform=Normalize(d=z_dim),
             outcome_transform=Standardize(m=1)
         )
         model.to(device)
@@ -285,14 +284,13 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
                 # Sampling entirely failed, return first candidate
                 candidates = X_cand[0].unsqueeze(0)
         elif args.acqf == "random":
-            candidates = unnormalize(
-                torch.rand(10, z_dim, device=device, dtype=dtype),
-                bounds=new_bounds)
+            print("Using random acqf")
+
+            candidates = torch.randn(10, 1, z_dim, device=device, dtype=dtype)
 
         print(f"[{datetime.datetime.now()}] Finished gen candidates")
         new_x = unnormalize(candidates.detach(), bounds=bounds)
-        candidates = new_x.unsqueeze(1)
-        print(candidates.shape)
+        #candidates = new_x.unsqueeze(1)
         print(f"[{datetime.datetime.now()}] Starting objective_function on candidates")
         new_obj = objective_function(logical_plan, candidates).unsqueeze(-1)
         print(f"[{datetime.datetime.now()}] Finished objective_function on candidates")
@@ -499,6 +497,8 @@ def get_plan_latency(args, sampled_plan) -> float:
             print(f"[{datetime.datetime.now()}] process.wait finished")
 
             exec_time = int(TIMEOUT * 100000)
+            print("Executable plan to valid_x")
+            VALID_X.add(plan_out)
             return exec_time
 
         input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
@@ -522,6 +522,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         print(exec_time)
         PLAN_IMPROVEMENT_CACHE[plan_out] = exec_time
         VALID_X.add(plan_out)
+        print("Executable plan to valid_x")
 
         return exec_time
 
