@@ -447,3 +447,23 @@ class Beta_Vae_Loss(torch.nn.Module):
             loss = recon_loss + self.gamma * self.kld_weight * (kld_loss - C).abs()
 
             return {'loss': loss, 'recon_loss': recon_loss, 'kld': kld_loss, 'beta': self.beta}
+
+
+class Classifier_Loss(torch.nn.Module):
+    def __init__(self):
+        super(Classifier_Loss, self).__init__()
+
+    def forward(self, prediction, target):
+        pred_logits = prediction[0]
+        recon_loss = F.cross_entropy(pred_logits, target)
+        
+        pred_classes = pred_logits.argmax(dim=1)
+
+        
+        pred_classes = pred_logits.argmax(dim=1)
+        unique, counts = pred_classes.unique(return_counts=True)
+        print(dict(zip(unique.tolist(), counts.tolist())))
+
+        print("Non-zero predictions:", (pred_classes != 0).float().mean().item())
+        print("Non-zero target:", (target != 0).float().mean().item())
+        return {'loss': recon_loss}

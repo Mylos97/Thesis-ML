@@ -4,12 +4,13 @@ import torch.onnx
 import ast
 import json
 from exporter import export_model
+from OurModels.Classifier.TcnnClassifier import TcnnClassifier
 from OurModels.PairWise.model import Pairwise
 from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 
-from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str
+from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str, Classifier_Loss
 from hyperparameterBO import do_hyperparameter_BO
 
 
@@ -33,6 +34,14 @@ def main(args) -> None:
         model_class = VAE
         data, in_dim, out_dim = load_autoencoder_data(path=path, retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         loss_function = torch.nn.CrossEntropyLoss
+
+    if args.model == "classifier":
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+
+        model_class = TcnnClassifier
+        loss_function = Classifier_Loss
 
     if args.model == 'bvae':
         data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
