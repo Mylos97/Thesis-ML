@@ -73,7 +73,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     global VALID_X
 
     print('Running latent space Bayesian Optimization', flush=True)
-    dtype = torch.float64
+    dtype = torch.float32
     latent_target = None
 
     """
@@ -97,9 +97,9 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     MC_SAMPLES = 2048
     initial_latency = 0
 
-    #bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
-    bounds = torch.tensor([[-6_000_000] * z_dim, [6_000_000] * z_dim], device=device, dtype=dtype)
+    bounds = torch.tensor([[-10] * z_dim, [10] * z_dim], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-1000] * z_dim, [1000] * z_dim], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6_000_000] * z_dim, [6_000_000] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
 
@@ -150,7 +150,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             print(f"platform_choice: {platform_choices}")
             """
 
-            print(f"Decoded choice: {phys_logits[0].transpose(0, 1)}")
+            #print(f"Decoded choice: {phys_logits[0].transpose(0, 1)}")
 
             model_results.append([phys_logits[0].transpose(0, 1).tolist(), logical_plan[1].tolist()[0]])
 
@@ -236,8 +236,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     def optimize_acqf_and_get_observation(acq_func, args):
         global initial_latency
 
-        """
         x_center = state.train_x[state.train_obj.argmax(), :].clone()
+        """
         x_range = state.train_x.max().item() - state.train_x.min().item()
         x_range = max(x_range, 8.0)
         weights = torch.ones_like(x_center)
@@ -246,10 +246,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         #tr_ub = x_center + weights
         tr_lb = x_center - weights * state.length / 2.0
         tr_ub = x_center + weights * state.length / 2.0
-
         new_bounds = torch.stack([tr_lb, tr_ub])
-
-        print(f"New bounds: {new_bounds}")
         """
         new_bounds = bounds
 
@@ -263,7 +260,12 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
                 num_restarts=NUM_RESTARTS,
                 raw_samples=RAW_SAMPLES,
             )
+            candidates = candidates.unsqueeze(1)
+
         elif args.acqf == "ts":
+            tr_ub = torch.tensor([-10] * z_dim, device=device, dtype=dtype)
+            tr_lb = torch.tensor([10] * z_dim, device=device, dtype=dtype)
+
             sobol = SobolEngine(args.zdim, scramble=True)
             pert = sobol.draw(10).to(dtype=dtype).to(device)
             pert = tr_lb + (tr_ub - tr_lb) * pert
@@ -279,10 +281,13 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             X_cand[mask] = pert[mask]
             try:
                 with torch.no_grad():
-                    candidates = acqf(X_cand, num_samples=10)
+                    candidates = acqf(X_cand, num_samples=10).unsqueeze(1)
             except:  # noqa: E722
                 # Sampling entirely failed, return first candidate
-                candidates = X_cand[0].unsqueeze(0)
+                print("Failed sampling")
+                candidates = X_cand[0]
+                #.unsqueeze(0)
+                candidates = candidates.unsqueeze(0).unsqueeze(0)
         elif args.acqf == "random":
             print("Using random acqf")
 
@@ -306,7 +311,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             state_dict = None
             model_results = []
 
-        state = State(initial_latency, ML_model, None, model_results, logical_plan, train_x.squeeze(1), train_obj, state_dict, best_observed, VALID_X)
+        state = State(initial_latency, ML_model, model_results, logical_plan, train_x.squeeze(1), train_obj, state_dict, best_observed, VALID_X)
         VALID_X = set()
 
     criteria = StoppingCriteria(args.time * 60, args.improvement, initial_latency, args.steps)
@@ -314,7 +319,10 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     criteria.start_timer()
 
     while not criteria.is_met():
+        # Update the surrogate model
+        state.update_surrogate_model()
 
+        """
         model = get_fitted_model(
             state.train_x,
             state.train_obj,
@@ -323,22 +331,23 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         print("Overwriting state")
         state.update_model(model)
+        """
 
         print(f"Best f: {state.train_obj.max()}")
 
         if args.acqf == "ei":
             acqf = qLogExpectedImprovement(
-                model=model,
+                model=state.model,
                 best_f=state.train_obj.max()
             )
         elif args.acqf == "ts":
-            acqf = MaxPosteriorSampling(model=model, replacement=False,)
+            acqf = MaxPosteriorSampling(model=state.model, replacement=False,)
         elif args.acqf == "random":
             acqf = "random"
 
 
         new_x, new_obj = optimize_acqf_and_get_observation(acqf, args)
-        state.update(new_x.squeeze(1), new_obj, model.state_dict(), VALID_X)
+        state.update(new_x.squeeze(1), new_obj, VALID_X)
         # reset the global set
         VALID_X = set()
 

@@ -19,6 +19,7 @@ import argparse
 
 from LSBO.state import State
 from LSBO.sampled_lsbo import request_wayang_plan
+#from LSBO.lsbo import request_wayang_plan
 from main import main as retrain
 
 # Default should be 30 min, set it high for long running queries
@@ -73,7 +74,7 @@ if __name__ == '__main__':
     parser.add_argument('--time', type=int, default=1)
     parser.add_argument('--improvement', type=float, default=25)
     parser.add_argument('--steps', type=int, default=0)
-    parser.add_argument('--acqf', type=str, default='random')
+    parser.add_argument('--acqf', type=str, default='ei')
     args = parser.parse_args()
 
     main(args)

@@ -15,7 +15,13 @@
 # limitations under the License.
 #
 import torch
+from torch.utils.data import DataLoader, TensorDataset
 import math
+import gpytorch
+from .sampling.gaussian import GPModel
+from gpytorch.mlls import PredictiveLogLikelihood
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class State:
 
@@ -29,12 +35,14 @@ class State:
     best_value: float = -float("inf")
     restart_triggered: bool = False
     valid_values: list = list()
+    batch_size: int = 10
+    initial_model_training_done: bool = False
+    learning_rate = 0.01
 
     def __init__(
         self,
         initial_latency,
         ml_model,
-        model,
         model_results,
         tree,
         train_x,
@@ -45,14 +53,13 @@ class State:
     ):
         self.initial_latency = initial_latency
         self.ml_model = ml_model
-        self.model = model
         self.model_results = model_results
         self.tree = tree
         self.train_x = train_x
         self.train_obj = train_obj
-        self.state_dict = state_dict
         self.best_values = best_values
         self.valid_values = list(valid_x)
+        self.initialize_surrogate_model()
 
         print(f"unique plans: {len(self.valid_values)}")
 
@@ -61,6 +68,81 @@ class State:
         self.failure_counter = 0
         self.success_counter = 0
         self.restart_triggered = False
+
+    def initialize_surrogate_model(self):
+        likelihood = gpytorch.likelihoods.GaussianLikelihood().to(device)
+
+        self.model = GPModel(
+            inducing_points=self.train_x.float(),
+            likelihood=likelihood
+        ).to(device)
+
+        self.model = self.model.eval()
+        self.model = self.model.to(device)
+        #self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.train_x.size(-2))
+        self.mll = gpytorch.mlls.VariationalELBO(self.model.likelihood, self.model, num_data=self.train_x.size(-2))
+
+    def update_surrogate_model(self):
+        # GP model has not been trained - use all data
+        if not self.initial_model_training_done:
+            train_x = self.train_x
+            train_y = self.train_obj
+            # TODO: pick reasonable nr of epochs
+            n_epochs = 20
+
+        # Otherwise, train only on recently obtained data
+        else:
+            train_x = self.train_x[-self.batch_size :]
+            train_y = self.train_obj[-self.batch_size :].squeeze(-1)
+
+            # TODO: pick reasonable nr of epochs
+            n_epochs = 20
+
+        try:
+            # Actual training loop of surrogate model
+            self.model = self.model.train()
+
+            train_batch_size = min(len(train_y), 128)
+            optimizer = torch.optim.Adam([{"params": self.model.parameters(), "lr": self.learning_rate}], lr=self.learning_rate)
+
+            # Dataloading
+            train_dataset = TensorDataset(train_x, train_y)
+            train_loader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
+
+            for e in range(n_epochs):
+                batch_n = 0
+                for data in train_loader:
+                    batch_n += 1
+                    inputs = data[0]
+                    scores = data[1]
+                    if len(inputs) == 1:
+                        # NOTE: hack to handle case with only one training data point
+                        # concatenate to repeat the same point twice
+                        # needed bc single piont causes bug in mll w/ censored GP
+                        # todo later: fix this bug so hack isn't needed
+                        inputs = torch.cat((inputs, inputs))
+                        scores = torch.cat((scores, scores))
+                    output = model(inputs.to(device))
+                    loss = -mll(output, scores.to(device))
+                    if loss.isfinite().item():
+                        optimizer.zero_grad()
+                        loss.backward()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        optimizer.step()
+                    else:
+                        pass
+
+            self.model = self.model.eval()
+            self.model = self.model.to(device)
+            self.initial_model_training_done = True
+        except:
+                  # Sometimes due to unstable training/ inf loss, we get
+            #   errors where model params become nan, in this case we want
+            #   to re-init the model on all data
+            self.initialize_surrogate_model()
+            self.initial_model_training_done = False
+            self.learning_rate = self.learning_rate / 2
+
 
     def update_tr_length(self):
         # Update the length of the trust region according to
@@ -127,7 +209,7 @@ class State:
         self.update_tr_length()
 
 
-    def update(self, new_x, new_obj, state_dict, valid_x):
+    def update(self, new_x, new_obj, valid_x):
         # update optimization state
         print(f"adding {len(valid_x)} unique plans")
         self.update_opt_state(new_x, new_obj, valid_x)
@@ -139,8 +221,6 @@ class State:
         # update progress
         best_value = self.train_obj.max().item()
         self.best_values.append(best_value)
-
-        self.state_dict = state_dict
 
 
     def update_model(self, model):

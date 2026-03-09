@@ -26,7 +26,8 @@ def train(
     lr = parameters.get("lr", 0.001)
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
-    z_dim = parameters.get("z_dim", 128)
+    #z_dim = parameters.get("z_dim", 128)
+    z_dim = 2
     weight_decay = parameters.get("weight_decay", 0.001) #bounds between 0, 0.1
     batch_size = parameters.get("batch_size" , 1)
 

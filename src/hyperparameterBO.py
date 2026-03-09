@@ -122,6 +122,7 @@ def do_hyperparameter_BO(
             "log_scale": False,
         })
 
+        """
         parameters.append({
             'name': 'z_dim',
             'type': 'range',
@@ -130,6 +131,7 @@ def do_hyperparameter_BO(
             'is_ordered': True,
             'sort_values' : True
         })
+        """
 
         parameters.append({
             'name': 'weight_decay',
