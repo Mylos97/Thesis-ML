@@ -41,17 +41,15 @@ class State:
 
     def __init__(
         self,
-        initial_latency,
         ml_model,
         model_results,
         tree,
         train_x,
         train_obj,
-        state_dict,
         best_values,
-        valid_x
+        valid_x,
+        batch_size
     ):
-        self.initial_latency = initial_latency
         self.ml_model = ml_model
         self.model_results = model_results
         self.tree = tree
@@ -59,6 +57,7 @@ class State:
         self.train_obj = train_obj
         self.best_values = best_values
         self.valid_values = list(valid_x)
+        self.batch_size = batch_size
         self.initialize_surrogate_model()
 
         print(f"unique plans: {len(self.valid_values)}")
@@ -79,8 +78,8 @@ class State:
 
         self.model = self.model.eval()
         self.model = self.model.to(device)
-        #self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.train_x.size(-2))
-        self.mll = gpytorch.mlls.VariationalELBO(self.model.likelihood, self.model, num_data=self.train_x.size(-2))
+        self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.train_x.size(-2))
+        #self.mll = gpytorch.mlls.VariationalELBO(self.model.likelihood, self.model, num_data=self.train_x.size(-2))
 
     def update_surrogate_model(self):
         # GP model has not been trained - use all data

@@ -62,8 +62,7 @@ EXECUTABLE_PLANS = set()
 VALID_X = set()
 best_plan_data = None
 z_dim = 31
-distinct_choices = []
-PLAN_SIZE = 0
+INVALID_PENALTY = 1e6
 
 seed = 42
 torch.manual_seed(seed)
@@ -91,7 +90,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     """
 
     #N_BATCH = 100
-    BATCH_SIZE = 1
+    BATCH_SIZE = 25
     NUM_RESTARTS = 10
     RAW_SAMPLES = 256
     MC_SAMPLES = 2048
@@ -103,92 +102,33 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
 
-    def get_latencies(plans, duplicates: list) -> list[torch.Tensor]:
-        global EXECUTABLE_PLANS
-        global VALID_X
-        global initial_latency
+    def get_latencies(plans) -> list[torch.Tensor]:
         results = []
 
         for i, plan in enumerate(plans):
-            #if plan is not None:
-            len_executables_before = len(EXECUTABLE_PLANS)
-            if plan not in duplicates:
-                latency = get_plan_latency(args, plan)
-
-                if len_executables_before < len(EXECUTABLE_PLANS): # plan was valid
-                    #VALID_X.add(i)
-                    if initial_latency == 0:
-                        initial_latency = latency
-                #latency = random.randrange(1,100000)
-                results.append(latency)
-            else:
-                results.append(initial_latency)
+            latency = get_plan_latency(args, plan)
+            results.append(latency)
 
         return results
 
     def objective_function(logical_plan, candidate_zs):
-        global distinct_choices
-        global PLAN_SIZE
-
-        duplicate_plans = []
         model_results = []
-
-        no_distinct_plans_before = len(distinct_choices)
 
         for z in candidate_zs:
             node_feats, children = logical_plan
             phys_logits = ML_model.sample(logical_plan, z)
 
-            """
-            platform_choices = list(
-                map(
-                    lambda x: [int(v == max(x)) for v in x],
-                    phys_logits[0]
-                )
-            )
-
-            print(f"platform_choice: {platform_choices}")
-            """
-
-            #print(f"Decoded choice: {phys_logits[0].transpose(0, 1)}")
-
             model_results.append([phys_logits[0].transpose(0, 1).tolist(), logical_plan[1].tolist()[0]])
-
 
         print(f"Generated {len(model_results)} new plans")
 
-        latencies = get_latencies(model_results, duplicate_plans)
+        latencies = get_latencies(model_results)
 
-        improvements = get_improvements_from_latencies(latencies)
-        print(f"Improvements: {improvements}")
+        # objective if f(z) = -latency
+        train_objs = list(map(lambda x: -x, latencies))
+        print(f"f(z)'s: {train_objs}")
 
-        return torch.tensor(improvements, dtype=dtype)
-
-    def get_improvements_from_latencies(latencies: list) -> list:
-        global initial_latency
-        # No executable plan found yet - thus no improvement
-        if initial_latency == 0:
-            return [0] * len(latencies)
-
-        improvements = list(map(lambda latency: initial_latency - latency, latencies))
-
-        def get_impr(improvement: float) -> float:
-            if improvement > 0:
-
-                return math.log(improvement)
-            elif improvement < 0:
-
-                return -1 * math.log(abs(improvement))
-            else:
-
-                return 0
-
-        return list(
-                map(lambda improvement: get_impr(improvement),
-                    improvements
-                )
-        )
-
+        return torch.tensor(train_objs, dtype=dtype)
 
     def gen_initial_data(logical_plan, n: int = 10):
         train_x = unnormalize(
@@ -198,43 +138,12 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         train_obj = objective_function(logical_plan, train_x).unsqueeze(-1)
         best_observed_value = train_obj.max().item()
 
-        #initial_latency = best_observed_value
         print(f"Finished generating {n} initial samples")
-        print(f"Initial latency: {initial_latency}")
 
         return train_x, train_obj, best_observed_value
 
-
-    def get_fitted_model(train_x, train_obj, state_dict=None):
-
-        model = SingleTaskGP(
-            #train_X=normalize(train_x, bounds),
-            train_X=train_x.squeeze(1),
-            train_Y=train_obj,
-            input_transform=Normalize(d=z_dim),
-            outcome_transform=Standardize(m=1)
-        )
-        if state_dict is not None:
-            model.load_state_dict(state_dict)
-        mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        mll.to(train_x)
-        fit_gpytorch_mll(mll)
-
-        """
-        model = SaasFullyBayesianSingleTaskGP(
-            train_x.squeeze(1).to(device),
-            train_obj.to(device),
-            input_transform=Normalize(d=z_dim),
-            outcome_transform=Standardize(m=1)
-        )
-        model.to(device)
-        fit_fully_bayesian_model_nuts(model)
-        """
-
-        return model
-
     def optimize_acqf_and_get_observation(acq_func, args):
-        global initial_latency
+        global VALID_X
 
         x_center = state.train_x[state.train_obj.argmax(), :].clone()
         """
@@ -256,7 +165,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             candidates, expected = optimize_acqf(
                 acq_function=acq_func,
                 bounds=new_bounds,
-                q=10,
+                q=state.batch_size,
                 num_restarts=NUM_RESTARTS,
                 raw_samples=RAW_SAMPLES,
             )
@@ -267,21 +176,21 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             tr_lb = torch.tensor([10] * z_dim, device=device, dtype=dtype)
 
             sobol = SobolEngine(args.zdim, scramble=True)
-            pert = sobol.draw(10).to(dtype=dtype).to(device)
+            pert = sobol.draw(state.batch_size).to(dtype=dtype).to(device)
             pert = tr_lb + (tr_ub - tr_lb) * pert
 
             # Create a perturbation mask
             prob_perturb = min(20.0 / args.zdim, 1.0)
-            mask = torch.rand(10, args.zdim, dtype=dtype, device=device) <= prob_perturb
+            mask = torch.rand(state.batch_size, args.zdim, dtype=dtype, device=device) <= prob_perturb
             ind = torch.where(mask.sum(dim=1) == 0)[0]
             mask[ind, torch.randint(0, args.zdim - 1, size=(len(ind),), device=device)] = 1
 
             # Create candidate points from the perturbations and the mask
-            X_cand = x_center.expand(10, args.zdim).clone()
+            X_cand = x_center.expand(state.batch_size, args.zdim).clone()
             X_cand[mask] = pert[mask]
             try:
                 with torch.no_grad():
-                    candidates = acqf(X_cand, num_samples=10).unsqueeze(1)
+                    candidates = acqf(X_cand, num_samples=state.batch_size).unsqueeze(1)
             except:  # noqa: E722
                 # Sampling entirely failed, return first candidate
                 print("Failed sampling")
@@ -291,7 +200,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         elif args.acqf == "random":
             print("Using random acqf")
 
-            candidates = torch.randn(10, 1, z_dim, device=device, dtype=dtype)
+            candidates = torch.randn(state.batch_size, 1, z_dim, device=device, dtype=dtype)
 
         print(f"[{datetime.datetime.now()}] Finished gen candidates")
         new_x = unnormalize(candidates.detach(), bounds=bounds)
@@ -306,12 +215,22 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         best_observed = []
 
         for logical_plan, target in plan:
-            train_x, train_obj, best_value = gen_initial_data(logical_plan)
+            train_x, train_obj, best_value = gen_initial_data(logical_plan, BATCH_SIZE)
             best_observed.append(best_value)
             state_dict = None
             model_results = []
 
-        state = State(initial_latency, ML_model, model_results, logical_plan, train_x.squeeze(1), train_obj, state_dict, best_observed, VALID_X)
+        state = State(
+            ml_model=ML_model,
+            model_results=model_results,
+            tree=logical_plan,
+            train_x=train_x.squeeze(1),
+            train_obj=train_obj,
+            best_values=best_observed,
+            valid_x=VALID_X,
+            batch_size=BATCH_SIZE
+        )
+
         VALID_X = set()
 
     criteria = StoppingCriteria(args.time * 60, args.improvement, initial_latency, args.steps)
@@ -321,17 +240,6 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     while not criteria.is_met():
         # Update the surrogate model
         state.update_surrogate_model()
-
-        """
-        model = get_fitted_model(
-            state.train_x,
-            state.train_obj,
-            state.state_dict,
-        )
-
-        print("Overwriting state")
-        state.update_model(model)
-        """
 
         print(f"Best f: {state.train_obj.max()}")
 
@@ -415,7 +323,6 @@ def run_lsbo(input, args, state: State = None):
 def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
     global PLAN_IMPROVEMENT_CACHE
-    global PLAN_SIZE
     global EXECUTABLE_PLANS
     global VALID_X
     global best_plan_data
@@ -465,8 +372,6 @@ def get_plan_latency(args, sampled_plan) -> float:
             elif plan_out != "":
                 break
 
-        PLAN_SIZE = counter
-
         if plan_out in PLAN_IMPROVEMENT_CACHE:
             print(f"[{datetime.datetime.now()}] Seen this plan before")
             print(f"[{datetime.datetime.now()}] Closing sock_file")
@@ -505,7 +410,8 @@ def get_plan_latency(args, sampled_plan) -> float:
             process.wait(timeout=5)
             print(f"[{datetime.datetime.now()}] process.wait finished")
 
-            exec_time = int(TIMEOUT * 100000)
+            #exec_time = int(TIMEOUT * 100000)
+            exec_time = INVALID_PENALTY
             print("Executable plan to valid_x")
             VALID_X.add(plan_out)
             return exec_time
@@ -517,9 +423,12 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         exec_time = int(exec_time_str)
 
-        if exec_time < sys.maxsize:
+        # Wayang gives -1 on non executable plans
+        if exec_time > 0:
             print("Add an executable plan")
             EXECUTABLE_PLANS.add(plan_out)
+        else:
+            exec_time = INVALID_PENALTY
 
         # Calculate the current set timeout in ms (convert from sec to ms)
         ms_timeout = TIMEOUT * 1000
@@ -554,7 +463,7 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         EXECUTABLE_PLANS.add(plan_out)
 
-        exec_time = initial_latency
+        exec_time = TIMEOUT
 
         return exec_time
 
@@ -562,7 +471,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         # In case the underlying process died
         print(f"Exception: {e}")
         print(process.stderr.read())
-        exec_time = int(TIMEOUT * 100000)
+        exec_time = INVALID_PENALTY
 
         return exec_time
 

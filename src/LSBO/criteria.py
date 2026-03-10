@@ -76,7 +76,8 @@ class StoppingCriteria:
                 self.__timer.cancel()
 
     def __improvement_rate(self, improvement: float) -> float:
-        return (math.pow(math.e, improvement) / self.__initial_latency) * 100
+        #return (math.pow(math.e, improvement) / self.__initial_latency) * 100
+        return 0
 
     def step(self, improvement: float, num_steps: int):
         self.steps_taken += num_steps
