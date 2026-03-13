@@ -9,6 +9,7 @@ from ax.utils.notebook.plotting import render
 from OurModels.EncoderDecoder.bvae import BVAE
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
+from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
 
 
 def do_hyperparameter_BO(
@@ -26,7 +27,9 @@ def do_hyperparameter_BO(
     test_data = None,
     val_data = None,
     weights:dict=None,
-    best_parameters=None
+    best_parameters=None,
+    mean=0,
+    std=0
     ):
     def train_evaluate(params):
         batch_size = params.get('batch_size', 32)
@@ -46,6 +49,11 @@ def do_hyperparameter_BO(
         if model_class == BVAE or model_class == BetaCVAE:
             l_function = loss_function(
                 beta=parameters.get('beta', 1.0),
+            )
+        elif model_class == CarbVAE:
+            l_function = loss_function(
+                beta=parameters.get('beta', 1.0),
+                gamma=parameters.get('gamma', 1.0)
             )
         else:
             l_function = loss_function()
@@ -117,12 +125,11 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [0.1, 10],
+            'bounds': [0.1, 5],
             'value_type': 'float',
             "log_scale": False,
         })
 
-        """
         parameters.append({
             'name': 'z_dim',
             'type': 'range',
@@ -131,7 +138,6 @@ def do_hyperparameter_BO(
             'is_ordered': True,
             'sort_values' : True
         })
-        """
 
         parameters.append({
             'name': 'weight_decay',
@@ -141,6 +147,39 @@ def do_hyperparameter_BO(
             "log_scale": False
         })
 
+    if model_class == CarbVAE:
+        parameters.append({
+            'name': 'beta',
+            'type': 'range',
+            'bounds': [0.1, 10],
+            'value_type': 'float',
+            "log_scale": False,
+        })
+
+        parameters.append({
+            'name': 'z_dim',
+            'type': 'range',
+            'bounds': [1, 128],
+            'value_type': 'int',
+            'is_ordered': True,
+            'sort_values' : True
+        })
+
+        parameters.append({
+            'name': 'weight_decay',
+            'type': 'range',
+            'bounds': [0, 0.1],
+            'value_type': 'float',
+            "log_scale": False
+        })
+
+        parameters.append({
+            'name': 'gamma',
+            'type': 'range',
+            'bounds': [1, 10],
+            'value_type': 'float',
+            "log_scale": False,
+        })
 
     torch.manual_seed(42)
 
@@ -165,7 +204,7 @@ def do_hyperparameter_BO(
         best_parameters, _ = ax_client.get_best_parameters()
         print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
 
-    if best_parameters is not None and (model_class == BVAE or model_class == VAE or model_class == BetaCVAE):
+    if best_parameters is not None and (model_class == BVAE or model_class == VAE or model_class == BetaCVAE or model_class == CarbVAE):
         batch_size = best_parameters.get('batch_size')
         samples_needed = batch_size-(batch_size%len(data))
         print("Starting batch generation ", batch_size, " lenght of data: ", len(data))
@@ -201,6 +240,11 @@ def do_hyperparameter_BO(
         l_function = loss_function(
             beta=best_parameters.get('beta', 1.0),
         )
+    elif model_class == CarbVAE:
+        l_function = loss_function(
+            beta=parameters.get('beta', 1.0),
+            gamma=parameters.get('gamma', 1.0)
+        )
     else:
         l_function = loss_function()
 
@@ -223,6 +267,10 @@ def do_hyperparameter_BO(
     # write best parameters to file
     if not is_retraining:
         with open(parameters_path, 'w') as file:
+            if model_class == CarbVAE:
+                best_parameters["mean"] = mean
+                best_parameters["std"] = std
+
             json.dump(best_parameters, file)
 
     if plots:

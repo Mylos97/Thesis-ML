@@ -9,6 +9,7 @@ from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 from annealing import Annealer
 from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
+from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
 
 def train(
     model_class,
@@ -26,14 +27,17 @@ def train(
     lr = parameters.get("lr", 0.001)
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
-    #z_dim = parameters.get("z_dim", 128)
-    z_dim = 2
+    z_dim = parameters.get("z_dim", 128)
     weight_decay = parameters.get("weight_decay", 0.001) #bounds between 0, 0.1
     batch_size = parameters.get("batch_size" , 1)
 
     if model_class == BetaCVAE:
         model = model_class(
             logical_dim=in_dim, physical_dim=out_dim, hidden_dim=128, latent_dim=z_dim, num_phys_ops=out_dim, beta=parameters.get('beta', 1.0)
+        )
+    elif model_class == CarbVAE:
+        model = model_class(
+            logical_dim=in_dim, physical_dim=out_dim, hidden_dim=128, latent_dim=z_dim, num_phys_ops=out_dim, beta=parameters.get('beta', 1.0), gamma=parameters.get('gamma', 1.0)
         )
     else:
         model = model_class(
@@ -65,36 +69,51 @@ def train(
         loss_accum = 0
         model.train()
 
-        for tree, target in training_data_loader:
-            torch.set_printoptions(profile="full")
-            if model_class == BetaCVAE:
-                #TODO: For now, BetaCVAE isn't batched
-                #This enumerate also doesn't go through all trees correctly
+        if model_class == CarbVAE:
+            for tree, target, latency in training_data_loader:
                 logical_plan = tree
                 physical_plan = target
-                logits, mu, logvar = model(logical_plan, physical_plan)
-                loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
-                loss_accum = loss.item()
+                logits, mu, logvar, z = model(logical_plan, physical_plan)
+                loss, recon, kl = loss_function(logits, physical_plan, mu, logvar, z, latency)
+                loss_accum += loss.item()
                 optimizer.zero_grad()
                 loss.backward()
-            else:
-                prediction = model(tree)
-                log_target = torch.log(target + 1)
-                loss = loss_function(prediction, log_target.float())
-                #loss_accum += loss.item()
-                loss_accum += loss["loss"].item()
-                loss_accum = min(loss_accum, sys.maxsize)
-                #kld = annealing_agent(loss["kld"])
-                optimizer.zero_grad()
-                #(loss["loss"] + loss["kld"]).backward()
-                loss["loss"].backward()
-                #loss.backward()
+
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
             optimizer.step()
             annealing_agent.step()
+        else:
+            for tree, target in training_data_loader:
+                torch.set_printoptions(profile="full")
+                if model_class == BetaCVAE:
+                    #TODO: For now, BetaCVAE isn't batched
+                    #This enumerate also doesn't go through all trees correctly
+                    logical_plan = tree
+                    physical_plan = target
+                    logits, mu, logvar = model(logical_plan, physical_plan)
+                    loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+                    loss_accum += loss.item()
+                    optimizer.zero_grad()
+                    loss.backward()
+                else:
+                    prediction = model(tree)
+                    log_target = torch.log(target + 1)
+                    loss = loss_function(prediction, log_target.float())
+                    #loss_accum += loss.item()
+                    loss_accum += loss["loss"].item()
+                    loss_accum = min(loss_accum, sys.maxsize)
+                    #kld = annealing_agent(loss["kld"])
+                    optimizer.zero_grad()
+                    #(loss["loss"] + loss["kld"]).backward()
+                    loss["loss"].backward()
+                    #loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
+                optimizer.step()
+                annealing_agent.step()
 
         assert len(training_data_loader) != 0
-        loss_accum /= batch_size
+        #loss_accum /= batch_size
+        loss_accum /= len(training_data_loader)
 
         print(f"Epoch  {epoch} training loss: {loss_accum}", flush=True)
         val_loss = evaluate(
@@ -125,32 +144,48 @@ def train(
     test_loss_accum = 0
     model.train()
 
-    for tree, target in test_data_loader:
-        if model_class == BetaCVAE:
-            #TODO: For now, BetaCVAE isn't batched
-            #This enumerate also doesn't go through all trees correctly
+    if model_class == CarbVAE:
+        for tree, target, latency in test_data_loader:
             logical_plan = tree
             physical_plan = target
-            logits, mu, logvar = model(logical_plan, physical_plan)
-            loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
-            loss_accum = loss.item()
+            logits, mu, logvar, z = model(logical_plan, physical_plan)
+            loss, recon, kl = loss_function(logits, physical_plan, mu, logvar, z, latency)
+            loss_accum += loss.item()
             optimizer.zero_grad()
             loss.backward()
-        else:
-            prediction = model(tree)
-            log_target = torch.log(target + 1)
-            loss = loss_function(prediction, log_target.float())
-            #test_loss_accum += loss.item()
-            test_loss_accum += loss["loss"].item()
-            test_loss_accum = min(test_loss_accum, sys.maxsize)
-            optimizer.zero_grad()
-            #loss.backward()
-            loss["loss"].backward()
+
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
         optimizer.step()
+        annealing_agent.step()
+    else:
+
+        for tree, target in test_data_loader:
+            if model_class == BetaCVAE:
+                #TODO: For now, BetaCVAE isn't batched
+                #This enumerate also doesn't go through all trees correctly
+                logical_plan = tree
+                physical_plan = target
+                logits, mu, logvar = model(logical_plan, physical_plan)
+                loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+                test_loss_accum += loss.item()
+                optimizer.zero_grad()
+                loss.backward()
+            else:
+                prediction = model(tree)
+                log_target = torch.log(target + 1)
+                loss = loss_function(prediction, log_target.float())
+                #test_loss_accum += loss.item()
+                test_loss_accum += loss["loss"].item()
+                test_loss_accum = min(test_loss_accum, sys.maxsize)
+                optimizer.zero_grad()
+                #loss.backward()
+                loss["loss"].backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
+            optimizer.step()
 
     assert len(test_data_loader) != 0
-    test_loss_accum /= batch_size
+    #test_loss_accum /= batch_size
+    test_loss_accum /= len(test_data_loader)
 
     print(f"Test loss: {test_loss_accum}", flush=True)
     test_loss = evaluate(
@@ -184,34 +219,44 @@ def evaluate(
     if isinstance(model, VAE) or isinstance(model, BVAE):
         model.training = True
 
-    for tree, target in val_data_loader:
-        if isinstance(model, BetaCVAE):
-            #TODO: For now, BetaCVAE isn't batched
-            #This enumerate also doesn't go through all trees correctly
+    if isinstance(model, CarbVAE):
+        for tree, target, latency in val_data_loader:
             logical_plan = tree
             physical_plan = target
-            logits, mu, logvar = model(logical_plan, physical_plan)
-            loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+            logits, mu, logvar, z = model(logical_plan, physical_plan)
+            loss, recon, kl = loss_function(logits, physical_plan, mu, logvar, z, latency)
             val_loss += loss.item()
             loss.backward()
-        else:
-            prediction = model(tree)
-            log_target = torch.log(target + 1)
-            loss = loss_function(prediction, log_target.float())
-            if math.isnan(loss['loss'].item()):
-            #if math.isnan(loss.item()):
-                val_loss = sys.maxsize
+    else:
+
+        for tree, target in val_data_loader:
+            if isinstance(model, BetaCVAE):
+                #TODO: For now, BetaCVAE isn't batched
+                #This enumerate also doesn't go through all trees correctly
+                logical_plan = tree
+                physical_plan = target
+                logits, mu, logvar = model(logical_plan, physical_plan)
+                loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+                val_loss += loss.item()
+                loss.backward()
             else:
-                val_loss += min(loss["loss"].item(), sys.maxsize)
-                #val_loss += loss.item()
-                val_loss = min(val_loss, sys.maxsize)
-            loss["loss"].backward()
-            #loss.backward()
-            #val_kld += loss["kld"].item()
+                prediction = model(tree)
+                log_target = torch.log(target + 1)
+                loss = loss_function(prediction, log_target.float())
+                if math.isnan(loss['loss'].item()):
+                #if math.isnan(loss.item()):
+                    val_loss = sys.maxsize
+                else:
+                    val_loss += min(loss["loss"].item(), sys.maxsize)
+                    #val_loss += loss.item()
+                    val_loss = min(val_loss, sys.maxsize)
+                loss["loss"].backward()
+                #loss.backward()
+                #val_kld += loss["kld"].item()
 
     assert len(val_data_loader) != 0
-    #val_loss /= len(val_data_loader)
-    val_loss /= batch_size
+    val_loss /= len(val_data_loader)
+    #val_loss /= batch_size
     #val_kld /= len(val_data_loader)
     val_loss = min(val_loss, sys.maxsize)
 

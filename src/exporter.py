@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import onnx
 import onnxruntime
 from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
+from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
 
 def export_model(model, x, target, model_name) -> None:
     amount_inputs = len(x)
@@ -22,7 +23,7 @@ def export_model(model, x, target, model_name) -> None:
     for i in range(len(x)):
         x[i] = x[i].to("cpu")
 
-    if isinstance(model, BetaCVAE):
+    if isinstance(model, BetaCVAE) or isinstance(model, CarbVAE):
         torch.onnx.export(
             model,
             args=(x, target.to('cpu')),

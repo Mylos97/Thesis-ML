@@ -52,6 +52,7 @@ from botorch.generation.gen import get_best_candidates, gen_candidates_torch
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
 from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
+from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
 from LSBO.criteria import StoppingCriteria
 
@@ -64,43 +65,29 @@ best_plan_data = None
 z_dim = 31
 INVALID_PENALTY = 1e6
 
+#N_BATCH = 100
+BATCH_SIZE = 25
+NUM_RESTARTS = 10
+RAW_SAMPLES = 256
+MC_SAMPLES = 2048
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+dtype = torch.float32
+
+
 seed = 42
 torch.manual_seed(seed)
 
 def latent_space_BO(ML_model, device, plan, args, state: State = None):
-    global initial_latency
     global VALID_X
 
     print('Running latent space Bayesian Optimization', flush=True)
-    dtype = torch.float32
-    latent_target = None
 
-    """
-    with torch.no_grad():
-        for tree,target in plan:
-            #print(f"Tree: {tree[0]}")
-            encoded_plan = ML_model.encoder(tree)
-            #softmaxed = ML_model.enc_softmax(encoded_plan[0])
-            latent_target = target
-        latent_vector = encoded_plan[0]
-        print(f"Tree shape : {tree[0].shape}")
-        indexes = encoded_plan[1]
-        print(f"Indexes python: {indexes.shape}")
-        d = latent_vector.shape[1]
-    """
-
-    #N_BATCH = 100
-    BATCH_SIZE = 25
-    NUM_RESTARTS = 10
-    RAW_SAMPLES = 256
-    MC_SAMPLES = 2048
-    initial_latency = 0
-
-    bounds = torch.tensor([[-10] * z_dim, [10] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-1000] * z_dim, [1000] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-6_000_000] * z_dim, [6_000_000] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
-    #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
+    latent_bounds = torch.tensor([[-4] * z_dim, [4] * z_dim], device=device, dtype=dtype)
+    norm_bounds = torch.stack([
+        torch.zeros(z_dim),
+        torch.ones(z_dim)
+    ]).to(device=device, dtype=dtype)
 
     def get_latencies(plans) -> list[torch.Tensor]:
         results = []
@@ -133,7 +120,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     def gen_initial_data(logical_plan, n: int = 10):
         train_x = unnormalize(
             torch.randn(n, 1, z_dim, device=device, dtype=dtype),
-            bounds=bounds)
+            bounds=latent_bounds)
 
         train_obj = objective_function(logical_plan, train_x).unsqueeze(-1)
         best_observed_value = train_obj.max().item()
@@ -157,14 +144,13 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         tr_ub = x_center + weights * state.length / 2.0
         new_bounds = torch.stack([tr_lb, tr_ub])
         """
-        new_bounds = bounds
 
         if args.acqf == "ei":
             # optimize
             print(f"[{datetime.datetime.now()}] Starting gen candidates")
             candidates, expected = optimize_acqf(
                 acq_function=acq_func,
-                bounds=new_bounds,
+                bounds=norm_bounds,
                 q=state.batch_size,
                 num_restarts=NUM_RESTARTS,
                 raw_samples=RAW_SAMPLES,
@@ -172,8 +158,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             candidates = candidates.unsqueeze(1)
 
         elif args.acqf == "ts":
-            tr_ub = torch.tensor([-10] * z_dim, device=device, dtype=dtype)
-            tr_lb = torch.tensor([10] * z_dim, device=device, dtype=dtype)
+            tr_ub = torch.tensor([0] * z_dim, device=device, dtype=dtype)
+            tr_lb = torch.tensor([1] * z_dim, device=device, dtype=dtype)
 
             sobol = SobolEngine(args.zdim, scramble=True)
             pert = sobol.draw(state.batch_size).to(dtype=dtype).to(device)
@@ -203,7 +189,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             candidates = torch.randn(state.batch_size, 1, z_dim, device=device, dtype=dtype)
 
         print(f"[{datetime.datetime.now()}] Finished gen candidates")
-        new_x = unnormalize(candidates.detach(), bounds=bounds)
+        new_x = unnormalize(candidates.detach(), bounds=latent_bounds)
+        #new_x = candidates.detach()
         #candidates = new_x.unsqueeze(1)
         print(f"[{datetime.datetime.now()}] Starting objective_function on candidates")
         new_obj = objective_function(logical_plan, candidates).unsqueeze(-1)
@@ -224,7 +211,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             ml_model=ML_model,
             model_results=model_results,
             tree=logical_plan,
-            train_x=train_x.squeeze(1),
+            train_x=normalize(train_x.squeeze(1), bounds=norm_bounds),
+            #train_x=train_x.squeeze(1),
             train_obj=train_obj,
             best_values=best_observed,
             valid_x=VALID_X,
@@ -233,7 +221,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         VALID_X = set()
 
-    criteria = StoppingCriteria(args.time * 60, args.improvement, initial_latency, args.steps)
+    criteria = StoppingCriteria(args.time * 60, args.improvement, args.steps)
 
     criteria.start_timer()
 
@@ -255,6 +243,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
 
         new_x, new_obj = optimize_acqf_and_get_observation(acqf, args)
+        #state.update(normalize(new_x.squeeze(1), bounds=norm_domain_bounds), new_obj, VALID_X)
         state.update(new_x.squeeze(1), new_obj, VALID_X)
         # reset the global set
         VALID_X = set()
@@ -284,7 +273,6 @@ def run_lsbo(input, args, state: State = None):
     model_path=args.model_path
     parameters_path=args.parameters
     z_dim = args.zdim
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
@@ -299,14 +287,26 @@ def run_lsbo(input, args, state: State = None):
         dropout = parameters.get("dropout", 0.1)
         weights = get_weights_of_model_by_path(model_path)
 
-        model = BetaCVAE(
-            logical_dim=in_dim,
-            physical_dim=out_dim,
-            hidden_dim=128,
-            latent_dim=z_dim,
-            num_phys_ops=out_dim,
-            beta=parameters.get('beta', 1.0)
-        )
+
+        if args.model == "carbvae":
+            model = CarbVAE(
+                logical_dim=in_dim,
+                physical_dim=out_dim,
+                hidden_dim=128,
+                latent_dim=z_dim,
+                num_phys_ops=out_dim,
+                beta=parameters.get('beta', 1.0),
+                gamma=parameters.get('gamma', 1.0)
+            )
+        else:
+            model = BetaCVAE(
+                logical_dim=in_dim,
+                physical_dim=out_dim,
+                hidden_dim=128,
+                latent_dim=z_dim,
+                num_phys_ops=out_dim,
+                beta=parameters.get('beta', 1.0)
+            )
 
         if weights:
             set_weights(weights=weights, model=model, device=device)
