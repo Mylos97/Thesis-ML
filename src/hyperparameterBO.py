@@ -115,7 +115,7 @@ def do_hyperparameter_BO(
         {
             'name': 'patience',
             'type': 'range',
-            'bounds': [5, 50],
+            'bounds': [25, 50],
             'value_type': 'int'
         },
     ]
@@ -148,27 +148,30 @@ def do_hyperparameter_BO(
         })
 
     if model_class == CarbVAE:
+        """
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [0.1, 10],
+            'bounds': [1, 5],
             'value_type': 'float',
-            "log_scale": False,
+            "log_scale": True,
         })
+        """
 
         parameters.append({
             'name': 'z_dim',
-            'type': 'range',
-            'bounds': [1, 128],
+            'type': 'choice',
+            #'bounds': [8, 64],
+            'values': [8, 16, 24],
             'value_type': 'int',
             'is_ordered': True,
-            'sort_values' : True
+            'sort_values' : True,
         })
 
         parameters.append({
             'name': 'weight_decay',
             'type': 'range',
-            'bounds': [0, 0.1],
+            'bounds': [0, 0.01],
             'value_type': 'float',
             "log_scale": False
         })
@@ -176,9 +179,17 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'gamma',
             'type': 'range',
-            'bounds': [1, 10],
+            'bounds': [4, 10],
             'value_type': 'float',
-            "log_scale": False,
+            "log_scale": True,
+        })
+
+        parameters.append({
+            'name': 'delta',
+            'type': 'range',
+            'bounds': [2, 6],
+            'value_type': 'float',
+            "log_scale": True,
         })
 
     torch.manual_seed(42)
@@ -243,7 +254,8 @@ def do_hyperparameter_BO(
     elif model_class == CarbVAE:
         l_function = loss_function(
             beta=parameters.get('beta', 1.0),
-            gamma=parameters.get('gamma', 1.0)
+            gamma=parameters.get('gamma', 1.0),
+            delta=parameters.get('delta', 1.0)
         )
     else:
         l_function = loss_function()

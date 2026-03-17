@@ -19,6 +19,7 @@ class BetaCVAE(nn.Module):
         hidden_dim: int,
         latent_dim: int,
         num_phys_ops: int,
+        dropout: float,
         beta=1.0
     ):
         super().__init__()
@@ -27,14 +28,17 @@ class BetaCVAE(nn.Module):
             logical_dim,
             physical_dim,
             hidden_dim,
-            latent_dim
+            latent_dim,
+            dropout
         )
 
         self.decoder = TreeDecoder(
+            self.encoder.logical_encoder,
             logical_dim,
             hidden_dim,
             latent_dim,
-            num_phys_ops
+            num_phys_ops,
+            dropout
         )
 
         self.beta = beta

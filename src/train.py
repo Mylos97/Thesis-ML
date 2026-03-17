@@ -33,11 +33,11 @@ def train(
 
     if model_class == BetaCVAE:
         model = model_class(
-            logical_dim=in_dim, physical_dim=out_dim, hidden_dim=128, latent_dim=z_dim, num_phys_ops=out_dim, beta=parameters.get('beta', 1.0)
+            logical_dim=in_dim, physical_dim=out_dim, hidden_dim=128, latent_dim=z_dim, num_phys_ops=out_dim, dropout=dropout, beta=parameters.get('beta', 1.0)
         )
     elif model_class == CarbVAE:
         model = model_class(
-            logical_dim=in_dim, physical_dim=out_dim, hidden_dim=128, latent_dim=z_dim, num_phys_ops=out_dim, beta=parameters.get('beta', 1.0), gamma=parameters.get('gamma', 1.0)
+            logical_dim=in_dim, physical_dim=out_dim, hidden_dim=128, latent_dim=z_dim, num_phys_ops=out_dim, dropout=dropout, beta=parameters.get('beta', 1.0), gamma=parameters.get('gamma', 1.0), delta=parameters.get("delta", 1.0)
         )
     else:
         model = model_class(

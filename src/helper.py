@@ -390,11 +390,14 @@ def load_autoencoder_carb_data(device: str, path: str, retrain_path: str = "", n
     target_trees, target_indexes = build_trees(targets, device=device)
     target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
 
-    arr = np.array(latencies)
-    mean = arr.mean()
-    std = arr.std()
+    log_latencies = np.log1p(latencies)  # log(1 + x) handles zeros
+    mean = log_latencies.mean()
+    std  = log_latencies.std()
 
-    latencies_normalized = torch.tensor((arr - mean) / std, dtype=dtype, device=device)
+    print(f"mean: {mean}, std: {std}")
+    latencies_normalized = torch.tensor((log_latencies - mean) / std, dtype=dtype, device=device)
+
+    #latencies_normalized = torch.tensor((arr - mean) / std, dtype=dtype, device=device)
 
     for i, tree in enumerate(trees):
         x.append(((tree, indexes[i]), target_trees[i], latencies_normalized[i]))

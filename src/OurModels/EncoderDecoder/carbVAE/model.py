@@ -22,8 +22,10 @@ class CarbVAE(nn.Module):
         hidden_dim: int,
         latent_dim: int,
         num_phys_ops: int,
-        beta=1.0,
-        gamma=1.0
+        dropout: float,
+        beta: float = 1.0,
+        gamma: float =1.0,
+        delta: float =1.0
     ):
         super().__init__()
 
@@ -31,17 +33,22 @@ class CarbVAE(nn.Module):
             logical_dim,
             physical_dim,
             hidden_dim,
-            latent_dim
+            latent_dim,
+            dropout
         )
 
         self.decoder = TreeDecoder(
+            self.encoder.logical_encoder,
             logical_dim,
             hidden_dim,
             latent_dim,
-            num_phys_ops
+            num_phys_ops,
+            dropout
         )
 
         self.beta = beta
+        self.gamma = gamma
+        self.delta = delta
 
     def reparameterize(
         self,
@@ -98,10 +105,11 @@ class CarbVAE(nn.Module):
         return logits, mu, logvar, z
 
 class Loss(torch.nn.Module):
-    def __init__(self, beta: float = 1.0, gamma: float = 1.0):
+    def __init__(self, beta: float = 1.0, gamma: float = 1.0, delta: float = 1.0):
         super(Loss, self).__init__()
         self.beta = beta
         self.gamma = gamma
+        self.delta = delta
 
     def forward(
         self,
@@ -110,15 +118,13 @@ class Loss(torch.nn.Module):
         mu: torch.Tensor,
         logvar: torch.Tensor,
         z: torch.Tensor,
-        latency: float
+        latency: torch.Tensor
     ):
         # Reconstruction loss (per-node cross-entropy)
-        targets = targets.permute(0, 2, 1)
-
+        targets = targets.permute(0, 2, 1).contiguous()  # permute once, use consistently
         recon = F.cross_entropy(
-            logits.view(-1, logits.size(-1)),
-            targets.permute(0, 2, 1).view(-1, targets.size(-1)),
-            reduction='mean'
+            logits.reshape(-1, logits.size(-1)),
+            targets.reshape(-1, targets.size(-1))  # no second permute
         )
 
         # KL divergence
@@ -127,7 +133,38 @@ class Loss(torch.nn.Module):
         )
 
         # attribute regularization - requires normalized latency
-        attr_loss = F.mse_loss(z[:, 0].to(device), latency.to(device)).to(device)
+        #attr_loss = F.mse_loss(z[:, 0].to(device), latency.to(device)).to(device)
+        attr_loss = self.reg_loss(z, latency, self.delta)
+
+        print(f"recon: {recon.item():.4f}, kl: {kl.item():.4f}, attr: {attr_loss.item():.4f}")
 
         return recon + self.beta * kl + self.gamma * attr_loss, recon, kl
+
+    def reg_loss(self, z: torch.Tensor, latencies: torch.Tensor, factor: float = 1.0) -> torch.Tensor:
+        """
+        Computes the AR-VAE ordinal regularization loss for z[0] and latency.
+        Enforces that the ordering of z[0] matches the ordering of latencies.
+
+        Args:
+            z:         latent vectors, shape [batch_size, z_dim]
+            latencies: normalized latency values, shape [batch_size]
+            factor:    scaling factor for tanh, controls sensitivity to small differences
+        Returns:
+            scalar loss
+        """
+        latent_code = z[:, 0]  # shape: [batch_size]
+
+        # Compute pairwise latent distance matrix
+        latent_code = latent_code.view(-1, 1).repeat(1, latent_code.shape[0])
+        lc_dist_mat = (latent_code - latent_code.transpose(1, 0)).view(-1, 1)
+
+        # Compute pairwise attribute distance matrix
+        attribute = latencies.view(-1, 1).repeat(1, latencies.shape[0])
+        attribute_dist_mat = (attribute - attribute.transpose(1, 0)).view(-1, 1)
+
+        # Ordinal loss: tanh of latent differences should match sign of latency differences
+        lc_tanh = torch.tanh(lc_dist_mat * factor)
+        attribute_sign = torch.sign(attribute_dist_mat)
+
+        return F.l1_loss(lc_tanh, attribute_sign.float())
 

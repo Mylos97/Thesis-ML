@@ -42,7 +42,10 @@ from botorch.utils.transforms import normalize, unnormalize
 from botorch.models.transforms import Standardize, Normalize
 from botorch.models.transforms.input import InputStandardize
 from botorch import fit_gpytorch_mll, fit_fully_bayesian_model_nuts
-from botorch.acquisition.logei import qLogExpectedImprovement
+from botorch.acquisition import (
+    qLogExpectedImprovement,
+    qLogNoisyExpectedImprovement,
+)
 from botorch.acquisition.monte_carlo import qExpectedImprovement
 from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.sampling.stochastic_samplers import StochasticSampler
@@ -56,19 +59,20 @@ from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
 from LSBO.criteria import StoppingCriteria
 
+global duplicates_counter
 # Set to 30min (1800 seconds)
 TIMEOUT = float(60 * 180)
 PLAN_IMPROVEMENT_CACHE = {}
 EXECUTABLE_PLANS = set()
-VALID_X = set()
 best_plan_data = None
 z_dim = 31
 INVALID_PENALTY = 1e6
+duplicates_counter = 0
 
 #N_BATCH = 100
 BATCH_SIZE = 25
-NUM_RESTARTS = 10
-RAW_SAMPLES = 256
+NUM_RESTARTS = 20
+RAW_SAMPLES = 1024
 MC_SAMPLES = 2048
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -79,7 +83,7 @@ seed = 42
 torch.manual_seed(seed)
 
 def latent_space_BO(ML_model, device, plan, args, state: State = None):
-    global VALID_X
+    global duplicates_counter
 
     print('Running latent space Bayesian Optimization', flush=True)
 
@@ -118,21 +122,33 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         return torch.tensor(train_objs, dtype=dtype)
 
     def gen_initial_data(logical_plan, n: int = 10):
-        train_x = unnormalize(
-            torch.randn(n, 1, z_dim, device=device, dtype=dtype),
-            bounds=latent_bounds)
+        global duplicates_counter
+        train_x = torch.randn(n, 1, z_dim, device=device, dtype=dtype)
 
-        train_obj = objective_function(logical_plan, train_x).unsqueeze(-1)
+        train_obj = objective_function(logical_plan, unnormalize(train_x, bounds=latent_bounds)).unsqueeze(-1)
+        print(f"train_obj shape: {train_obj.shape}")
         best_observed_value = train_obj.max().item()
 
+        # Remove all -1 and -2 (invalid or duplicate plans)
+        valid_mask = (train_obj < 0).squeeze(-1)
+
+        train_x_valid = train_x[valid_mask]
+        train_x_invalid = train_x[~valid_mask]
+        train_obj = train_obj[valid_mask]
+
+        print(f"Valid #: {train_x_valid.shape}")
+        print(f"Invalid #: {train_x_invalid.shape}")
+        print(f"Valid labels #: {train_obj.shape}")
         print(f"Finished generating {n} initial samples")
 
-        return train_x, train_obj, best_observed_value
+        print(f"z[0] (latency dim) of valid: {train_x_valid[:, 0].mean():.3f} ± {train_x_valid[:, 0].std():.3f}")
+        print(f"z[0] (latency dim) of invalid:   {train_x_invalid[:, 0].mean():.3f} ± {train_x_invalid[:, 0].std():.3f}")
+
+
+        return train_x_valid, train_x_invalid, train_obj, best_observed_value
 
     def optimize_acqf_and_get_observation(acq_func, args):
-        global VALID_X
-
-        x_center = state.train_x[state.train_obj.argmax(), :].clone()
+        x_center = state.train_x_valid[state.train_obj.argmax(), :].clone().squeeze()
         """
         x_range = state.train_x.max().item() - state.train_x.min().item()
         x_range = max(x_range, 8.0)
@@ -151,47 +167,41 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             candidates, expected = optimize_acqf(
                 acq_function=acq_func,
                 bounds=norm_bounds,
-                q=state.batch_size,
+                q=1,
                 num_restarts=NUM_RESTARTS,
                 raw_samples=RAW_SAMPLES,
             )
-            candidates = candidates.unsqueeze(1)
-
+            candidates = candidates
         elif args.acqf == "ts":
-            tr_ub = torch.tensor([0] * z_dim, device=device, dtype=dtype)
-            tr_lb = torch.tensor([1] * z_dim, device=device, dtype=dtype)
-
+            print("Using thompson sampling")
+            tr_lb = torch.tensor([0.0] * z_dim, device=device, dtype=dtype)
+            tr_ub = torch.tensor([1.0] * z_dim, device=device, dtype=dtype)
             sobol = SobolEngine(args.zdim, scramble=True)
             pert = sobol.draw(state.batch_size).to(dtype=dtype).to(device)
             pert = tr_lb + (tr_ub - tr_lb) * pert
-
             # Create a perturbation mask
             prob_perturb = min(20.0 / args.zdim, 1.0)
             mask = torch.rand(state.batch_size, args.zdim, dtype=dtype, device=device) <= prob_perturb
             ind = torch.where(mask.sum(dim=1) == 0)[0]
             mask[ind, torch.randint(0, args.zdim - 1, size=(len(ind),), device=device)] = 1
-
             # Create candidate points from the perturbations and the mask
             X_cand = x_center.expand(state.batch_size, args.zdim).clone()
             X_cand[mask] = pert[mask]
             try:
                 with torch.no_grad():
-                    candidates = acqf(X_cand, num_samples=state.batch_size).unsqueeze(1)
-            except:  # noqa: E722
-                # Sampling entirely failed, return first candidate
-                print("Failed sampling")
-                candidates = X_cand[0]
-                #.unsqueeze(0)
-                candidates = candidates.unsqueeze(0).unsqueeze(0)
+                    candidates = acqf(X_cand, num_samples=state.batch_size)  # shape: [batch_size, z_dim]
+            except Exception as e:
+                print(f"Failed sampling: {e}")
+                candidates = X_cand[0].unsqueeze(0)  # shape: [1, z_dim]
         elif args.acqf == "random":
             print("Using random acqf")
-
             candidates = torch.randn(state.batch_size, 1, z_dim, device=device, dtype=dtype)
 
         print(f"[{datetime.datetime.now()}] Finished gen candidates")
-        new_x = unnormalize(candidates.detach(), bounds=latent_bounds)
-        #new_x = candidates.detach()
-        #candidates = new_x.unsqueeze(1)
+        #new_x = unnormalize(candidates.detach().unsqueeze(1), bounds=latent_bounds)
+        new_x = candidates
+        candidates = unnormalize(candidates.detach().unsqueeze(1), bounds=latent_bounds)
+
         print(f"[{datetime.datetime.now()}] Starting objective_function on candidates")
         new_obj = objective_function(logical_plan, candidates).unsqueeze(-1)
         print(f"[{datetime.datetime.now()}] Finished objective_function on candidates")
@@ -202,7 +212,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         best_observed = []
 
         for logical_plan, target in plan:
-            train_x, train_obj, best_value = gen_initial_data(logical_plan, BATCH_SIZE)
+            train_x_valid, train_x_invalid, train_obj, best_value = gen_initial_data(logical_plan, BATCH_SIZE)
             best_observed.append(best_value)
             state_dict = None
             model_results = []
@@ -211,15 +221,12 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             ml_model=ML_model,
             model_results=model_results,
             tree=logical_plan,
-            train_x=normalize(train_x.squeeze(1), bounds=norm_bounds),
-            #train_x=train_x.squeeze(1),
+            train_x_valid=normalize(train_x_valid.squeeze(1), bounds=norm_bounds),
+            train_x_invalid=normalize(train_x_invalid.squeeze(1), bounds=norm_bounds),
             train_obj=train_obj,
             best_values=best_observed,
-            valid_x=VALID_X,
             batch_size=BATCH_SIZE
         )
-
-        VALID_X = set()
 
     criteria = StoppingCriteria(args.time * 60, args.improvement, args.steps)
 
@@ -232,24 +239,46 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         print(f"Best f: {state.train_obj.max()}")
 
         if args.acqf == "ei":
+            """
             acqf = qLogExpectedImprovement(
                 model=state.model,
                 best_f=state.train_obj.max()
             )
+            """
+
+            acqf = qLogNoisyExpectedImprovement(
+                model=state.model,
+                X_baseline=state.train_x,  # all previously observed points
+            )
         elif args.acqf == "ts":
-            acqf = MaxPosteriorSampling(model=state.model, replacement=False,)
+            acqf = MaxPosteriorSampling(model=state.model, replacement=False)
         elif args.acqf == "random":
             acqf = "random"
 
 
         new_x, new_obj = optimize_acqf_and_get_observation(acqf, args)
+
+        # Remove -1 or -2 latencies (invalid or duplicates)
+        valid_mask = (new_obj < 0).squeeze(-1)
+        # Get all duplicates to count them
+        duplicates_mask = (new_obj == 2).squeeze(-1)
+        duplicates_counter += new_obj[duplicates_mask].shape[0]
+
+        new_x_valid = new_x[valid_mask]
+        new_x_invalid = new_x[~valid_mask]
+        new_obj = new_obj[valid_mask]
+
+        print(f"z[0] (latency dim) of valid: {new_x_valid[:, 0].mean():.3f} ± {new_x_valid[:, 0].std():.3f}")
+        print(f"z[0] (latency dim) of invalid:   {new_x_invalid[:, 0].mean():.3f} ± {new_x_invalid[:, 0].std():.3f}")
+
         #state.update(normalize(new_x.squeeze(1), bounds=norm_domain_bounds), new_obj, VALID_X)
-        state.update(new_x.squeeze(1), new_obj, VALID_X)
-        # reset the global set
-        VALID_X = set()
+        state.update(new_x_valid.squeeze(1), new_x_invalid.squeeze(1), new_obj)
+
 
         index, best_impr = max(enumerate(state.train_obj), key=lambda x: x[1])
         criteria.step(best_impr.item(), new_x.shape[0])
+
+        print(f"Duplicate rate: {duplicates_counter/criteria.steps_taken:.2%}")
 
     print('Finish Bayesian Optimization for latent space', flush=True)
 
@@ -295,8 +324,10 @@ def run_lsbo(input, args, state: State = None):
                 hidden_dim=128,
                 latent_dim=z_dim,
                 num_phys_ops=out_dim,
+                dropout=dropout,
                 beta=parameters.get('beta', 1.0),
-                gamma=parameters.get('gamma', 1.0)
+                gamma=parameters.get('gamma', 1.0),
+                delta=parameters.get('delta', 1.0)
             )
         else:
             model = BetaCVAE(
@@ -324,7 +355,6 @@ def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
     global PLAN_IMPROVEMENT_CACHE
     global EXECUTABLE_PLANS
-    global VALID_X
     global best_plan_data
     global initial_latency
 
@@ -387,7 +417,9 @@ def get_plan_latency(args, sampled_plan) -> float:
             process.wait(timeout=5)
             print(f"[{datetime.datetime.now()}] process.wait finished")
 
-            return PLAN_IMPROVEMENT_CACHE[plan_out]
+            #return PLAN_IMPROVEMENT_CACHE[plan_out]
+            # Return -2, the code for being a duplicate
+            return -2
 
         print(f"[{datetime.datetime.now()}] Sampling new plan")
 
@@ -411,10 +443,8 @@ def get_plan_latency(args, sampled_plan) -> float:
             print(f"[{datetime.datetime.now()}] process.wait finished")
 
             #exec_time = int(TIMEOUT * 100000)
-            exec_time = INVALID_PENALTY
-            print("Executable plan to valid_x")
-            VALID_X.add(plan_out)
-            return exec_time
+            #Return -1, the code for being invalid
+            return -1
 
         input, picked_plan, exec_time_str = read_from_wayang(sock_file).split(":")
         sock_file.close()
@@ -428,7 +458,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             print("Add an executable plan")
             EXECUTABLE_PLANS.add(plan_out)
         else:
-            exec_time = INVALID_PENALTY
+            return -1
 
         # Calculate the current set timeout in ms (convert from sec to ms)
         ms_timeout = TIMEOUT * 1000
@@ -437,10 +467,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             print(f"[{datetime.datetime.now()}] Found better plan, updating timeout: {TIMEOUT} sec")
             best_plan_data = input, picked_plan, exec_time_str
 
-        print(exec_time)
         PLAN_IMPROVEMENT_CACHE[plan_out] = exec_time
-        VALID_X.add(plan_out)
-        print("Executable plan to valid_x")
 
         return exec_time
 
@@ -471,7 +498,7 @@ def get_plan_latency(args, sampled_plan) -> float:
         # In case the underlying process died
         print(f"Exception: {e}")
         print(process.stderr.read())
-        exec_time = INVALID_PENALTY
+        exec_time = -1
 
         return exec_time
 

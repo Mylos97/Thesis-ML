@@ -44,23 +44,23 @@ class State:
         ml_model,
         model_results,
         tree,
-        train_x,
+        train_x_valid,
+        train_x_invalid,
         train_obj,
         best_values,
-        valid_x,
         batch_size
     ):
         self.ml_model = ml_model
         self.model_results = model_results
         self.tree = tree
-        self.train_x = train_x
+        self.train_x_valid = train_x_valid
+        self.train_x_invalid = train_x_invalid
         self.train_obj = train_obj
         self.best_values = best_values
-        self.valid_values = list(valid_x)
         self.batch_size = batch_size
         self.initialize_surrogate_model()
 
-        print(f"unique plans: {len(self.valid_values)}")
+        print(f"unique plans: {self.train_x_valid.shape[0]}")
 
     def initialize_tr_state(self):
         self.length = 0.8
@@ -72,26 +72,26 @@ class State:
         likelihood = gpytorch.likelihoods.GaussianLikelihood().to(device)
 
         self.model = GPModel(
-            inducing_points=self.train_x.float(),
+            inducing_points=self.train_x_valid.float(),
             likelihood=likelihood
         ).to(device)
 
         self.model = self.model.eval()
         self.model = self.model.to(device)
-        self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.train_x.size(-2))
+        self.mll = PredictiveLogLikelihood(self.model.likelihood, self.model, num_data=self.train_x_valid.size(-2))
         #self.mll = gpytorch.mlls.VariationalELBO(self.model.likelihood, self.model, num_data=self.train_x.size(-2))
 
     def update_surrogate_model(self):
         # GP model has not been trained - use all data
         if not self.initial_model_training_done:
-            train_x = self.train_x
+            train_x = self.train_x_valid
             train_y = self.train_obj
             # TODO: pick reasonable nr of epochs
             n_epochs = 20
 
         # Otherwise, train only on recently obtained data
         else:
-            train_x = self.train_x[-self.batch_size :]
+            train_x = self.train_x_valid[-self.batch_size :]
             train_y = self.train_obj[-self.batch_size :].squeeze(-1)
 
             # TODO: pick reasonable nr of epochs
@@ -163,22 +163,20 @@ class State:
         print(f"length: {self.length}")
         print(f"success_counter: {self.success_counter}")
         print(f"failure_counter: {self.failure_counter}")
-        print(f"# of valid_x: {len(self.valid_values)}")
+        print(f"# of valid_x: {self.train_x_valid.shape[0]}")
         print("====STATE====")
 
-    def update_opt_state(self, new_x, new_obj, valid_x):
+    def update_opt_state(self, new_x_valid, new_x_invalid, new_obj):
         """Success and failure counters are updated accoding to
         the objective values (new_obj) of the batch of candidate
         points evaluated on the optimization step.
         """
 
-        for x in valid_x:
-            self.valid_values.append(x)
+        self.train_x_valid = torch.cat([self.train_x_valid, new_x_valid], dim=0)
+        self.train_x_invalid = torch.cat([self.train_x_invalid, new_x_invalid], dim=0)
+
         #Determine which candidates produced valid plans
-        valid_new_x = [t for i, t in enumerate(new_x) if i in valid_x]
-        print(f"Valid_x: {valid_x}")
-        print(f"Valid new_x: {valid_new_x}")
-        if len(valid_new_x) == 0: # no valid candidates found
+        if (new_x_valid.shape[0]) == 0: # no valid candidates found
             # count a failure
             self.success_counter = 0
             self.failure_counter += 1
@@ -187,12 +185,7 @@ class State:
             # Case 2: No improvement was found, but a first valid_x was found  - count a success
             max_prev = max(self.best_values)
             improved_obj = max(new_obj) > max_prev
-            obtained_validity = len(self.valid_values) == 0 # no previous valid values
-
-            # add all valid x's to state
-            for x in valid_x:
-                self.valid_values.append(x)
-                print(f"valid_values: {self.valid_values}")
+            obtained_validity = self.train_x_valid.shape[0] == 0 # no previous valid values
 
             if improved_obj or obtained_validity:
                 print(f"new impr: {improved_obj} or new valid: {obtained_validity}")
@@ -208,13 +201,11 @@ class State:
         self.update_tr_length()
 
 
-    def update(self, new_x, new_obj, valid_x):
+    def update(self, new_x_valid, new_x_invalid, new_obj):
         # update optimization state
-        print(f"adding {len(valid_x)} unique plans")
-        self.update_opt_state(new_x, new_obj, valid_x)
+        self.update_opt_state(new_x_valid, new_x_invalid, new_obj)
 
          # update training points
-        self.train_x = torch.cat((self.train_x, new_x))
         self.train_obj = torch.cat((self.train_obj, new_obj))
 
         # update progress

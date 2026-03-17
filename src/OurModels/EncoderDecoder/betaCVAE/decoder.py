@@ -5,14 +5,15 @@ import torch.nn.functional as F
 from OurModels.EncoderDecoder.betaCVAE.encoder import TreeEncoder
 
 class TreeDecoder(nn.Module):
-    def __init__(self, logical_dim, hidden_dim, latent_dim, num_phys_ops):
+    def __init__(self, encoder, logical_dim, hidden_dim, latent_dim, num_phys_ops, dropout):
         super().__init__()
 
-        self.logical_encoder = TreeEncoder(logical_dim, hidden_dim)
+        self.logical_encoder = encoder
 
         self.node_mlp = nn.Sequential(
             nn.Linear(hidden_dim + latent_dim, hidden_dim),
             nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_dim, num_phys_ops)
         )
 
