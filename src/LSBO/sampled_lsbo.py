@@ -284,9 +284,9 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
     index, best_impr = max(enumerate(state.train_obj), key=lambda x: x[1])
 
-    best_plan = state.train_x[index]
-    best_latency = initial_latency - math.pow(math.e ,best_impr.item())
-    print(f"{best_latency} = {initial_latency} - {math.pow(math.e, best_impr.item())}")
+    best_plan = state.train_x_valid[index]
+    best_latency = best_impr.item() * -1
+    print(f"Best latency: {best_latency}")
 
     criteria.stop_timer()
 

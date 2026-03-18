@@ -152,7 +152,7 @@ def do_hyperparameter_BO(
         parameters.append({
             'name': 'beta',
             'type': 'range',
-            'bounds': [1, 5],
+            'bounds': [1, 3],
             'value_type': 'float',
             "log_scale": True,
         })
@@ -162,7 +162,7 @@ def do_hyperparameter_BO(
             'name': 'z_dim',
             'type': 'choice',
             #'bounds': [8, 64],
-            'values': [8, 16, 24],
+            'values': [8, 16, 24, 32],
             'value_type': 'int',
             'is_ordered': True,
             'sort_values' : True,
@@ -176,6 +176,7 @@ def do_hyperparameter_BO(
             "log_scale": False
         })
 
+        """
         parameters.append({
             'name': 'gamma',
             'type': 'range',
@@ -191,6 +192,7 @@ def do_hyperparameter_BO(
             'value_type': 'float',
             "log_scale": True,
         })
+        """
 
     torch.manual_seed(42)
 
@@ -253,9 +255,9 @@ def do_hyperparameter_BO(
         )
     elif model_class == CarbVAE:
         l_function = loss_function(
-            beta=parameters.get('beta', 1.0),
-            gamma=parameters.get('gamma', 1.0),
-            delta=parameters.get('delta', 1.0)
+            beta=parameters.get('beta', 1.5),
+            gamma=parameters.get('gamma', 4.0),
+            delta=parameters.get('delta', 2.0)
         )
     else:
         l_function = loss_function()
