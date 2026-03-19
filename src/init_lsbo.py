@@ -62,6 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('--stats', type=str, default='./src/Data/splits/tpch/bvae/stats.txt')
     parser.add_argument('--model-path', default='./src/Models/bvae.onnx')
     parser.add_argument('--parameters', default='./src/HyperparameterLogs/BVAE.json')
+    parser.add_argument('--initialization', default='random')
     parser.add_argument('--zdim', type=int, default=31)
     parser.add_argument('--name', type=str, default='')
     parser.add_argument('--lr', type=str, default='[1e-6, 0.1]')

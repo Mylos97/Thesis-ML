@@ -30,7 +30,7 @@ import datetime
 import onnx
 import onnxruntime
 
-from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str, load_autoencoder_data
+from helper import get_weights_of_model_by_path, set_weights, load_autoencoder_data_from_str, load_autoencoder_data, load_autoencoder_carb_data
 from .state import State
 
 from torch.quasirandom import SobolEngine
@@ -121,31 +121,79 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         return torch.tensor(train_objs, dtype=dtype)
 
-    def gen_initial_data(logical_plan, n: int = 10):
+    def gen_initial_data(
+            logical_plan: torch.Tensor,
+            model: CarbVAE,
+            latent_bounds: torch.Tensor,
+            initialization: str = 'random',
+            mean: float = 0,
+            std: float = 1
+        ):
         global duplicates_counter
-        train_x = torch.randn(n, 1, z_dim, device=device, dtype=dtype)
+        global BATCH_SIZE
 
-        train_obj = objective_function(logical_plan, unnormalize(train_x, bounds=latent_bounds)).unsqueeze(-1)
-        print(f"train_obj shape: {train_obj.shape}")
-        best_observed_value = train_obj.max().item()
+        if initialization == 'random':
+            train_x = torch.randn(BATCH_SIZE, 1, z_dim, device=device, dtype=dtype)
 
-        # Remove all -1 and -2 (invalid or duplicate plans)
-        valid_mask = (train_obj < 0).squeeze(-1)
+            train_obj = objective_function(logical_plan, unnormalize(train_x, bounds=latent_bounds)).unsqueeze(-1)
+            print(f"train_obj shape: {train_obj.shape}")
+            best_observed_value = train_obj.max().item()
 
-        train_x_valid = train_x[valid_mask]
-        train_x_invalid = train_x[~valid_mask]
-        train_obj = train_obj[valid_mask]
+            # Remove all -1 and -2 (invalid or duplicate plans)
+            valid_mask = (train_obj < 0).squeeze(-1)
 
-        print(f"Valid #: {train_x_valid.shape}")
-        print(f"Invalid #: {train_x_invalid.shape}")
-        print(f"Valid labels #: {train_obj.shape}")
-        print(f"Finished generating {n} initial samples")
+            train_x_valid = train_x[valid_mask]
+            train_x_invalid = train_x[~valid_mask]
+            train_obj = train_obj[valid_mask]
 
-        print(f"z[0] (latency dim) of valid: {train_x_valid[:, 0].mean():.3f} ± {train_x_valid[:, 0].std():.3f}")
-        print(f"z[0] (latency dim) of invalid:   {train_x_invalid[:, 0].mean():.3f} ± {train_x_invalid[:, 0].std():.3f}")
+            print(f"Valid #: {train_x_valid.shape}")
+            print(f"Invalid #: {train_x_invalid.shape}")
+            print(f"Valid labels #: {train_obj.shape}")
+            print(f"Finished generating {n} initial samples")
+
+            print(f"z[0] (latency dim) of valid: {train_x_valid[:, 0].mean():.3f} ± {train_x_valid[:, 0].std():.3f}")
+            print(f"z[0] (latency dim) of invalid:   {train_x_invalid[:, 0].mean():.3f} ± {train_x_invalid[:, 0].std():.3f}")
 
 
-        return train_x_valid, train_x_invalid, train_obj, best_observed_value
+            return train_x_valid, train_x_invalid, train_obj, best_observed_value
+        else:
+            """
+            Use topk (k=100) generated plans written down in .txt file as
+            encoded vectors for initialization data
+            """
+            data, _, _, _, _ = load_autoencoder_carb_data(device=device, path=initialization)
+
+            initialization_data = DataLoader(data, batch_size=len(data), drop_last=False, shuffle=False)
+
+            all_mu = []
+            train_x_valid = []
+            all_latencies = []
+
+            with torch.no_grad():
+                for logical, physical, latency in initialization_data:
+                    mu, logvar = model.encoder(logical, physical)
+                    z = model.reparameterize(mu, logvar)
+                    all_mu.append(mu)
+                    train_x_valid.append(z)
+
+                    # Unnormalize latency
+                    raw_latency = torch.expm1(latency * std + mean)
+                    all_latencies.append(raw_latency)
+
+            all_mu = torch.cat(all_mu, dim=0)  # [n_total, z_dim]
+            mu_std = all_mu.std(dim=0)         # [z_dim] — across entire dataset
+            train_x_valid = torch.cat(train_x_valid, dim=0)
+            train_obj = -1 * torch.cat(all_latencies, dim=0)   # [n_total] negated for maximization
+            train_obj = train_obj.unsqueeze(-1)
+
+            # Scale bounds by per-dimension std
+            scale = mu_std / mu_std.mean()  # relative scale per dimension
+            latent_bounds = torch.stack([
+                -4.0 * scale,
+                4.0 * scale
+            ]).to(device=device, dtype=dtype)
+
+            return train_x_valid, torch.tensor([]), train_obj, train_obj.max().item()
 
     def optimize_acqf_and_get_observation(acq_func, args):
         x_center = state.train_x_valid[state.train_obj.argmax(), :].clone().squeeze()
@@ -212,9 +260,15 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         best_observed = []
 
         for logical_plan, target in plan:
-            train_x_valid, train_x_invalid, train_obj, best_value = gen_initial_data(logical_plan, BATCH_SIZE)
+            train_x_valid, train_x_invalid, train_obj, best_value = gen_initial_data(
+                logical_plan,
+                ML_model,
+                latent_bounds,
+                args.initialization,
+                args.mean,
+                args.std
+            )
             best_observed.append(best_value)
-            state_dict = None
             model_results = []
 
         state = State(
@@ -329,6 +383,9 @@ def run_lsbo(input, args, state: State = None):
                 gamma=parameters.get('gamma', 1.0),
                 delta=parameters.get('delta', 1.0)
             )
+
+            args.mean = parameters.get("mean", 1.0)
+            args.std = parameters.get("std", 1.0)
         else:
             model = BetaCVAE(
                 logical_dim=in_dim,
