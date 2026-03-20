@@ -31,7 +31,7 @@ def main(args) -> None:
     state = None
     timeout = float(60 * 180)
 
-    plan_data, initial_latency, plan_cache = request_wayang_plan(args, state, timeout)
+    plan_data, plan_cache, state = request_wayang_plan(args, state, timeout)
     print(f"Best plan data: {plan_data}")
 
     # add best plan to trainset
@@ -39,8 +39,13 @@ def main(args) -> None:
         training_file.write(f"{plan_data[1]}:{plan_data[0]}:{plan_data[2]}\n")
         print(f"Successfully appended best sampled plan to {args.trainset}")
 
+    # write to stats file
     with open(args.stats, 'a') as stats_file:
-        stats_file.write(f"{args.query}:{len(plan_cache)}:{initial_latency}:{plan_data[2]}\n")
+        #stats_file.write(f"{args.query}:{len(plan_cache)}:{initial_latency}:{plan_data[2]}\n")
+        if args.initialization == "random":
+            stats_file.write(f"# of valid plans: {state.train_x_valid.shape[0]}\n# of invalid plans: {state.train_x_invalid.shape[0]}\nbest_latency: {state.train_obj.max().item() * -1}\ntrain_x: {state.train_x_valid}\ntrain_obj: {state.train_obj}\n")
+        else:
+            stats_file.write(f"# of valid plans: {state.train_x_valid.shape[0] - 100}\n# of invalid plans: {state.train_x_invalid.shape[0]}\nbest_latency: {state.train_obj[100:].max().item() * -1}\ntrain_x: {state.train_x_valid[100:]}\ntrain_obj: {state.train_obj[100:]}\n")
         print(f"Successfully appended statistics to {args.stats}")
 
 

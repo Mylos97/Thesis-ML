@@ -126,8 +126,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             model: CarbVAE,
             latent_bounds: torch.Tensor,
             initialization: str = 'random',
-            mean: float = 0,
-            std: float = 1
+            latency_estimation_scale: float = 1.5
         ):
         global duplicates_counter
         global BATCH_SIZE
@@ -149,19 +148,19 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             print(f"Valid #: {train_x_valid.shape}")
             print(f"Invalid #: {train_x_invalid.shape}")
             print(f"Valid labels #: {train_obj.shape}")
-            print(f"Finished generating {n} initial samples")
+            print(f"Finished generating {BATCH_SIZE} initial samples")
 
             print(f"z[0] (latency dim) of valid: {train_x_valid[:, 0].mean():.3f} ± {train_x_valid[:, 0].std():.3f}")
             print(f"z[0] (latency dim) of invalid:   {train_x_invalid[:, 0].mean():.3f} ± {train_x_invalid[:, 0].std():.3f}")
 
 
-            return train_x_valid, train_x_invalid, train_obj, best_observed_value
+            return train_x_valid, train_x_invalid, train_obj, best_observed_value, latent_bounds
         else:
             """
             Use topk (k=100) generated plans written down in .txt file as
             encoded vectors for initialization data
             """
-            data, _, _, _, _ = load_autoencoder_carb_data(device=device, path=initialization)
+            data, _, _, mean, std = load_autoencoder_carb_data(device=device, path=initialization)
 
             initialization_data = DataLoader(data, batch_size=len(data), drop_last=False, shuffle=False)
 
@@ -178,13 +177,13 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
                     # Unnormalize latency
                     raw_latency = torch.expm1(latency * std + mean)
-                    all_latencies.append(raw_latency)
+                    all_latencies.append(raw_latency * latency_estimation_scale)
 
             all_mu = torch.cat(all_mu, dim=0)  # [n_total, z_dim]
             mu_std = all_mu.std(dim=0)         # [z_dim] — across entire dataset
-            train_x_valid = torch.cat(train_x_valid, dim=0)
+            train_x_valid = torch.cat(train_x_valid, dim=0).to(device)
             train_obj = -1 * torch.cat(all_latencies, dim=0)   # [n_total] negated for maximization
-            train_obj = train_obj.unsqueeze(-1)
+            train_obj = train_obj.unsqueeze(-1).to(device)
 
             # Scale bounds by per-dimension std
             scale = mu_std / mu_std.mean()  # relative scale per dimension
@@ -193,7 +192,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
                 4.0 * scale
             ]).to(device=device, dtype=dtype)
 
-            return train_x_valid, torch.tensor([]), train_obj, train_obj.max().item()
+            return train_x_valid, torch.empty(0, 1, z_dim).to(device), train_obj, train_obj.max().item(), latent_bounds
 
     def optimize_acqf_and_get_observation(acq_func, args):
         x_center = state.train_x_valid[state.train_obj.argmax(), :].clone().squeeze()
@@ -260,16 +259,16 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         best_observed = []
 
         for logical_plan, target in plan:
-            train_x_valid, train_x_invalid, train_obj, best_value = gen_initial_data(
+            train_x_valid, train_x_invalid, train_obj, best_value, latent_bounds = gen_initial_data(
                 logical_plan,
                 ML_model,
                 latent_bounds,
                 args.initialization,
-                args.mean,
-                args.std
             )
             best_observed.append(best_value)
             model_results = []
+
+            print(f"Latent bounds: {latent_bounds}")
 
         state = State(
             ml_model=ML_model,
@@ -302,7 +301,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
             acqf = qLogNoisyExpectedImprovement(
                 model=state.model,
-                X_baseline=state.train_x,  # all previously observed points
+                X_baseline=state.train_x_valid,  # all previously observed points
             )
         elif args.acqf == "ts":
             acqf = MaxPosteriorSampling(model=state.model, replacement=False)
@@ -326,7 +325,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         print(f"z[0] (latency dim) of invalid:   {new_x_invalid[:, 0].mean():.3f} ± {new_x_invalid[:, 0].std():.3f}")
 
         #state.update(normalize(new_x.squeeze(1), bounds=norm_domain_bounds), new_obj, VALID_X)
-        state.update(new_x_valid.squeeze(1), new_x_invalid.squeeze(1), new_obj)
+        state.update(new_x_valid.squeeze(1).to(device), new_x_invalid.squeeze(1).to(device), new_obj.to(device))
 
 
         index, best_impr = max(enumerate(state.train_obj), key=lambda x: x[1])
@@ -344,7 +343,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
     criteria.stop_timer()
 
-    return best_plan, best_latency
+    return best_plan, best_latency, state
 
 
 def run_lsbo(input, args, state: State = None):
@@ -404,16 +403,15 @@ def run_lsbo(input, args, state: State = None):
         model.eval()
 
         dataloader = DataLoader(data, batch_size=1, drop_last=False, shuffle=False)
-        state = latent_space_BO(model, device, dataloader, args, state)
+        best_plan, best_latency, state = latent_space_BO(model, device, dataloader, args, state)
 
-    return state
+    return best_plan, best_latency, state
 
 def get_plan_latency(args, sampled_plan) -> float:
     global TIMEOUT
     global PLAN_IMPROVEMENT_CACHE
     global EXECUTABLE_PLANS
     global best_plan_data
-    global initial_latency
 
     try:
         process = Popen([
@@ -591,12 +589,12 @@ def request_wayang_plan(args, state: State = None, timeout: float = 3600):
 
     # This holds plenty of metadata for multiple runs
     # and updating the actual latency of plans
-    state = run_lsbo([plan], args, state)
+    best_plan, best_latency, state = run_lsbo([plan], args, state)
 
     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
     process.kill()
 
-    return best_plan_data, initial_latency, EXECUTABLE_PLANS
+    return best_plan_data, EXECUTABLE_PLANS, state
 
 def read_from_wayang(sock_file):
     udf_length = read_int(sock_file)
