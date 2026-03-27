@@ -255,6 +255,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         return new_x, new_obj
 
+    criteria = StoppingCriteria(args.time * 60, args.improvement, args.steps)
+
     if state is None:
         best_observed = []
 
@@ -271,6 +273,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             print(f"Latent bounds: {latent_bounds}")
 
         state = State(
+            args=args,
             ml_model=ML_model,
             model_results=model_results,
             tree=logical_plan,
@@ -278,10 +281,9 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             train_x_invalid=normalize(train_x_invalid.squeeze(1), bounds=norm_bounds),
             train_obj=train_obj,
             best_values=best_observed,
-            batch_size=BATCH_SIZE
+            batch_size=BATCH_SIZE,
+            stopping_criteria=criteria,
         )
-
-    criteria = StoppingCriteria(args.time * 60, args.improvement, args.steps)
 
     criteria.start_timer()
 
@@ -326,7 +328,6 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         #state.update(normalize(new_x.squeeze(1), bounds=norm_domain_bounds), new_obj, VALID_X)
         state.update(new_x_valid.squeeze(1).to(device), new_x_invalid.squeeze(1).to(device), new_obj.to(device))
-
 
         index, best_impr = max(enumerate(state.train_obj), key=lambda x: x[1])
         criteria.step(best_impr.item(), new_x.shape[0])
@@ -516,8 +517,13 @@ def get_plan_latency(args, sampled_plan) -> float:
             EXECUTABLE_PLANS.add(plan_out)
 
             with open(args.experience, 'a') as exp_file:
-                training_file.write(f"{input}:{picked_plan}:{exec_time}\n")
+                exp_file.write(f"{input}:{picked_plan}:{exec_time}\n")
                 print(f"Successfully appended experience to {args.experience}")
+
+
+            with open(args.stats, 'a') as stats_file:
+                stats_file.write(f"{datetime.datetime.now()}: {exec_time}\n")
+            print(f"Successfully appended statistics to {args.stats}")
         else:
             return -1
 

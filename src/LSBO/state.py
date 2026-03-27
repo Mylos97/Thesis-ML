@@ -18,6 +18,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 import math
 import gpytorch
+import datetime
 from .sampling.gaussian import GPModel
 from gpytorch.mlls import PredictiveLogLikelihood
 
@@ -41,6 +42,7 @@ class State:
 
     def __init__(
         self,
+        args,
         ml_model,
         model_results,
         tree,
@@ -48,8 +50,10 @@ class State:
         train_x_invalid,
         train_obj,
         best_values,
-        batch_size
+        batch_size,
+        stopping_criteria
     ):
+        self.args = args
         self.ml_model = ml_model
         self.model_results = model_results
         self.tree = tree
@@ -58,9 +62,12 @@ class State:
         self.train_obj = train_obj
         self.best_values = best_values
         self.batch_size = batch_size
+        self.stopping_criteria = stopping_criteria
+        self.failure_tolerance = int((stopping_criteria.max_steps / 4) / batch_size)
         self.initialize_surrogate_model()
 
         print(f"unique plans: {self.train_x_valid.shape[0]}")
+        print(f"state.patience: {self.failure_tolerance}")
 
     def initialize_tr_state(self):
         self.length = 0.8
@@ -147,12 +154,23 @@ class State:
         # Update the length of the trust region according to
         # success and failure counters
         # (Just as in original TuRBO paper)
+        """
         if self.success_counter == self.success_tolerance:  # Expand trust region
             self.length = min(2.0 * self.length, self.length_max)
             self.success_counter = 0
         elif self.failure_counter == self.failure_tolerance:  # Shrink trust region
             self.length /= 2.0
             self.failure_counter = 0
+        """
+
+        if self.success_counter > 1:
+            self.failure_counter = 0
+
+        if self.failure_counter > 0:
+            self.success_counter = 0
+
+            if self.failure_counter == self.failure_tolerance:
+                self.stopping_criteria.force_stop()
 
         if self.length < self.length_min:  # Restart when trust region becomes too small
             self.restart_triggered = True
@@ -189,6 +207,9 @@ class State:
 
             if improved_obj or obtained_validity:
                 print(f"new impr: {improved_obj} or new valid: {obtained_validity}")
+
+                with open(self.args.stats, 'a') as stats_file:
+                    stats_file.write(f"{datetime.datetime.now()}: {max(new_obj).item() * -1} at {self.stopping_criteria.steps_taken}\n")
 
                 self.success_counter += 1
                 self.failure_counter = 0

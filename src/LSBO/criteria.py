@@ -101,3 +101,6 @@ class StoppingCriteria:
         # If otherwise, improvement can't be a stopping criteria, as MAX_VALUE - real_latency will most like fulfill criteria instantly
         return self.__time_limit_reached or (self.max_steps > 0 and self.steps_taken >= self.max_steps)
 
+    def force_stop(self):
+        self.__time_limit_reached = True
+
