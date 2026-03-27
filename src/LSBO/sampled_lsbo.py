@@ -160,7 +160,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             Use topk (k=100) generated plans written down in .txt file as
             encoded vectors for initialization data
             """
-            data, _, _, mean, std = load_autoencoder_carb_data(device=device, path=initialization)
+            data, _, _, mean, std = load_autoencoder_carb_data(device=device, path=initialization, num_platfs=args.platforms, num_ops=args.operators)
 
             initialization_data = DataLoader(data, batch_size=len(data), drop_last=False, shuffle=False)
 
@@ -359,6 +359,8 @@ def run_lsbo(input, args, state: State = None):
     data, in_dim, out_dim = load_autoencoder_data_from_str(
         device=device,
         data=input,
+        num_platfs=args.platforms,
+        num_ops=args.operators,
     )
 
     # find model parameters
@@ -512,6 +514,10 @@ def get_plan_latency(args, sampled_plan) -> float:
         if exec_time > 0:
             print("Add an executable plan")
             EXECUTABLE_PLANS.add(plan_out)
+
+            with open(args.experience, 'a') as exp_file:
+                training_file.write(f"{input}:{picked_plan}:{exec_time}\n")
+                print(f"Successfully appended experience to {args.experience}")
         else:
             return -1
 

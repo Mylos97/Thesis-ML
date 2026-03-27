@@ -32,7 +32,7 @@ def is_null_operator(tup):
             return all(is_null_operator(sub) for sub in tup)
         else:
             # Features
-            if len(tup) > 9:
+            if len(tup) > 4:
                 return sum(list(tup)) <= 1
 
             # Platform choices

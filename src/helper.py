@@ -346,7 +346,7 @@ def load_costmodel_data(device: str, path: str) -> tuple[TreeVectorDataset, int,
     return TreeVectorDataset(x), in_dim, out_dim
 
 
-def load_autoencoder_carb_data(device: str, path: str, retrain_path: str = "", num_ops: int = 43, num_platfs: int = 9) -> tuple[TreeVectorDataset, int, int]:
+def load_autoencoder_carb_data(device: str, path: str, retrain_path: str = "", num_ops: int = 43, num_platfs: int = 4) -> tuple[TreeVectorDataset, int, int]:
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
 
     def platform_encodings(optimal_tree: str):
