@@ -57,9 +57,9 @@ def main(args) -> None:
         loss_function = BetaCVAELoss
 
     if args.model == 'carbvae':
-        data, in_dim, out_dim, mean, std = load_autoencoder_carb_data(path=get_relative_path('train.txt', 'Data/splits/imdb/complex'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        test_data, _, _, _, _ = load_autoencoder_carb_data(path=get_relative_path('test.txt', 'Data/splits/imdb/complex'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _, _, _ = load_autoencoder_carb_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/complex'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim, mean, std = load_autoencoder_carb_data(path=get_relative_path('train.txt', 'Data/splits/tpch'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _, _, _ = load_autoencoder_carb_data(path=get_relative_path('test.txt', 'Data/splits/tpch'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _, _, _ = load_autoencoder_carb_data(path=get_relative_path('validate.txt', 'Data/splits/tpch'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
 
         model_class = CarbVAE
         loss_function = CarbVAELoss
