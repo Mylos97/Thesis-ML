@@ -3,8 +3,10 @@ import torch.onnx
 import torch.nn.functional as F
 import onnx
 import onnxruntime
+from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
+from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
 
-def export_model(model, x, model_name) -> None:
+def export_model(model, x, target, model_name) -> None:
     amount_inputs = len(x)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
     axes = {f"input{i+1}": {0: "batch_size", 1: "height", 2: "width"} for i in range(amount_inputs)}
@@ -21,17 +23,31 @@ def export_model(model, x, model_name) -> None:
     for i in range(len(x)):
         x[i] = x[i].to("cpu")
 
-    torch.onnx.export(
-        model,
-        args=(x),
-        f=model_name,
-        export_params=True,
-        opset_version=20,
-        do_constant_folding=True,
-        input_names=inputs,
-        output_names=["output"],
-        dynamic_axes=axes
-    )
+    if isinstance(model, BetaCVAE) or isinstance(model, CarbVAE):
+        torch.onnx.export(
+            model,
+            args=(x, target.to('cpu')),
+            f=model_name,
+            export_params=True,
+            opset_version=20,
+            do_constant_folding=True,
+            input_names=inputs,
+            output_names=["output"],
+            dynamic_axes=axes
+        )
+    else:
+        torch.onnx.export(
+            model,
+            args=(x),
+            f=model_name,
+            export_params=True,
+            opset_version=20,
+            do_constant_folding=True,
+            input_names=inputs,
+            output_names=["output"],
+            dynamic_axes=axes
+        )
+
 
     print("Finished exporting model", flush=True)
 

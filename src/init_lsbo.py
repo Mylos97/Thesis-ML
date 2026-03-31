@@ -18,7 +18,8 @@
 import argparse
 
 from LSBO.state import State
-from LSBO.lsbo import request_wayang_plan
+from LSBO.sampled_lsbo import request_wayang_plan
+#from LSBO.lsbo import request_wayang_plan
 from main import main as retrain
 
 # Default should be 30 min, set it high for long running queries
@@ -30,7 +31,7 @@ def main(args) -> None:
     state = None
     timeout = float(60 * 180)
 
-    plan_data, initial_latency, plan_cache = request_wayang_plan(args, state, timeout)
+    plan_data, plan_cache, state = request_wayang_plan(args, state, timeout)
     print(f"Best plan data: {plan_data}")
 
     # add best plan to trainset
@@ -38,8 +39,13 @@ def main(args) -> None:
         training_file.write(f"{plan_data[1]}:{plan_data[0]}:{plan_data[2]}\n")
         print(f"Successfully appended best sampled plan to {args.trainset}")
 
+    # write to stats file
     with open(args.stats, 'a') as stats_file:
-        stats_file.write(f"{args.query}:{len(plan_cache)}:{initial_latency}:{plan_data[2]}\n")
+        #stats_file.write(f"{args.query}:{len(plan_cache)}:{initial_latency}:{plan_data[2]}\n")
+        if args.initialization == "random":
+            stats_file.write(f"# of valid plans: {state.train_x_valid.shape[0]}\n# of invalid plans: {state.train_x_invalid.shape[0]}\nbest_latency: {state.train_obj.max().item() * -1}\ntrain_x: {state.train_x_valid}\ntrain_obj: {state.train_obj}\n")
+        else:
+            stats_file.write(f"# of valid plans: {state.train_x_valid.shape[0] - 100}\n# of invalid plans: {state.train_x_invalid.shape[0]}\nbest_latency: {state.train_obj[100:].max().item() * -1}\ntrain_x: {state.train_x_valid[100:]}\ntrain_obj: {state.train_obj[100:]}\n")
         print(f"Successfully appended statistics to {args.stats}")
 
 
@@ -61,13 +67,15 @@ if __name__ == '__main__':
     parser.add_argument('--stats', type=str, default='./src/Data/splits/tpch/bvae/stats.txt')
     parser.add_argument('--model-path', default='./src/Models/bvae.onnx')
     parser.add_argument('--parameters', default='./src/HyperparameterLogs/BVAE.json')
+    parser.add_argument('--initialization', default='random')
+    parser.add_argument('--experience', type=str, default='./src/Data/splits/imdb/complex/experience/1.sql.txt')
     parser.add_argument('--zdim', type=int, default=31)
     parser.add_argument('--name', type=str, default='')
     parser.add_argument('--lr', type=str, default='[1e-6, 0.1]')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--trials', type=int, default=25)
     parser.add_argument('--plots', type=bool, default=False)
-    parser.add_argument('--platforms', type=int, default=9)
+    parser.add_argument('--platforms', type=int, default=4)
     parser.add_argument('--operators', type=int, default=43)
     # add a time in minutes for this process to run, otherwise stop it
     parser.add_argument('--time', type=int, default=1)
