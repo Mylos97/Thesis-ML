@@ -14,7 +14,7 @@ from OurModels.EncoderDecoder.betaCVAE.model import Loss as BetaCVAELoss
 from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
 from OurModels.EncoderDecoder.carbVAE.model import Loss as CarbVAELoss
 
-from helper import load_autoencoder_data, load_autoencoder_carb_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str
+from helper import load_autoencoder_data, load_autoencoder_carb_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str, Classifier_Loss
 from hyperparameterBO import do_hyperparameter_BO
 
 
@@ -42,9 +42,9 @@ def main(args) -> None:
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == "classifier":
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/training'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
-        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
-        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/training'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('classifier.train.txt', 'Data/splits/tpch'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('classifier.test.txt', 'Data/splits/tpch'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('classifier.validate.txt', 'Data/splits/tpch'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
 
         model_class = TcnnClassifier
         loss_function = Classifier_Loss
