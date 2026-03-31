@@ -18,6 +18,7 @@ from onnx import numpy_helper
 from torch.utils.data import DataLoader, Dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+dtype = torch.float32
 
 class TreeVectorDataset(Dataset):
     def __init__(self, data):
@@ -29,6 +30,20 @@ class TreeVectorDataset(Dataset):
     def __getitem__(self, idx):
         vector, cost = self.data[idx]
         return vector, cost
+
+    def append(self, item):
+        self.data.append(item)
+
+class TreeAttributeVectorDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        vector, target, latency = self.data[idx]
+        return vector, target, latency
 
     def append(self, item):
         self.data.append(item)
@@ -329,6 +344,67 @@ def load_costmodel_data(device: str, path: str) -> tuple[TreeVectorDataset, int,
         x.append(((tree, indexes[i]), costs[i]))
 
     return TreeVectorDataset(x), in_dim, out_dim
+
+
+def load_autoencoder_carb_data(device: str, path: str, retrain_path: str = "", num_ops: int = 43, num_platfs: int = 4) -> tuple[TreeVectorDataset, int, int]:
+    regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
+
+    def platform_encodings(optimal_tree: str):
+        matches_iterator = re.finditer(regex_pattern, optimal_tree)
+
+        for match in matches_iterator:
+            in_paranthesis = match.group()
+            find = in_paranthesis.strip('(').strip(')')
+            values = [int(num.strip()) for num in find.split(',')]
+            replacement = ','.join(map(str, values[num_ops:num_ops+num_platfs]))
+            optimal_tree = optimal_tree.replace(in_paranthesis, f"({replacement})", 1)
+
+        return optimal_tree
+
+    trees = []
+    targets = []
+    latencies = []
+
+    tree_latency_list = generate_tree_latency_list(path)
+
+    if retrain_path != "":
+        tree_latency_list = generate_tree_latency_list(retrain_path)
+
+
+    for tup in tree_latency_list:
+        optimal_tree = platform_encodings(tup[1])
+        tree, optimal_tree, latency = ast.literal_eval(tup[0]), ast.literal_eval(optimal_tree), float(tup[2])
+        trees.append(tree)
+        targets.append(optimal_tree)
+        latencies.append(latency)
+
+    print(f"Tree size: {len(trees)}")
+    print(f"Targets size: {len(targets)}")
+    print(f"Latencies size: {len(latencies)}")
+
+    assert len(trees) == len(targets)
+    assert len(trees) == len(latencies)
+    in_dim, out_dim = len(tree[0]), len(optimal_tree[0])
+    x = []
+    trees, indexes = build_trees(trees, device=device)
+    target_trees, target_indexes = build_trees(targets, device=device)
+    target_trees = torch.where((target_trees > 1) | (target_trees < 0), 0, target_trees)
+
+    log_latencies = np.log1p(latencies)  # log(1 + x) handles zeros
+    mean = log_latencies.mean()
+    std  = log_latencies.std()
+
+    print(f"mean: {mean}, std: {std}")
+    latencies_normalized = torch.tensor((log_latencies - mean) / std, dtype=dtype, device=device)
+
+    #latencies_normalized = torch.tensor((arr - mean) / std, dtype=dtype, device=device)
+
+    for i, tree in enumerate(trees):
+        x.append(((tree, indexes[i]), target_trees[i], latencies_normalized[i]))
+
+    print(f'Succesfully loaded {len(x)} plans', flush=True)
+    return TreeAttributeVectorDataset(x), in_dim, out_dim, mean, std
+
 
 
 def get_weights_of_model(modelname: str) -> dict:

@@ -96,9 +96,9 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
     initial_latency = 0
     latent_vector_sample = latent_vector[0].max().item()
 
-    bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
+    #bounds = torch.tensor([[-6] * z_dim, [6] * z_dim], device=device, dtype=dtype)
     #bounds = torch.tensor([[-100] * z_dim, [100] * z_dim], device=device, dtype=dtype)
-    #bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
+    bounds = torch.tensor([[-6_000_000] * d, [6_000_000] * d], device=device, dtype=dtype)
     #bounds = torch.tensor([[-(latent_vector_sample)] * d, [latent_vector_sample] * d], device=device, dtype=dtype)
     #bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)
 
@@ -112,9 +112,10 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
             len_executables_before = len(EXECUTABLE_PLANS)
             if plan not in duplicates:
                 latency = get_plan_latency(args, plan)
-                if len_executables_before < len(EXECUTABLE_PLANS): # plan was valid
-                    VALID_X.add(i)
+                #if len_executables_before < len(EXECUTABLE_PLANS): # plan was valid
+                    #VALID_X.add(i)
                 #latency = random.randrange(1,100000)
+
                 results.append(latency)
             else:
                 results.append(initial_latency)
@@ -129,17 +130,16 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         duplicate_plans = []
 
-        if not initial:
-            v_hat = [torch.add(latent_vector, v.clone().detach()) for v in X]
-            #v_hat = X
-        else:
+        if initial:
             v_hat = [latent_vector]
+        else:
+            X = [v.unsqueeze(0) for v in X]
 
         model_results = []
 
         no_distinct_plans_before = len(distinct_choices)
 
-        for new_plan in v_hat:
+        for new_plan in X:
             decoded = ML_model.decoder(new_plan.float(), indexes)
 
             #model_results.append([decoded[0].tolist()[0], decoded[1].tolist()[0]])
@@ -254,7 +254,6 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
 
     def get_fitted_model(train_x, train_obj, state_dict=None):
-
         model = SingleTaskGP(
             #train_X=normalize(train_x, bounds),
             train_X=train_x,
@@ -333,7 +332,8 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
 
         print(f"[{datetime.datetime.now()}] Finished gen candidates")
         new_x = unnormalize(candidates.detach(), bounds=bounds)
-        candidates = [torch.add(latent_vector, x.clone().detach()) for x in new_x]
+        candidates = [x.squeeze(0) for x in new_x]
+        #candidates = [torch.add(latent_vector, x.clone().detach()) for x in new_x]
         print(f"[{datetime.datetime.now()}] Starting objective_function on candidates")
         new_obj = objective_function(candidates).unsqueeze(-1)
         print(f"[{datetime.datetime.now()}] Finished objective_function on candidates")
@@ -351,7 +351,7 @@ def latent_space_BO(ML_model, device, plan, args, state: State = None):
         state_dict = None
         model_results = []
 
-        state = State(initial_latency, ML_model, None, model_results, tree, train_x, train_obj, state_dict, best_observed)
+        state = State(initial_latency, ML_model, None, model_results, tree, train_x, train_obj, state_dict, best_observed, VALID_X)
         VALID_X = set()
 
     criteria = StoppingCriteria(args.time * 60, args.improvement, initial_latency, args.steps)
@@ -560,6 +560,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             best_plan_data = input, picked_plan, exec_time_str
 
         print(exec_time)
+        VALID_X.add(plan_out)
 
         return exec_time
 

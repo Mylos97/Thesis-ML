@@ -9,8 +9,12 @@ from OurModels.PairWise.model import Pairwise
 from OurModels.CostModel.model import CostModel
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
+from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
+from OurModels.EncoderDecoder.betaCVAE.model import Loss as BetaCVAELoss
+from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
+from OurModels.EncoderDecoder.carbVAE.model import Loss as CarbVAELoss
 
-from helper import load_autoencoder_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str, Classifier_Loss
+from helper import load_autoencoder_data, load_autoencoder_carb_data, load_pairwise_data, load_costmodel_data, get_relative_path, get_weights_of_model_by_path, Beta_Vae_Loss, set_weights, load_autoencoder_data_from_str
 from hyperparameterBO import do_hyperparameter_BO
 
 
@@ -26,6 +30,8 @@ def main(args) -> None:
     lr = ast.literal_eval(args.lr)
     epochs = args.epochs
     trials = args.trials
+    mean=0
+    std=0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args_name = args.name if ".onnx" in args.name else f"{args.name}.onnx"
     print(f"Started training model {args.model} at {args.model_path}", flush=True)
@@ -51,6 +57,22 @@ def main(args) -> None:
         model_class = BVAE
         loss_function = Beta_Vae_Loss
 
+    if args.model == 'bcvae':
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('train.txt', 'Data/splits/imdb/training/bcvae'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _ = load_autoencoder_data(path=get_relative_path('test.txt', 'Data/splits/imdb/training/bcvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _ = load_autoencoder_data(path=get_relative_path('validate.txt', 'Data/splits/imdb/training/bcvae'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+
+        model_class = BetaCVAE
+        loss_function = BetaCVAELoss
+
+    if args.model == 'carbvae':
+        data, in_dim, out_dim, mean, std = load_autoencoder_carb_data(path=get_relative_path('train.txt', 'Data/splits/tpch'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        test_data, _, _, _, _ = load_autoencoder_carb_data(path=get_relative_path('test.txt', 'Data/splits/tpch'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+        val_data, _, _, _, _ = load_autoencoder_carb_data(path=get_relative_path('validate.txt', 'Data/splits/tpch'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
+
+        model_class = CarbVAE
+        loss_function = CarbVAELoss
+
     if args.model == "pairwise":
         data, in_dim, out_dim = load_pairwise_data(path=path, device=device)
         model_class = Pairwise
@@ -75,7 +97,7 @@ def main(args) -> None:
 
         weights = get_weights_of_model_by_path(args.model_path)
 
-        best_model, x = do_hyperparameter_BO(
+        best_model, x, target = do_hyperparameter_BO(
                 model_class=model_class,
                 data=data,
                 test_data=test_data,
@@ -100,11 +122,11 @@ def main(args) -> None:
             model_name = get_relative_path(model_name, "Models")
 
         export_model(
-            model=best_model, x=x, model_name=model_name
+            model=best_model, x=x, target=target, model_name=model_name
         )
 
     else:
-        best_model, x = do_hyperparameter_BO(
+        best_model, x, target = do_hyperparameter_BO(
                 model_class=model_class,
                 data=data,
                 test_data=test_data,
@@ -118,7 +140,9 @@ def main(args) -> None:
                 epochs=epochs,
                 trials=trials,
                 plots=args.plots,
-                parameters_path=args.parameters
+                parameters_path=args.parameters,
+                mean=mean,
+                std=std
         )
 
         if args.model_path is not None:
@@ -128,7 +152,7 @@ def main(args) -> None:
             model_name = get_relative_path(model_name, "Models")
 
         export_model(
-            model=best_model, x=x, model_name=model_name
+            model=best_model, x=x, target=target, model_name=model_name
         )
 
 
@@ -143,7 +167,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--trials', type=int, default=25)
     parser.add_argument('--plots', type=bool, default=False)
-    parser.add_argument('--platforms', type=int, default=9)
+    parser.add_argument('--platforms', type=int, default=4)
     parser.add_argument('--operators', type=int, default=43)
     args = parser.parse_args()
     main(args)
