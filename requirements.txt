@@ -10,9 +10,9 @@ APScheduler==3.6.3
 asttokens==2.4.1
 async-timeout==3.0.1
 attrs==23.2.0
-ax-platform==0.4.1
+ax-platform
 ax==0.52.0
-botorch
+botorch==0.17.2
 certifi==2024.2.2
 chardet==3.0.4
 charset-normalizer==3.3.2

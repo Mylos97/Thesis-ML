@@ -6,7 +6,6 @@ from TreeConvolution.tcnn import (BinaryTreeConv, DynamicPooling,
 class TreeEncoder(nn.Module):
     def __init__(self, input_dim, dropout_prob, z_dim) -> None:
         super(TreeEncoder, self).__init__()
-
         self.binary_conv = nn.Sequential(
             BinaryTreeConv(input_dim, 512),
             TreeLayerNorm(),
