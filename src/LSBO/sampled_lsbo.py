@@ -536,6 +536,14 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         PLAN_IMPROVEMENT_CACHE[plan_out] = exec_time
 
+        try:
+            process.stdout.close()
+            process.stderr.close()
+            process.kill()
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass  # Process already exited, nothing to kill
+
         return exec_time
 
     except TimeoutExpired as e:
@@ -564,8 +572,14 @@ def get_plan_latency(args, sampled_plan) -> float:
     except Exception as e:
         # In case the underlying process died
         print(f"Exception: {e}")
-        print(process.stderr.read())
+
         exec_time = -1
+        try:
+            process.stdout.close()
+            process.stderr.close()
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass  # Process already exited, nothing to kill
 
         return exec_time
 
