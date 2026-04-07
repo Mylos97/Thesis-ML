@@ -61,7 +61,7 @@ from LSBO.criteria import StoppingCriteria
 
 global duplicates_counter
 # Set to 30min (1800 seconds)
-TIMEOUT = float(60 * 180)
+TIMEOUT = float(60 * 30)
 PLAN_IMPROVEMENT_CACHE = {}
 EXECUTABLE_PLANS = set()
 best_plan_data = None
@@ -485,7 +485,7 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         print(f"[{datetime.datetime.now()}] Starting execution with {TIMEOUT} seconds max.")
 
-        if process.wait() != 0:
+        if process.wait(timeout=TIMEOUT) != 0:
             print("Error closing Wayang process!")
             print(f"[{datetime.datetime.now()}] Closing sock_file")
             sock_file.close()
@@ -550,7 +550,6 @@ def get_plan_latency(args, sampled_plan) -> float:
         print(f"Exception: {e}")
         print("Didnt finish fast enough")
 
-        print(f"[{datetime.datetime.now()}] Seen this plan before")
         print(f"[{datetime.datetime.now()}] Closing sock_file")
         sock_file.close()
         print(f"[{datetime.datetime.now()}] Closing sock")
@@ -565,7 +564,11 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         EXECUTABLE_PLANS.add(plan_out)
 
-        exec_time = TIMEOUT
+
+        ms_timeout = TIMEOUT * 1000
+        exec_time = int(ms_timeout)
+
+        PLAN_IMPROVEMENT_CACHE[plan_out] = exec_time
 
         return exec_time
 
@@ -631,4 +634,5 @@ def read_from_wayang(sock_file):
         print("None return from read_from_wayang")
     else:
         return next_val
+
 
