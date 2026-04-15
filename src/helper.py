@@ -535,7 +535,6 @@ class Classifier_Loss(torch.nn.Module):
 
         pred_classes = pred_logits.argmax(dim=1)
 
-
         pred_classes = pred_logits.argmax(dim=1)
         unique, counts = pred_classes.unique(return_counts=True)
 

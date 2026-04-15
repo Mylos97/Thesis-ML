@@ -42,7 +42,7 @@ def main(args) -> None:
         loss_function = torch.nn.CrossEntropyLoss
 
     if args.model == "classifier":
-        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('classifier.retrain.txt', 'Data/splits/imdb/complex'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+        data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('classifier.retrain.txt', 'Data/splits/tpch'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
         test_data, _, _ = load_autoencoder_data(path=get_relative_path('classifier.test.txt', 'Data/splits/tpch'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
         val_data, _, _ = load_autoencoder_data(path=get_relative_path('classifier.validate.txt', 'Data/splits/tpch'), retrain_path='', device=device, num_ops=args.operators, num_platfs=args.platforms)
 

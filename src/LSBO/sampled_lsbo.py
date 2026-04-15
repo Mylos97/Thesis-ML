@@ -483,9 +483,9 @@ def get_plan_latency(args, sampled_plan) -> float:
 
         #PLAN_CACHE.add(plan_out)
 
-        print(f"[{datetime.datetime.now()}] Starting execution with {TIMEOUT} seconds max.")
+        print(f"[{datetime.datetime.now()}] Starting execution with {max(TIMEOUT, 5)} seconds max.")
 
-        if process.wait(timeout=TIMEOUT) != 0:
+        if process.wait(timeout=max(TIMEOUT, 5)) != 0:
             print("Error closing Wayang process!")
             print(f"[{datetime.datetime.now()}] Closing sock_file")
             sock_file.close()

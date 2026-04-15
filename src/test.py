@@ -20,7 +20,7 @@ def clean_duplicate_platforms(file_path: str):
             in_paranthesis = match.group()
             find = in_paranthesis.strip('(').strip(')')
             values = [int(num.strip()) for num in find.split(',')]
-            platform_choices = values[43:43+9]
+            platform_choices = values[43:43+4]
             if sum(platform_choices) > 1:
                 print(f"Before: {platform_choices}")
                 if platform_choices[5] == 1:
@@ -29,7 +29,7 @@ def clean_duplicate_platforms(file_path: str):
                             platform_choices[i] = 0
                 print(f"After: {platform_choices}")
                 assert sum(platform_choices) <= 1
-                values[43:43+9] = platform_choices
+                values[43:43+4] = platform_choices
                 replacement = ','.join(map(str, values))
                 new_exec_plan = exec_plan.replace(in_paranthesis, f"({replacement})")
                 lines[position] = f"{input}:{new_exec_plan}:{latency}"
@@ -54,12 +54,12 @@ def get_platform_choices(file_path: str, line: int):
         in_paranthesis = match.group()
         find = in_paranthesis.strip('(').strip(')')
         values = [int(num.strip()) for num in find.split(',')]
-        platform_choices = values[43:43+9]
+        platform_choices = values[43:43+4]
         if sum(platform_choices) > 0:
             print(platform_choices)
 
 def main():
-    file_path = get_relative_path("916.txt", "Data/splits/tpch/bvae/")
+    file_path = get_relative_path("916.txt", "Data/splits/tpch/")
     #clean_duplicate_platforms(file_path)
     get_platform_choices(file_path, 0)
 

@@ -16,6 +16,7 @@
 #
 
 import argparse
+import torch
 
 from LSBO.state import State
 from LSBO.sampled_lsbo import request_wayang_plan
@@ -42,6 +43,7 @@ def main(args) -> None:
     # write to stats file
     with open(args.stats, 'a') as stats_file:
         #stats_file.write(f"{args.query}:{len(plan_cache)}:{initial_latency}:{plan_data[2]}\n")
+        torch.set_printoptions(profile="full")
         if args.initialization == "random":
             stats_file.write(f"# of valid plans: {state.train_x_valid.shape[0]}\n# of invalid plans: {state.train_x_invalid.shape[0]}\nbest_latency: {state.train_obj.max().item() * -1}\ntrain_x: {state.train_x_valid}\ntrain_obj: {state.train_obj}\n")
         else:

@@ -10,6 +10,7 @@ from OurModels.EncoderDecoder.bvae import BVAE
 from annealing import Annealer
 from OurModels.EncoderDecoder.betaCVAE.model import BetaCVAE
 from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
+from helper import get_relative_path
 
 def train(
     model_class,
@@ -133,11 +134,18 @@ def train(
             best_val_loss = val_loss["loss"]
             counter = 0
 
+            # save the intermediate best model
+            torch.save(model.state_dict(), get_relative_path('best_checkpoint.pt', 'Models'))
+
         if counter > patience:
             print(
                 f"Early stopping on Epoch {epoch} training loss: {loss} validation loss: {val_loss} model has not improved for {patience} epochs",
                 flush=True,
             )
+
+            print(f"Loading model from Epoch {epoch - counter} with validation loss: {best_val_loss}")
+            model.load_state_dict(torch.load(get_relative_path('best_checkpoint.pt', 'Models')))
+
             break
 
     # measure models inference performance with test data
