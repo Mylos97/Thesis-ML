@@ -532,10 +532,12 @@ class Classifier_Loss(torch.nn.Module):
     def forward(self, prediction, target):
         pred_logits = prediction[0]
         recon_loss = F.cross_entropy(pred_logits, target)
+        print(f"recon_loss: {recon_loss}")
 
         pred_classes = pred_logits.argmax(dim=1)
 
-        pred_classes = pred_logits.argmax(dim=1)
+        print(f"Pred_classes: {pred_classes[0]}")
+        print(f"Target classes: {target[0]}")
         unique, counts = pred_classes.unique(return_counts=True)
 
         return {'loss': recon_loss}

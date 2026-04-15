@@ -48,8 +48,10 @@ from botorch.optim import optimize_acqf, gen_batch_initial_conditions
 from botorch.generation.gen import get_best_candidates, gen_candidates_torch
 from OurModels.EncoderDecoder.model import VAE
 from OurModels.EncoderDecoder.bvae import BVAE
+from OurModels.Classifier.TcnnClassifier import TcnnClassifier
 from Util.communication import read_int, UTF8Deserializer, dump_stream, open_connection
 from LSBO.criteria import StoppingCriteria
+
 
 TIMEOUT = float(60 * 60 * 60)
 PLAN_CACHE = set()
@@ -183,6 +185,66 @@ def main_onnx(args):
                 results.append(platform_choices)
         return results
 
+def main_classifier(args):
+    # set some defaults, highly WIP
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    model_path=args.model_path
+    parameters_path=args.parameters
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    data, in_dim, out_dim = load_autoencoder_data(path=get_relative_path('916.txt', 'Data/splits/tpch/'), retrain_path=args.retrain, device=device, num_ops=args.operators, num_platfs=args.platforms)
+    # find model parameters
+    weights = get_weights_of_model_by_path(model_path)
+
+    # find model parameters
+    with open(parameters_path) as file:
+        parameters = json.load(file)
+        lr = parameters.get("lr", 0.001)
+        gradient_norm = parameters.get("gradient_norm", 1.0)
+        dropout = parameters.get("dropout", 0.1)
+        weights = get_weights_of_model_by_path(model_path)
+
+        model = TcnnClassifier(
+            in_dim=in_dim,
+            out_dim=out_dim,
+            dropout_prob=dropout,
+            z_dim=z_dim,
+        )
+
+        if weights:
+            set_weights(weights=weights, model=model, device=device)
+
+        # load model
+        model.to(device)
+        model.eval()
+
+        dataloader = DataLoader(data, batch_size=1, drop_last=False, shuffle=False)
+
+        dtype = torch.float64
+        latent_target = None
+        results = []
+        with torch.no_grad():
+            for tree,target in dataloader:
+                model.training = False
+                model.eval()
+                decoded = model.forward(tree)
+
+                platform_choices = list(
+                    map(
+                        lambda x: [int(v == max(x)) for v in x],
+                        decoded[0][0].detach().clone().transpose(0, 1)
+                    )
+                )
+
+                print("Model choices")
+                for choice in platform_choices:
+                    if sum(choice) > 0:
+                        print(choice)
+
+                results.append(platform_choices)
+
+        return results
+
 def get_platform_choices(file_path: str, line: int):
     regex_pattern = r'\(((?:[+,-]?\d+(?:,[+,-]?\d+)*)(?:\s*,\s*\(.*?\))*)\)'
     lines = []
@@ -197,9 +259,10 @@ def get_platform_choices(file_path: str, line: int):
         in_paranthesis = match.group()
         find = in_paranthesis.strip('(').strip(')')
         values = [int(num.strip()) for num in find.split(',')]
-        platform_choices = values[43:43+9]
-        #if sum(platform_choices) > 0:
-        print(platform_choices)
+        platform_choices = values[43:43+4]
+        if sum(platform_choices) > 0:
+            print("File choices")
+            print(platform_choices)
 
 
 
@@ -214,12 +277,12 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--trials', type=int, default=25)
     parser.add_argument('--plots', type=bool, default=False)
-    parser.add_argument('--platforms', type=int, default=9)
+    parser.add_argument('--platforms', type=int, default=4)
     parser.add_argument('--operators', type=int, default=43)
     args = parser.parse_args()
     #onnx_plats = main_onnx(args)
-    torch_plats = main(args)
-    file_path = get_relative_path("30.txt", "Data/splits/imdb/training/")
+    torch_plats = main_classifier(args)
+    file_path = get_relative_path("916.txt", "Data/splits/tpch/")
     #clean_duplicate_platforms(file_path)
     get_platform_choices(file_path, 0)
 

@@ -98,8 +98,7 @@ def train(
                     loss.backward()
                 else:
                     prediction = model(tree)
-                    log_target = torch.log(target + 1)
-                    loss = loss_function(prediction, log_target.float())
+                    loss = loss_function(prediction, target.float())
                     #loss_accum += loss.item()
                     loss_accum += loss["loss"].item()
                     loss_accum = min(loss_accum, sys.maxsize)
@@ -148,69 +147,6 @@ def train(
 
             break
 
-    # measure models inference performance with test data
-    test_loss_accum = 0
-    model.train()
-
-    if model_class == CarbVAE:
-        for tree, target, latency in test_data_loader:
-            logical_plan = tree
-            physical_plan = target
-            logits, mu, logvar, z = model(logical_plan, physical_plan)
-            loss, recon, kl = loss_function(logits, physical_plan, mu, logvar, z, latency)
-            loss_accum += loss.item()
-            optimizer.zero_grad()
-            loss.backward()
-
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
-        optimizer.step()
-        annealing_agent.step()
-    else:
-
-        for tree, target in test_data_loader:
-            if model_class == BetaCVAE:
-                #TODO: For now, BetaCVAE isn't batched
-                #This enumerate also doesn't go through all trees correctly
-                logical_plan = tree
-                physical_plan = target
-                logits, mu, logvar = model(logical_plan, physical_plan)
-                loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
-                test_loss_accum += loss.item()
-                optimizer.zero_grad()
-                loss.backward()
-            else:
-                prediction = model(tree)
-                log_target = torch.log(target + 1)
-                loss = loss_function(prediction, log_target.float())
-                #test_loss_accum += loss.item()
-                test_loss_accum += loss["loss"].item()
-                test_loss_accum = min(test_loss_accum, sys.maxsize)
-                optimizer.zero_grad()
-                #loss.backward()
-                loss["loss"].backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_norm)
-            optimizer.step()
-
-    assert len(test_data_loader) != 0
-    #test_loss_accum /= batch_size
-    test_loss_accum /= len(test_data_loader)
-
-    print(f"Test loss: {test_loss_accum}", flush=True)
-    test_loss = evaluate(
-        model=model,
-        val_data_loader=test_data_loader,
-        loss_function=loss_function,
-        device=device,
-        batch_size=batch_size,
-    )
-
-    if test_loss["loss"] < best_test_loss:
-        print(
-            f"Got better test loss {test_loss['loss']} than {best_test_loss}",
-            flush=True,
-        )
-        best_test_loss = test_loss["loss"]
-
     return model, tree, target
 
 
@@ -249,8 +185,7 @@ def evaluate(
                 loss.backward()
             else:
                 prediction = model(tree)
-                log_target = torch.log(target + 1)
-                loss = loss_function(prediction, log_target.float())
+                loss = loss_function(prediction, target.float())
                 if math.isnan(loss['loss'].item()):
                 #if math.isnan(loss.item()):
                     val_loss = sys.maxsize
