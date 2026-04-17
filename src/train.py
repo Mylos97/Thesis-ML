@@ -29,7 +29,7 @@ def train(
     gradient_norm = parameters.get("gradient_norm", 1.0)
     dropout = parameters.get("dropout", 0.1)
     z_dim = parameters.get("z_dim", 128)
-    weight_decay = parameters.get("weight_decay", 0.001) #bounds between 0, 0.1
+    weight_decay = parameters.get("weight_decay", 0) #bounds between 0, 0.1
     batch_size = parameters.get("batch_size" , 1)
 
     if model_class == BetaCVAE:
@@ -138,7 +138,7 @@ def train(
 
         if counter > patience:
             print(
-                f"Early stopping on Epoch {epoch} training loss: {loss} validation loss: {val_loss} model has not improved for {patience} epochs",
+                f"Early stopping on Epoch {epoch} training loss: {loss_accum} validation loss: {val_loss} model has not improved for {patience} epochs",
                 flush=True,
             )
 
@@ -163,45 +163,29 @@ def evaluate(
     if isinstance(model, VAE) or isinstance(model, BVAE):
         model.training = True
 
-    if isinstance(model, CarbVAE):
-        for tree, target, latency in val_data_loader:
-            logical_plan = tree
-            physical_plan = target
-            logits, mu, logvar, z = model(logical_plan, physical_plan)
-            loss, recon, kl = loss_function(logits, physical_plan, mu, logvar, z, latency)
-            val_loss += loss.item()
-            loss.backward()
-    else:
-
-        for tree, target in val_data_loader:
-            if isinstance(model, BetaCVAE):
-                #TODO: For now, BetaCVAE isn't batched
-                #This enumerate also doesn't go through all trees correctly
+    with torch.no_grad():
+        if isinstance(model, CarbVAE):
+            for tree, target, latency in val_data_loader:
                 logical_plan = tree
                 physical_plan = target
-                logits, mu, logvar = model(logical_plan, physical_plan)
-                loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+                logits, mu, logvar, z = model(logical_plan, physical_plan)
+                loss, recon, kl = loss_function(logits, physical_plan, mu, logvar, z, latency)
                 val_loss += loss.item()
-                loss.backward()
-            else:
-                prediction = model(tree)
-                loss = loss_function(prediction, target.float())
-                if math.isnan(loss['loss'].item()):
-                #if math.isnan(loss.item()):
-                    val_loss = sys.maxsize
+        else:
+            for tree, target in val_data_loader:
+                if isinstance(model, BetaCVAE):
+                    logical_plan = tree
+                    physical_plan = target
+                    logits, mu, logvar = model(logical_plan, physical_plan)
+                    loss, recon, kl = loss_function(logits, physical_plan, mu, logvar)
+                    val_loss += loss.item()
                 else:
-                    val_loss += min(loss["loss"].item(), sys.maxsize)
-                    #val_loss += loss.item()
-                    val_loss = min(val_loss, sys.maxsize)
-                loss["loss"].backward()
-                #loss.backward()
-                #val_kld += loss["kld"].item()
+                    prediction = model(tree)
+                    loss = loss_function(prediction, target.float())
+                    val_loss += loss["loss"].item()
 
     assert len(val_data_loader) != 0
     val_loss /= len(val_data_loader)
-    #val_loss /= batch_size
-    #val_kld /= len(val_data_loader)
-    val_loss = min(val_loss, sys.maxsize)
 
     return {
         "loss": val_loss,

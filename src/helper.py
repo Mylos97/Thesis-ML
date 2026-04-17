@@ -69,7 +69,6 @@ def right_child(x: tuple) -> tuple:
         return None
     return x[2]
 
-
 def transformer(x: tuple) -> np.array:
     return np.array(x[0])
 
@@ -290,6 +289,7 @@ def load_pairwise_data(device: str, path: str) -> tuple[TreeVectorDataset, int, 
 
         print(f'Read {len(wayangPlans)} different WayangPlans', flush=True)
         in_dim = len(executionPlan[0])
+        trees, _, _ = normalize_tree_features(trees)
         trees, indexes = build_trees(trees, device=device)
 
         for wayangPlan, exTuple in wayangPlans.items():
@@ -532,12 +532,9 @@ class Classifier_Loss(torch.nn.Module):
     def forward(self, prediction, target):
         pred_logits = prediction[0]
         recon_loss = F.cross_entropy(pred_logits, target)
-        print(f"recon_loss: {recon_loss}")
 
         pred_classes = pred_logits.argmax(dim=1)
 
-        print(f"Pred_classes: {pred_classes[0]}")
-        print(f"Target classes: {target[0]}")
         unique, counts = pred_classes.unique(return_counts=True)
 
         return {'loss': recon_loss}

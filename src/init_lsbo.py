@@ -24,7 +24,7 @@ from LSBO.sampled_lsbo import request_wayang_plan
 from main import main as retrain
 
 # Default should be 30 min, set it high for long running queries
-TIMEOUT = 60 * 180
+TIMEOUT = 60 * 30
 TOLERANCE = 1.25
 time_limit_reached = False
 

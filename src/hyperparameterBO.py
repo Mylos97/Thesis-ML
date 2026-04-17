@@ -32,7 +32,7 @@ def do_hyperparameter_BO(
     std=0
     ):
     def train_evaluate(params):
-        batch_size = params.get('batch_size', 32)
+        batch_size = params.get('batch_size', 1)
         #batch_size = 1
 
         train_loader, val_loader, test_loader = get_data_loaders(
@@ -74,15 +74,15 @@ def do_hyperparameter_BO(
             weights=weights
         )
         print(f"Training on {device}")
-        loss = evaluate(
+        val_loss = evaluate(
             model=model,
             val_data_loader=val_loader,
             loss_function=l_function,
             device=device,
             batch_size=parameters.get("batch_size", 1)
         )
-        print(f'Test loss for the model after training {loss}', flush=True)
-        return loss
+        print(f'Test loss for the model after training {val_loss["loss"]}', flush=True)
+        return val_loss['loss']
 
     is_retraining = best_parameters is not None
     ax_client = AxClient(random_seed=42)
@@ -105,12 +105,6 @@ def do_hyperparameter_BO(
             'type': 'range',
             'bounds': [0.5, 2.5],
             'value_type': 'float'
-        },
-        {
-            'name': 'batch_size',
-            'type': 'range',
-            'bounds': [32, 64],
-            'value_type': 'int'
         },
         {
             'name': 'patience',
@@ -205,17 +199,19 @@ def do_hyperparameter_BO(
             },
         )
 
-        trial_eval_map = {}
+        trial_eval_map = list()
 
         for _ in range(trials):
             parameters, trial_index = ax_client.get_next_trial()
             raw_data = train_evaluate(parameters)
             print(f"Parameters: {parameters}")
             print(f"raw_data: {raw_data}")
+            trial_eval_map.append((parameters, raw_data))
             ax_client.complete_trial(trial_index=trial_index, raw_data=raw_data)
 
         best_parameters, _ = ax_client.get_best_parameters()
-        print(f"Loss of best_parameters {list(filter(lambda x: x[1] == best_parameters, trial_eval_map.items()))}")
+        print(trial_eval_map)
+        print(f"Loss of best_parameters {list(filter(lambda x: x[0] == best_parameters, trial_eval_map))}")
 
     if best_parameters is not None and (model_class == BVAE or model_class == VAE or model_class == BetaCVAE or model_class == CarbVAE):
         batch_size = best_parameters.get('batch_size')
@@ -232,7 +228,7 @@ def do_hyperparameter_BO(
         data=data,
         test_data=test_data,
         val_data=val_data,
-        batch_size=best_parameters.get('batch_size', 32),
+        batch_size=best_parameters.get('batch_size', 1),
     )
 
     combined_train_valid_set = torch.utils.data.ConcatDataset([

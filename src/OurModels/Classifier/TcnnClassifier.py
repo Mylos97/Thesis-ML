@@ -21,26 +21,7 @@ class TcnnClassifier(nn.Module):
             BinaryTreeConv(512, 512),
             TreeLayerNorm(),
             TreeActivation(nn.Mish()),
-            BinaryTreeConv(512, 512),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(512, 512),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(512, 512),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(512, 512),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(512, 512),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(512, 512),
-            TreeLayerNorm(),
-            TreeActivation(nn.Mish()),
-            BinaryTreeConv(512, out_dim),
-            TreeLayerNorm())
+            BinaryTreeConv(512, out_dim))
 
     def forward(self, trees):
         return self.binary_conv(trees)

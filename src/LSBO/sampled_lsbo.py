@@ -517,7 +517,7 @@ def get_plan_latency(args, sampled_plan) -> float:
             EXECUTABLE_PLANS.add(plan_out)
 
             with open(args.experience, 'a') as exp_file:
-                exp_file.write(f"{input}:{picked_plan}:{exec_time}\n")
+                exp_file.write(f"{picked_plan}:{input}:{exec_time}\n")
                 print(f"Successfully appended experience to {args.experience}")
 
 

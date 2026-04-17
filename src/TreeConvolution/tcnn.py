@@ -54,11 +54,15 @@ class TreeActivation(nn.Module):
         return (self.activation(x[0]), x[1])
 
 class TreeLayerNorm(nn.Module):
+    def __init__(self):
+        super(TreeLayerNorm, self).__init__()
+        self.epsilon = nn.Parameter(torch.tensor(0.00001))
+
     def forward(self, x):
         data, idxes = x
         mean = torch.mean(data, dim=(1, 2)).unsqueeze(1).unsqueeze(1)
         std = torch.std(data, dim=(1, 2)).unsqueeze(1).unsqueeze(1)
-        normd = (data - mean) / (std + 0.00001)
+        normd = (data - mean) / (std + self.epsilon)
         return (normd, idxes)
 
 class DynamicPooling(nn.Module):
