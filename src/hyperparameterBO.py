@@ -106,6 +106,12 @@ def do_hyperparameter_BO(
             'bounds': [0.5, 2.5],
             'value_type': 'float'
         },
+        #{
+        #    'name': 'batch_size',
+        #    'type': 'range',
+        #    'bounds': [8, 32],
+        #    'value_type': 'int'
+        #},
         {
             'name': 'patience',
             'type': 'range',
@@ -231,18 +237,6 @@ def do_hyperparameter_BO(
         batch_size=best_parameters.get('batch_size', 1),
     )
 
-    combined_train_valid_set = torch.utils.data.ConcatDataset([
-        train_loader.dataset,
-        val_loader.dataset,
-    ])
-
-    combined_train_valid_loader = torch.utils.data.DataLoader(
-        combined_train_valid_set,
-        batch_size=best_parameters.get('batch_size', 32),
-        shuffle=True
-    )
-
-
     print(f'\nBest model training with parameters: {best_parameters}', flush=True)
 
     if model_class == BVAE or model_class == BetaCVAE:
@@ -272,7 +266,7 @@ def do_hyperparameter_BO(
         epochs=epochs,
         weights=weights
     )
-    test_accuracy = evaluate(best_model, val_data_loader=test_loader, loss_function=l_function, device=device, batch_size=parameters.get("batch_size", 1))
+    test_accuracy = evaluate(best_model, val_data_loader=val_loader, loss_function=l_function, device=device, batch_size=best_parameters.get("batch_size", 1))
 
     # write best parameters to file
     if not is_retraining:

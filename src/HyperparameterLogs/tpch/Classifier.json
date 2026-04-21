@@ -1,1 +1,1 @@
-{"lr": 2.9225729109304475e-05, "dropout": 0.4, "gradient_norm": 1.3003325215063926, "batch_size": 49, "patience": 25}
+{"lr": 0.007277891386162766, "dropout": 0.2848304133862257, "gradient_norm": 1.9411574304103851, "batch_size": 15, "patience": 41}

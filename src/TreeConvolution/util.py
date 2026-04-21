@@ -21,6 +21,7 @@
 import numpy as np
 import torch
 
+MAX_OPERATOR_NODES: int = 256
 
 class TreeConvolutionError(Exception):
     pass
@@ -181,7 +182,7 @@ def _pad_and_combine(x, max_first_dim: int = None):
 def prepare_trees(trees, transformer, left_child, right_child):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     flat_trees = [_flatten(x, transformer, left_child, right_child) for x in trees]
-    flat_trees = _pad_and_combine(flat_trees)
+    flat_trees = _pad_and_combine(flat_trees, MAX_OPERATOR_NODES)
     flat_trees = torch.Tensor(flat_trees)
 
     # flat trees is now batch x max tree nodes x channels
@@ -189,7 +190,7 @@ def prepare_trees(trees, transformer, left_child, right_child):
     flat_trees = flat_trees.to(device)
 
     indexes = [_tree_conv_indexes(x, left_child, right_child) for x in trees]
-    indexes = _pad_and_combine(indexes)
+    indexes = _pad_and_combine(indexes, MAX_OPERATOR_NODES * 3)
     indexes = torch.Tensor(indexes).long().to(device)
     indexes = indexes.to(device)
 

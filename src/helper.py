@@ -88,7 +88,22 @@ def collate(x):
 
 def make_dataloader(x: Dataset, batch_size: int) -> DataLoader:
     #dataloader = DataLoader(x, batch_size=batch_size, drop_last=True, shuffle=True, collate_fn=collate)
-    dataloader = DataLoader(x, batch_size=batch_size, drop_last=True, shuffle=True)
+    def seed_worker(worker_id):
+        worker_seed = torch.initial_seed() % 2**32
+        numpy.random.seed(worker_seed)
+        random.seed(worker_seed)
+
+    g = torch.Generator()
+    g.manual_seed(0)
+
+    dataloader = DataLoader(
+        x,
+        batch_size=batch_size,
+        drop_last=True,
+        shuffle=True,
+        worker_init_fn=seed_worker,
+        generator=g,
+    )
 
     return dataloader
 
@@ -530,11 +545,19 @@ class Classifier_Loss(torch.nn.Module):
         super(Classifier_Loss, self).__init__()
 
     def forward(self, prediction, target):
-        pred_logits = prediction[0]
-        recon_loss = F.cross_entropy(pred_logits, target)
+        pred_logits = prediction[0]  # [batch, out_dim, nodes]
 
-        pred_classes = pred_logits.argmax(dim=1)
+        # Add zero vec to target, like to prediction in BinaryTreeConv
+        zero_vec = torch.zeros((target.shape[0], target.shape[1])).unsqueeze(2)
+        zero_vec = zero_vec.to(target.device)
+        target = torch.cat((zero_vec, target), dim=2)
 
-        unique, counts = pred_classes.unique(return_counts=True)
+        target_classes = target.argmax(dim=1)  # [batch, nodes]
+        mask = target_classes != 0             # [batch, nodes]
+
+        masked_logits = pred_logits.permute(0, 2, 1)[mask]  # [num_valid_nodes, out_dim]
+        masked_targets = target_classes[mask]               # [num_valid_nodes]
+
+        recon_loss = F.cross_entropy(masked_logits, masked_targets)
 
         return {'loss': recon_loss}

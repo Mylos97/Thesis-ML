@@ -9,7 +9,8 @@ from OurModels.EncoderDecoder.carbVAE.model import CarbVAE
 def export_model(model, x, target, model_name) -> None:
     amount_inputs = len(x)
     inputs = [f"input{i+1}" for i in range(amount_inputs)]
-    axes = {f"input{i+1}": {0: "batch_size", 1: "height", 2: "width"} for i in range(amount_inputs)}
+    #axes = {f"input{i+1}": {0: "batch_size", 1: "height", 2: "width"} for i in range(amount_inputs)}
+    axes = {f"input{i+1}": {0: "batch_size"} for i in range(amount_inputs)}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if "vae" in model_name:
@@ -68,9 +69,28 @@ def export_model(model, x, target, model_name) -> None:
             else tensor.cpu().numpy()
         )
 
+    """ Without padding
     ort_inputs = {}
     for i, input in enumerate(ort_session.get_inputs()):
         ort_inputs[input.name] = to_numpy(x[i])
+    """
+
+    # With padding
+    ort_inputs = {}
+    for i, input in enumerate(ort_session.get_inputs()):
+        print(f"ORT Input: {input}")
+        # might need padding:
+        if input.name == 'input1':
+            if input.shape[2] > x[i].shape[2]:
+                pad_len = input.shape[2] - x[i].shape[2]
+                x[i] = F.pad(x[i], (0, pad_len))  # pad last dim
+
+        if input.name == 'input2':
+            if input.shape[1] > x[i].shape[1]:
+                pad_len = input.shape[1] - x[i].shape[1]
+                x[i] = F.pad(x[i], (0, 0, 0, pad_len))  # pad middle dim
+        ort_inputs[input.name] = to_numpy(x[i])
+
 
     print(f"Checking the output of the model {model_name}", flush=True)
     ort_outs = ort_session.run(None, ort_inputs)
